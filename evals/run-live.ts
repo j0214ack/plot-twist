@@ -9,18 +9,17 @@ import { GeneratedModuleLoader } from "../src/generative/module-loader";
 import { SpellCompiler } from "../src/generative/spell-compiler";
 import type { SpellCompileRequest } from "../src/generative/types";
 import { createOpenAiSpellModelClient } from "../server/openai-spell-model";
+import { resolveSpellGenerationProfile } from "../server/spell-generation-profile";
 import { evaluateObservableBehavior } from "./behavior-evaluator";
+import { getLiveEvalCase } from "./cases";
 
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 
 const apiKey = process.env.OPENAI_API_KEY;
 if (!apiKey) throw new Error("OPENAI_API_KEY is missing from .env.local");
 
-const model = process.env.OPENAI_MODEL || "gpt-5.6";
-const evalCase = {
-  id: "unseen-orbiting-moons-v1",
-  utterance: "召喚三顆紫色的小月亮，排成三角形繞著守衛移動",
-};
+const profile = resolveSpellGenerationProfile(process.env);
+const evalCase = getLiveEvalCase(process.env.EVAL_CASE ?? "unseen-orbiting-moons-v1");
 
 const world = new GameWorld();
 const player = world.add({
@@ -59,7 +58,14 @@ const request: SpellCompileRequest = {
   recentArtifacts: [],
 };
 
-const compiler = new SpellCompiler(createOpenAiSpellModelClient({ apiKey, model }));
+const compiler = new SpellCompiler(
+  createOpenAiSpellModelClient({
+    apiKey,
+    model: profile.model,
+    reasoningEffort: profile.reasoningEffort,
+    serviceTier: profile.serviceTier,
+  }),
+);
 const runtime = new ModuleRuntime(world, new ManaPool(100), () => {});
 const executor = new BundleExecutor(runtime, new GeneratedModuleLoader());
 
@@ -76,32 +82,42 @@ const staticEvaluation = evaluateObservableBehavior({
 let runtimeError: string | undefined;
 let generatedBeforeUpdate: ReturnType<GameWorld["list"]> = [];
 let generatedAfterUpdate: ReturnType<GameWorld["list"]> = [];
+const targetHpBeforeUpdate = world.get(guardian.id)?.stats?.hp;
 
 if (staticEvaluation.forbiddenGlobalUses.length === 0) {
   try {
     executor.execute(bundle);
     generatedBeforeUpdate = world.list().filter((entity) => Boolean(entity.ownerId));
-    for (let frame = 0; frame < 180; frame += 1) runtime.update(1 / 60);
+    const simulationFrames = Math.round(evalCase.simulationSeconds * 60);
+    for (let frame = 0; frame < simulationFrames; frame += 1) runtime.update(1 / 60);
     generatedAfterUpdate = world.list().filter((entity) => Boolean(entity.ownerId));
   } catch (error) {
     runtimeError = error instanceof Error ? error.message : String(error);
   }
 }
 
+const targetHpAfterUpdate = world.get(guardian.id)?.stats?.hp;
+
 const behavior = evaluateObservableBehavior({
   sources,
   generatedBeforeUpdate,
   generatedAfterUpdate,
+  targetHpBeforeUpdate,
+  targetHpAfterUpdate,
 });
 const passed =
   !runtimeError &&
   behavior.forbiddenGlobalUses.length === 0 &&
-  behavior.spawnedEntities >= 3 &&
-  behavior.movedEntities >= 1;
+  behavior.spawnedEntities >= evalCase.minimumSpawnedEntities &&
+  behavior.movedEntities >= evalCase.minimumMovedEntities &&
+  behavior.damageDealt >= evalCase.minimumDamage;
 const result = {
   caseId: evalCase.id,
   utterance: evalCase.utterance,
-  model,
+  mode: profile.mode,
+  model: profile.model,
+  reasoningEffort: profile.reasoningEffort,
+  serviceTier: profile.serviceTier ?? "default",
   generatedAt: new Date().toISOString(),
   generationLatencyMs,
   moduleCount: bundle.modules.length,
@@ -120,7 +136,10 @@ console.log(
   JSON.stringify(
     {
       caseId: result.caseId,
+      mode: result.mode,
       model: result.model,
+      reasoningEffort: result.reasoningEffort,
+      serviceTier: result.serviceTier,
       generationLatencyMs: result.generationLatencyMs,
       moduleCount: result.moduleCount,
       behavior: result.behavior,

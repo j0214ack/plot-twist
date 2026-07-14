@@ -21,6 +21,19 @@ describe("evaluateObservableBehavior", () => {
     expect(result.forbiddenGlobalUses).toEqual([]);
   });
 
+  // Spec: validation-plan.md Primary scenario step 5 and LLM behavior Eval boundary.
+  it("scores damage from the target's observed HP change", () => {
+    const result = evaluateObservableBehavior({
+      sources: ["() => ({ setup() {}, dispose() {} })"],
+      generatedBeforeUpdate: [],
+      generatedAfterUpdate: [],
+      targetHpBeforeUpdate: 100,
+      targetHpAfterUpdate: 64,
+    });
+
+    expect(result.damageDealt).toBe(36);
+  });
+
   // Spec: Decision 0001 limitation and validation-plan.md public-SDK-only rubric.
   it("flags undeclared global APIs as an eval failure rather than claiming sandbox safety", () => {
     const result = evaluateObservableBehavior({

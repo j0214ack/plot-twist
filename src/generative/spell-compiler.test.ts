@@ -57,6 +57,10 @@ describe("SpellCompiler", () => {
     expect(modelInput?.sdkContract).toContain(
       "damage(sourceId: string, targetId: string, requestedDamage: number)",
     );
+    // Spec: game-sdk.md Affordance and protected state; validation-plan.md Primary scenario step 5.
+    expect(modelInput?.sdkContract).toContain(
+      'sourceId must name an entity spawned by this module with the "damage-source" tag',
+    );
   });
 
   // Spec: Decision 0002 GEN-4.

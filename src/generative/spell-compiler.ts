@@ -67,6 +67,8 @@ interface GameContext {
     moveToward(entityId: string, target: Vec3, speed: number, deltaSeconds: number): boolean;
   };
   readonly combat: {
+    // sourceId must name an entity spawned by this module with the "damage-source" tag.
+    // Use the id from spawnPrimitive(...).actual; otherwise damage is rejected.
     damage(sourceId: string, targetId: string, requestedDamage: number):
       WorldMutationResult<number>;
   };

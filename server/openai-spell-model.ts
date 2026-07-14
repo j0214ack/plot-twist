@@ -3,6 +3,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { SpellModelClient } from "../src/generative/spell-compiler";
 import type { SpellBundle, SpellModelInput } from "../src/generative/types";
+import type { SpellReasoningEffort } from "./spell-generation-profile";
 
 const SpellBundleSchema = z.object({
   summary: z.string(),
@@ -21,6 +22,12 @@ interface StructuredResponsesClient {
   responses: {
     parse(request: unknown): Promise<{ output_parsed: unknown }>;
   };
+}
+
+export interface OpenAiSpellModelOptions {
+  model: string;
+  reasoningEffort: SpellReasoningEffort;
+  serviceTier?: "priority";
 }
 
 const instructions = (sdkContract: string): string => `
@@ -50,13 +57,17 @@ ${sdkContract}
 export class OpenAiSpellModelClient implements SpellModelClient {
   constructor(
     private readonly client: StructuredResponsesClient,
-    private readonly model = "gpt-5.6",
+    private readonly options: OpenAiSpellModelOptions = {
+      model: "gpt-5.6",
+      reasoningEffort: "medium",
+    },
   ) {}
 
   async generate(input: SpellModelInput): Promise<SpellBundle> {
     const response = await this.client.responses.parse({
-      model: this.model,
-      reasoning: { effort: "medium" },
+      model: this.options.model,
+      reasoning: { effort: this.options.reasoningEffort },
+      ...(this.options.serviceTier ? { service_tier: this.options.serviceTier } : {}),
       input: [
         {
           role: "developer",
@@ -88,10 +99,16 @@ export class OpenAiSpellModelClient implements SpellModelClient {
 export const createOpenAiSpellModelClient = (options?: {
   apiKey?: string;
   model?: string;
+  reasoningEffort?: SpellReasoningEffort;
+  serviceTier?: "priority";
 }): OpenAiSpellModelClient => {
   const client = new OpenAI({ apiKey: options?.apiKey });
   return new OpenAiSpellModelClient(
     client as unknown as StructuredResponsesClient,
-    options?.model ?? "gpt-5.6",
+    {
+      model: options?.model ?? "gpt-5.6",
+      reasoningEffort: options?.reasoningEffort ?? "medium",
+      serviceTier: options?.serviceTier,
+    },
   );
 };

@@ -7,11 +7,14 @@ export interface BehaviorObservation {
   sources: string[];
   generatedBeforeUpdate: ObservedEntity[];
   generatedAfterUpdate: ObservedEntity[];
+  targetHpBeforeUpdate?: number;
+  targetHpAfterUpdate?: number;
 }
 
 export interface BehaviorEvalResult {
   spawnedEntities: number;
   movedEntities: number;
+  damageDealt: number;
   forbiddenGlobalUses: string[];
 }
 
@@ -54,6 +57,11 @@ export const evaluateObservableBehavior = (
   return {
     spawnedEntities: observation.generatedBeforeUpdate.length,
     movedEntities,
+    damageDealt:
+      observation.targetHpBeforeUpdate === undefined ||
+      observation.targetHpAfterUpdate === undefined
+        ? 0
+        : Math.max(0, observation.targetHpBeforeUpdate - observation.targetHpAfterUpdate),
     forbiddenGlobalUses,
   };
 };

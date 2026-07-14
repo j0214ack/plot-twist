@@ -85,6 +85,8 @@ Unit test 不比較固定 source string，也不得因 fake model 回傳合法 b
 - generation、repair 與 first-interactive latency；
 - prompt、model snapshot 與 compiler version。
 
+Latency profile、預設模型與 Fast mode gate 見 [Decision 0003](decisions/0003-spell-generation-profiles.md)。Fast 與 Quality 必須跑相同的 behavior rubric；只變快但無法載入或沒有保留 utterance 細節，不算通過。
+
 ### Gate A：Reference harness 完成
 
 - 牆、火、鑰匙三個人工 modules 只透過 public Game SDK 完成；

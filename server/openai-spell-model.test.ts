@@ -20,7 +20,14 @@ describe("OpenAiSpellModelClient", () => {
   // Spec: validation-plan.md LLM behavior boundary; Decision 0002 GEN-1.
   it("uses Structured Outputs while preserving the utterance, scene, and SDK contract", async () => {
     const parse = vi.fn(async () => ({ output_parsed: bundle }));
-    const client = new OpenAiSpellModelClient({ responses: { parse } }, "test-model");
+    const client = new OpenAiSpellModelClient(
+      { responses: { parse } },
+      {
+        model: "test-model",
+        reasoningEffort: "none",
+        serviceTier: "priority",
+      },
+    );
     const input: SpellModelInput = {
       utterance: "讓紅色子彈像行星一樣繞著我",
       focusedEntityId: "projectile-red",
@@ -43,6 +50,8 @@ describe("OpenAiSpellModelClient", () => {
     expect(parse).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "test-model",
+        reasoning: { effort: "none" },
+        service_tier: "priority",
         input: [
           expect.objectContaining({
             role: "developer",
@@ -67,7 +76,7 @@ describe("OpenAiSpellModelClient", () => {
   it("does not silently fall back when the model returns no parsed bundle", async () => {
     const client = new OpenAiSpellModelClient(
       { responses: { parse: async () => ({ output_parsed: null }) } },
-      "test-model",
+      { model: "test-model", reasoningEffort: "medium" },
     );
 
     await expect(

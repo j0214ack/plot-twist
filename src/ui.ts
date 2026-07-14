@@ -1,4 +1,5 @@
 import type { QuillNote } from "./game/types";
+import { SPELL_EXAMPLES } from "./spell-examples";
 
 export interface HudState {
   mana: number;
@@ -80,9 +81,9 @@ export class GameUi {
             <button type="submit">詠唱 <kbd>↵</kbd></button>
           </form>
           <div class="spell-examples" aria-label="Example incantations">
-            <button data-spell="召喚三顆紫色的小月亮，排成三角形繞著守衛移動">紫月軌道</button>
-            <button data-spell="在守衛和我之間長出五根冰藍色尖塔，每根都比前一根更高">冰晶階梯</button>
-            <button data-spell="把守衛關進一座由金色半透明柱子構成的圓形牢房">金色牢籠</button>
+            ${SPELL_EXAMPLES.map(
+              ({ label, utterance }) => `<button data-spell="${utterance}">${label}</button>`,
+            ).join("")}
           </div>
           <p class="controls"><kbd>WASD</kbd> MOVE · <kbd>SPACE</kbd> DASH · 詠唱時移動會變慢</p>
         </section>
