@@ -85,11 +85,13 @@
 - [體驗與魔法系統](design.md)
 - [World Model 與 Game SDK v0](game-sdk.md)
 - [PoC 驗證與實作計畫](validation-plan.md)
+- [STT 模型候選研究](stt-model-candidates.md)
 - [後續功能筆記：已學會的咒語 Artifact](learned-spell-artifacts.md)
 - [Public demo access session 與部署邊界](decisions/0005-access-gated-public-demo.md)
 - [因果互動、接觸與動態尋路](decisions/0006-causal-interaction-navigation.md)
 - [MechanicModule 邊界與 first-class locomotion](decisions/0007-mechanic-module-boundary-and-locomotion.md)
 - [Mobile presentation 與 PWA shell](decisions/0008-mobile-presentation-and-pwa-shell.md)
+- [Best-effort 咒語事件紀錄](decisions/0009-best-effort-spell-event-log.md)
 
 ## 執行 playable spike
 
@@ -121,6 +123,7 @@ npm run eval:live
 - Playable URL：<https://plot-twist-unwritten-spell.fly.dev/>
 - 活動前的 access code 只透過團隊私訊分享，不提交至 Git 或前端 bundle。
 - Demo Day 切換成免輸入模式：`flyctl secrets unset DEMO_ACCESS_CODE --app plot-twist-unwritten-spell`。不需要修改或重新 build runtime code。
+- 每次真正送進 generative compiler 的咒語會以單行 JSON 寫入 server stdout；可用 Fly Dashboard 的 Search logs 或 `fly logs` 回看。這是允許少量遺失、保留期有限的 playtest 紀錄，不保存原始音檔、場景或 generated source；完整邊界見 [Decision 0009](decisions/0009-best-effort-spell-event-log.md)。
 
 ## 第一筆 live Eval 證據
 
