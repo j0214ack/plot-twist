@@ -17,11 +17,13 @@ export interface HudState {
 
 export class GameUi {
   readonly canvas: HTMLCanvasElement;
+  readonly mobileJoystick: HTMLElement;
+  readonly mobileJoystickKnob: HTMLElement;
   private readonly form: HTMLFormElement;
   private readonly input: HTMLInputElement;
   private readonly castButton: HTMLButtonElement;
-  private readonly micButton: HTMLButtonElement;
-  private readonly micLabel: HTMLElement;
+  private readonly micButtons: HTMLButtonElement[];
+  private readonly micLabels: HTMLElement[];
   private readonly stage: HTMLElement;
   private readonly manaBar: HTMLElement;
   private readonly healthBar: HTMLElement;
@@ -32,6 +34,7 @@ export class GameUi {
   private readonly victory: HTMLElement;
   private casting = false;
   private voiceState: VoiceCastingState = "idle";
+  private currentStage: "idle" | "listening" | "writing" | "manifesting" = "idle";
 
   constructor(root: HTMLElement) {
     root.innerHTML = `
@@ -78,6 +81,23 @@ export class GameUi {
           <span class="ink-loader" aria-hidden="true"><i></i><i></i><i></i></span>
         </div>
 
+        <section class="mobile-controls" aria-label="Mobile game controls">
+          <div class="virtual-joystick" aria-label="移動搖桿" aria-disabled="false">
+            <span class="joystick-ring" aria-hidden="true"></span>
+            <span class="joystick-knob" aria-hidden="true"><i></i></span>
+          </div>
+          <button class="mic-button mobile-mic-button" type="button" aria-label="按住說出咒語">
+            <span class="mobile-mic-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation">
+                <path d="M12 15.25a3.25 3.25 0 0 0 3.25-3.25V6a3.25 3.25 0 0 0-6.5 0v6A3.25 3.25 0 0 0 12 15.25Z" />
+                <path d="M5.75 11.5v.5a6.25 6.25 0 0 0 12.5 0v-.5M12 18.25V22M8.75 22h6.5" />
+              </svg>
+            </span>
+            <strong class="mic-label">按住詠唱</strong>
+            <span class="mobile-mic-hint">說完放開</span>
+          </button>
+        </section>
+
         <section class="spell-console">
           <div class="spell-meta">
             <span>OPENAI · GENERATING NEW SOURCE</span>
@@ -119,8 +139,10 @@ export class GameUi {
     this.form = root.querySelector<HTMLFormElement>("form")!;
     this.input = root.querySelector<HTMLInputElement>("input")!;
     this.castButton = this.form.querySelector<HTMLButtonElement>(".cast-button")!;
-    this.micButton = this.form.querySelector<HTMLButtonElement>(".mic-button")!;
-    this.micLabel = this.micButton.querySelector<HTMLElement>(".mic-label")!;
+    this.micButtons = [...root.querySelectorAll<HTMLButtonElement>(".mic-button")];
+    this.micLabels = this.micButtons.map((button) => button.querySelector<HTMLElement>(".mic-label")!);
+    this.mobileJoystick = root.querySelector<HTMLElement>(".virtual-joystick")!;
+    this.mobileJoystickKnob = this.mobileJoystick.querySelector<HTMLElement>(".joystick-knob")!;
     this.stage = root.querySelector<HTMLElement>(".quill-stage")!;
     this.manaBar = root.querySelector<HTMLElement>(".bar-mana")!;
     this.healthBar = root.querySelector<HTMLElement>(".bar-health")!;
@@ -157,19 +179,21 @@ export class GameUi {
   }
 
   onVoiceInput(start: () => void, stop: () => void): void {
-    this.micButton.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      this.micButton.setPointerCapture(event.pointerId);
-      start();
-    });
-    const finish = (event: PointerEvent): void => {
-      if (this.micButton.hasPointerCapture(event.pointerId)) {
-        this.micButton.releasePointerCapture(event.pointerId);
-      }
-      stop();
-    };
-    this.micButton.addEventListener("pointerup", finish);
-    this.micButton.addEventListener("pointercancel", finish);
+    for (const button of this.micButtons) {
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        button.setPointerCapture(event.pointerId);
+        start();
+      });
+      const finish = (event: PointerEvent): void => {
+        if (button.hasPointerCapture(event.pointerId)) {
+          button.releasePointerCapture(event.pointerId);
+        }
+        stop();
+      };
+      button.addEventListener("pointerup", finish);
+      button.addEventListener("pointercancel", finish);
+    }
   }
 
   setCasting(casting: boolean): void {
@@ -177,12 +201,15 @@ export class GameUi {
     this.syncInputAvailability();
     this.stage.classList.toggle("is-writing", casting || this.voiceState === "transcribing");
     if (casting) this.input.blur();
+    this.syncMicPresentation();
   }
 
   setVoiceState(state: VoiceCastingState): void {
     this.voiceState = state;
     this.syncInputAvailability();
-    this.micButton.classList.toggle("is-recording", state === "recording");
+    for (const button of this.micButtons) {
+      button.classList.toggle("is-recording", state === "recording");
+    }
     this.stage.classList.toggle("is-listening", state === "requesting" || state === "recording");
     this.stage.classList.toggle("is-writing", this.casting || state === "transcribing");
 
@@ -192,21 +219,12 @@ export class GameUi {
       recording: "正在聽你說話・說完放開就會施法",
       transcribing: "旁註正在辨認你的咒語……",
     };
-    const buttonLabels: Record<VoiceCastingState, string> = {
-      idle: "按住說話",
-      requesting: "正在啟用…",
-      recording: "說完放開",
-      transcribing: "辨認中…",
-    };
-    this.micLabel.textContent = buttonLabels[state];
-    this.micButton.setAttribute(
-      "aria-label",
-      state === "recording" ? "正在錄音，說完放開即可施法" : "按住說出咒語",
-    );
     this.stage.querySelector<HTMLElement>(".stage-text")!.textContent = labels[state];
+    this.syncMicPresentation();
   }
 
   setStage(stage: "idle" | "listening" | "writing" | "manifesting"): void {
+    this.currentStage = stage;
     const labels = {
       idle: "按住 V 或「按住說話」・說完放開就會施法",
       listening: "旁註正在聽",
@@ -214,6 +232,7 @@ export class GameUi {
       manifesting: "墨跡開始具現",
     };
     this.stage.querySelector<HTMLElement>(".stage-text")!.textContent = labels[stage];
+    this.syncMicPresentation();
   }
 
   clearIncantation(): void {
@@ -266,6 +285,33 @@ export class GameUi {
     const voiceBusy = this.voiceState !== "idle";
     this.input.disabled = this.casting || voiceBusy;
     this.castButton.disabled = this.casting || voiceBusy;
-    this.micButton.disabled = this.casting || this.voiceState === "transcribing";
+    for (const button of this.micButtons) {
+      button.disabled = this.casting || this.voiceState === "transcribing";
+    }
+  }
+
+  private syncMicPresentation(): void {
+    const byVoiceState: Record<VoiceCastingState, string> = {
+      idle: "按住詠唱",
+      requesting: "正在啟用…",
+      recording: "說完放開",
+      transcribing: "辨認中…",
+    };
+    const label =
+      this.voiceState !== "idle"
+        ? byVoiceState[this.voiceState]
+        : this.casting || this.currentStage === "writing"
+          ? "書寫中…"
+          : this.currentStage === "manifesting"
+            ? "具現中…"
+            : byVoiceState.idle;
+    const ariaLabel =
+      this.voiceState === "recording"
+        ? "正在錄音，說完放開即可施法"
+        : this.casting
+          ? "旁註正在書寫咒語"
+          : "按住說出咒語";
+    for (const micLabel of this.micLabels) micLabel.textContent = label;
+    for (const button of this.micButtons) button.setAttribute("aria-label", ariaLabel);
   }
 }

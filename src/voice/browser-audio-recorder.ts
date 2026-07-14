@@ -7,6 +7,9 @@ const MINIMUM_RECORDING_BYTES = 512;
 const SHORT_RECORDING_MESSAGE =
   "錄音太短：請按住 V 或說話按鈕，說完咒語後再放開";
 
+export const unsupportedRecordingMessage = (): string =>
+  "這個瀏覽器不支援麥克風錄音；請改用支援錄音的瀏覽器，或在電腦上使用文字輸入";
+
 export const assertUsableRecording = (audio: Blob, durationMilliseconds: number): void => {
   if (
     durationMilliseconds < MINIMUM_RECORDING_MILLISECONDS ||
@@ -24,7 +27,7 @@ export class BrowserAudioRecorder implements VoiceRecorder {
 
   async start(): Promise<void> {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      throw new Error("這個瀏覽器不支援麥克風錄音，請先使用文字輸入");
+      throw new Error(unsupportedRecordingMessage());
     }
     if (this.recorder && this.recorder.state !== "inactive") {
       throw new Error("麥克風已經在錄音");

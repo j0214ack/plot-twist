@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assertUsableRecording } from "./browser-audio-recorder";
+import {
+  assertUsableRecording,
+  unsupportedRecordingMessage,
+} from "./browser-audio-recorder";
 
 describe("assertUsableRecording", () => {
   // Spec: Decision 0004; incomplete containers are rejected before transcription.
@@ -13,5 +16,11 @@ describe("assertUsableRecording", () => {
     expect(() =>
       assertUsableRecording(new Blob([new Uint8Array(4_000)], { type: "audio/webm" }), 800),
     ).not.toThrow();
+  });
+
+  // Spec: Decision 0008 MOB-6; mobile has no hidden text-input fallback.
+  it("does not direct an unsupported mobile recorder to a missing text field", () => {
+    expect(unsupportedRecordingMessage()).toContain("電腦");
+    expect(unsupportedRecordingMessage()).not.toContain("請先使用文字輸入");
   });
 });

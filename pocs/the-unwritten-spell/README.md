@@ -89,6 +89,7 @@
 - [Public demo access session 與部署邊界](decisions/0005-access-gated-public-demo.md)
 - [因果互動、接觸與動態尋路](decisions/0006-causal-interaction-navigation.md)
 - [MechanicModule 邊界與 first-class locomotion](decisions/0007-mechanic-module-boundary-and-locomotion.md)
+- [Mobile presentation 與 PWA shell](decisions/0008-mobile-presentation-and-pwa-shell.md)
 
 ## 執行 playable spike
 
@@ -103,7 +104,7 @@ npm run dev
 
 開啟 `http://127.0.0.1:5173`。預設畫面使用真正的 generative compiler：原始 utterance 與 scene snapshot 送到本機 `/api/spells`，由 server 透過 OpenAI Responses API 取得 structured `SpellBundle`；瀏覽器只收到 generated source，不會取得 API key。
 
-按住 `V`（或畫面上的「按住說話」按鈕）即可用麥克風詠唱，說完放開後會經本機 `/api/transcriptions` 轉成文字並直接施放。第一次使用時需允許瀏覽器麥克風權限；權限視窗若中斷原本的按壓，依旁註提示重新按住一次即可。Playable demo 預設使用 `gpt-4o-transcribe`；若裝置不支援錄音，文字輸入仍可使用。API key 在語音流程中同樣只存在 server。
+桌面按住 `V`（或畫面上的「按住說話」按鈕）即可用麥克風詠唱，說完放開後會經本機 `/api/transcriptions` 轉成文字並直接施放。第一次使用時需允許瀏覽器麥克風權限；權限視窗若中斷原本的按壓，依旁註提示重新按住一次即可。Playable demo 預設使用 `gpt-4o-transcribe`；桌面若無法錄音仍可使用文字輸入。手機 presentation 為 landscape only，只保留左下 virtual joystick 與右下 push-to-talk，不提供遊戲內文字輸入；完整邊界見 [Decision 0008](decisions/0008-mobile-presentation-and-pwa-shell.md)。API key 在語音流程中同樣只存在 server。
 
 ```bash
 npm test       # deterministic pipeline／Game SDK／rollback
