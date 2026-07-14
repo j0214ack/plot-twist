@@ -64,6 +64,7 @@ interface GameContext {
       WorldMutationResult<SpawnPrimitiveRequest, EntitySnapshot>;
   };
   readonly physics: {
+    // Returns true only when the entity has reached target; false means still moving or rejected.
     moveToward(entityId: string, target: Vec3, speed: number, deltaSeconds: number): boolean;
   };
   readonly combat: {

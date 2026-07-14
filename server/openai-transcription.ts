@@ -13,6 +13,8 @@ export interface OpenAiTranscriptionOptions {
   model: string;
 }
 
+export const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
+
 const extensionByMimeType: Record<string, string> = {
   "audio/mpeg": "mp3",
   "audio/mp4": "m4a",
@@ -22,7 +24,7 @@ const extensionByMimeType: Record<string, string> = {
 };
 
 const SPELL_VOCABULARY_PROMPT =
-  "這是一段繁體中文遊戲咒語，可能提到守衛、鑰匙、門鎖、傳送門、火焰、牆壁、房間、法力與傷害。";
+  "請使用繁體中文。這是一段玩家說出的遊戲咒語，例如：「放隕石砸下來，對守衛造成傷害。」「生成一道牆把守衛困住。」「讓鑰匙飛向門鎖。」常見詞彙有傳送門、火焰、房間、法力、隕石、守衛、傷害。";
 
 export class OpenAiTranscriptionService implements TranscriptionService {
   constructor(
@@ -52,6 +54,6 @@ export const createOpenAiTranscriptionService = (options: {
 }): OpenAiTranscriptionService => {
   const client = new OpenAI({ apiKey: options.apiKey });
   return new OpenAiTranscriptionService(client as unknown as OpenAiAudioClient, {
-    model: options.model || "gpt-4o-mini-transcribe",
+    model: options.model || DEFAULT_TRANSCRIPTION_MODEL,
   });
 };

@@ -10,4 +10,14 @@ describe("getLiveEvalCase", () => {
     expect(evalCase.minimumDamage).toBeGreaterThan(0);
     expect(evalCase.minimumSpawnedEntities).toBeGreaterThan(0);
   });
+
+  // Spec: validation-plan.md voice and dynamic-causality regression case.
+  it("requires a falling meteor to move and damage instead of remaining a static prop", () => {
+    const evalCase = getLiveEvalCase("falling-meteor-v1");
+
+    expect(evalCase.utterance).toContain("隕石");
+    expect(evalCase.minimumSpawnedEntities).toBeGreaterThan(0);
+    expect(evalCase.minimumMovedEntities).toBeGreaterThan(0);
+    expect(evalCase.minimumDamage).toBeGreaterThan(0);
+  });
 });

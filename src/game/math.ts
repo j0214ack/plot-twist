@@ -5,6 +5,9 @@ export const vec3 = (x = 0, y = 0, z = 0): Vec3 => ({ x, y, z });
 export const distanceXZ = (a: Vec3, b: Vec3): number =>
   Math.hypot(a.x - b.x, a.z - b.z);
 
+export const distance3D = (a: Vec3, b: Vec3): number =>
+  Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+
 export const lengthXZ = (value: Vec3): number => Math.hypot(value.x, value.z);
 
 export const normalizeXZ = (value: Vec3): Vec3 => {

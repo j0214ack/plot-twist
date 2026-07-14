@@ -34,12 +34,13 @@ Browser 用 `MediaRecorder` 保存一次短 utterance，放開按鍵後把音訊
 
 - 玩家可以按住 `V` 或畫面上的麥克風按鈕錄音，放開後立即轉錄並自動提交施法，不增加確認畫面。
 - Browser 只把短音訊送到同源 `/api/transcriptions`；`OPENAI_API_KEY` 繼續只存在 server。
-- Server 預設使用 `gpt-4o-mini-transcribe`，可用環境變數覆寫；輸入語言標為中文，並提供簡短的遊戲詞彙 context。
+- Playable demo 預設使用品質較高的 `gpt-4o-transcribe`，可用環境變數覆寫；輸入語言標為中文，並提供繁體中文的短咒語範例與遊戲詞彙 context。Mini model 只作為明確的低成本選項，不再是 demo 預設值。
 - 第一版使用完整錄音的 request-based transcription，不做 partial transcript、Realtime session、VAD 或持續監聽。
 - 轉錄、生成期間遊戲 loop 繼續運作；錄音與生成都是詠唱狀態，玩家仍可用較慢速度移動閃躲。
 - 麥克風權限、錄音或轉錄失敗必須顯示，並保留文字輸入 fallback。
 - 第一次跳出瀏覽器麥克風權限時，若原本的按壓已被權限視窗中斷，該次只完成授權暖機，不提交法術；旁註要請玩家重新按住再說。
 - 明顯過短、尚未形成有效音訊容器的錄音要在 Browser 端攔下，不送到 transcription API，並用操作語言提示「按住、說完、再放開」。
+- Push-to-talk 的主要按鈕不能只寫「說話」：idle、按壓中與放開後都要直接表達「按住說話／說完放開」，讓第一次玩的玩家不需要從說明文字猜操作。
 
 ## 何時重議
 
@@ -51,6 +52,7 @@ Browser 用 `MediaRecorder` 保存一次短 utterance，放開按鍵後把音訊
 ## 官方能力依據
 
 - [Speech to text](https://developers.openai.com/api/docs/guides/speech-to-text)
+- [GPT-4o Transcribe](https://developers.openai.com/api/docs/models/gpt-4o-transcribe)
 - [GPT-4o mini Transcribe](https://developers.openai.com/api/docs/models/gpt-4o-mini-transcribe)
 
 ## 對既有決策的關係

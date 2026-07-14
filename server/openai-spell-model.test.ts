@@ -70,6 +70,15 @@ describe("OpenAiSpellModelClient", () => {
         text: expect.objectContaining({ format: expect.anything() }),
       }),
     );
+    const request = parse.mock.calls[0]?.[0] as {
+      input: Array<{ role: string; content: string }>;
+    };
+    const developerPrompt = request.input.find(({ role }) => role === "developer")?.content;
+    expect(developerPrompt).toContain("A static visual does not satisfy a movement verb");
+    expect(developerPrompt).toContain("moveToward");
+    expect(developerPrompt).toContain("combat.damage");
+    expect(developerPrompt).toContain("The factory parameter is artifact dependencies, NEVER GameContext");
+    expect(developerPrompt).toContain("setup(context) { game = context");
   });
 
   // Spec: Decision 0002 GEN-5; a refusal or empty structured result is a visible failure.

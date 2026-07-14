@@ -24,8 +24,17 @@ const immutableArtifact = (artifact: SpellArtifact): SpellArtifact =>
     entityIds: Object.freeze([...artifact.entityIds]) as unknown as string[],
   });
 
+const obviousUnboundedLoops = [
+  /\bwhile\s*\(\s*(?:true|1)\s*\)/,
+  /\bfor\s*\(\s*;\s*;\s*\)/,
+] as const;
+
 export class GeneratedModuleLoader {
   instantiate(source: string, dependencies: DependencyBindings): MechanicModule {
+    if (obviousUnboundedLoops.some((pattern) => pattern.test(source))) {
+      throw new Error("Generated source contains an unbounded loop");
+    }
+
     let factory: unknown;
 
     try {

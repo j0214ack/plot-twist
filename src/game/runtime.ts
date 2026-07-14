@@ -1,4 +1,4 @@
-import { distanceXZ } from "./math";
+import { distance3D } from "./math";
 import { ManaPool } from "./mana";
 import type {
   EntitySnapshot,
@@ -60,18 +60,25 @@ export class ModuleRuntime {
   update(deltaSeconds: number): void {
     this.elapsedSeconds += deltaSeconds;
     this.mana.update(deltaSeconds);
-    for (const loaded of this.loaded.values()) loaded.module.update?.(deltaSeconds);
+    for (const loaded of this.loaded.values()) {
+      try {
+        loaded.module.update?.(deltaSeconds);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        this.onNote({
+          tone: "warning",
+          text: `「${loaded.artifact.label}」的法則崩解了：${detail}`,
+        });
+        this.unload(loaded);
+      }
+    }
   }
 
   dispose(moduleId: string): boolean {
     const loaded = this.loaded.get(moduleId);
     if (!loaded) return false;
 
-    loaded.module.dispose();
-    for (const entityId of loaded.ownedEntities) {
-      this.world.destroyOwned(entityId, moduleId);
-    }
-    this.loaded.delete(moduleId);
+    this.unload(loaded);
     return true;
   }
 
@@ -85,6 +92,19 @@ export class ModuleRuntime {
 
   note(note: QuillNote): void {
     this.onNote(note);
+  }
+
+  private unload(loaded: LoadedModule): void {
+    try {
+      loaded.module.dispose();
+    } catch {
+      // Generated cleanup cannot prevent Host-owned cleanup from completing.
+    } finally {
+      for (const entityId of loaded.ownedEntities) {
+        this.world.destroyOwned(entityId, loaded.artifact.id);
+      }
+      this.loaded.delete(loaded.artifact.id);
+    }
   }
 
   private createContext(loaded: LoadedModule): GameContext {
@@ -104,14 +124,15 @@ export class ModuleRuntime {
           const canMove = entity.ownerId === artifact.id || entity.affordances.includes("movable");
           if (!canMove) return false;
 
-          const distance = distanceXZ(entity.position, target);
+          const distance = distance3D(entity.position, target);
           if (distance === 0) return true;
           const step = Math.min(distance, Math.max(0, speed) * deltaSeconds);
-          return this.world.setPosition(entityId, {
+          const moved = this.world.setPosition(entityId, {
             x: entity.position.x + ((target.x - entity.position.x) / distance) * step,
             y: entity.position.y + ((target.y - entity.position.y) / distance) * step,
             z: entity.position.z + ((target.z - entity.position.z) / distance) * step,
           });
+          return moved && step >= distance;
         },
       },
       combat: {

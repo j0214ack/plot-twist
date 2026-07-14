@@ -21,6 +21,7 @@ export class GameUi {
   private readonly input: HTMLInputElement;
   private readonly castButton: HTMLButtonElement;
   private readonly micButton: HTMLButtonElement;
+  private readonly micLabel: HTMLElement;
   private readonly stage: HTMLElement;
   private readonly manaBar: HTMLElement;
   private readonly healthBar: HTMLElement;
@@ -73,7 +74,7 @@ export class GameUi {
 
         <div class="quill-stage" aria-live="polite">
           <span class="quill-mark">✦</span>
-          <span class="stage-text">旁註正在等待一句話</span>
+          <span class="stage-text">按住 V 或「按住說話」・說完放開就會施法</span>
           <span class="ink-loader" aria-hidden="true"><i></i><i></i><i></i></span>
         </div>
 
@@ -91,7 +92,7 @@ export class GameUi {
               placeholder="說出世界裡原本不存在的法則……"
             />
             <button class="mic-button" type="button" aria-label="按住說出咒語">
-              <span></span> 說話 <kbd>V</kbd>
+              <span class="mic-dot"></span><strong class="mic-label">按住說話</strong><kbd>V</kbd>
             </button>
             <button class="cast-button" type="submit">詠唱 <kbd>↵</kbd></button>
           </form>
@@ -119,6 +120,7 @@ export class GameUi {
     this.input = root.querySelector<HTMLInputElement>("input")!;
     this.castButton = this.form.querySelector<HTMLButtonElement>(".cast-button")!;
     this.micButton = this.form.querySelector<HTMLButtonElement>(".mic-button")!;
+    this.micLabel = this.micButton.querySelector<HTMLElement>(".mic-label")!;
     this.stage = root.querySelector<HTMLElement>(".quill-stage")!;
     this.manaBar = root.querySelector<HTMLElement>(".bar-mana")!;
     this.healthBar = root.querySelector<HTMLElement>(".bar-health")!;
@@ -185,17 +187,28 @@ export class GameUi {
     this.stage.classList.toggle("is-writing", this.casting || state === "transcribing");
 
     const labels: Record<VoiceCastingState, string> = {
-      idle: "旁註正在等待一句話",
+      idle: "按住 V 或「按住說話」・說完放開就會施法",
       requesting: "正在請求麥克風權限……",
-      recording: "正在聽。放開 V 就施放",
+      recording: "正在聽你說話・說完放開就會施法",
       transcribing: "旁註正在辨認你的咒語……",
     };
+    const buttonLabels: Record<VoiceCastingState, string> = {
+      idle: "按住說話",
+      requesting: "正在啟用…",
+      recording: "說完放開",
+      transcribing: "辨認中…",
+    };
+    this.micLabel.textContent = buttonLabels[state];
+    this.micButton.setAttribute(
+      "aria-label",
+      state === "recording" ? "正在錄音，說完放開即可施法" : "按住說出咒語",
+    );
     this.stage.querySelector<HTMLElement>(".stage-text")!.textContent = labels[state];
   }
 
   setStage(stage: "idle" | "listening" | "writing" | "manifesting"): void {
     const labels = {
-      idle: "旁註正在等待一句話",
+      idle: "按住 V 或「按住說話」・說完放開就會施法",
       listening: "旁註正在聽",
       writing: "旁註正在把你的話寫進世界……",
       manifesting: "墨跡開始具現",

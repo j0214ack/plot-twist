@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { OpenAiTranscriptionService } from "./openai-transcription";
+import {
+  DEFAULT_TRANSCRIPTION_MODEL,
+  OpenAiTranscriptionService,
+} from "./openai-transcription";
 
 describe("OpenAiTranscriptionService", () => {
   // Spec: Decision 0004 and the OpenAI Speech-to-text guide.
@@ -21,5 +24,14 @@ describe("OpenAiTranscriptionService", () => {
         file: expect.objectContaining({ name: "incantation.webm" }),
       }),
     );
+    const request = create.mock.calls[0]?.[0] as { prompt?: string };
+    expect(request.prompt).toContain("隕石");
+    expect(request.prompt).toContain("砸下來");
+    expect(request.prompt).toContain("繁體中文");
+  });
+
+  // Spec: Decision 0004; playable demo favors transcription accuracy over the mini price tier.
+  it("defaults the playable demo to the higher-quality transcription model", () => {
+    expect(DEFAULT_TRANSCRIPTION_MODEL).toBe("gpt-4o-transcribe");
   });
 });

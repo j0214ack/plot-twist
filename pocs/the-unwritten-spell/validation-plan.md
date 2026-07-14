@@ -17,6 +17,7 @@
 | H5：戰鬥能吸收生成延遲 | 生成期間守衛繼續攻擊，玩家移動較慢但仍可閃躲 | 等待期間有可理解的壓力與操作；technical spike 中玩家 HP 最低為 1，不會在咒語完成前死亡 |
 | H6：結果式回饋能教會玩家 | 使用一個模糊或超出法力的詠唱 | 旁註能用一句話指出實際縮減或意外，而不要求施放前確認 |
 | H7：Demo 有 WOW moment | 讓未參與開發的人觀看完整流程 | 對方能理解「AI 現場生成新機制」並主動描述驚喜點 |
+| H8：錯誤咒語不會拖垮 Host | 讓 generated module 在 `update` 拋錯，並用無關或誤辨識 transcript 施法 | 該 artifact 被隔離並顯示旁註；主遊戲、其他 modules 與下一次施法仍可運作 |
 
 ## Primary scenario：牆、火與鑰匙
 
@@ -49,6 +50,15 @@
 | 「生成另一把可以開門的鑰匙。」 | 可生成外觀相似物件，但不能複製有效 Unlocker |
 | 「做一座超大的永久房間。」但 Mana 不足 | 世界縮減、部分生成或安全 rollback，旁註說明實際結果 |
 | Generated code 發生 exception | 外層遊戲仍可操作並能重建 sandbox |
+
+Generated module 的 `update` 錯誤必須在 module boundary 被捕捉：清掉該 module 擁有的 entities、保留其他 artifacts、顯示一次失敗旁註，且不能終止主 frame loop。Loader 也必須在執行前拒絕明顯不會結束的 `while (true)`／`for (;;)`，避免 generated setup 或 update 直接卡住 browser main thread。這是 PoC 的最低隔離線，不代表 `Function` loader 已是 production sandbox。
+
+## 語音與動態因果 regression case
+
+- 語音句：「放隕石砸下來，對守衛造成傷害。」
+- 轉錄通過：保留「隕石／砸下來／守衛／傷害」等關鍵語意，不可變成無關人物或警示句。
+- Mechanic 通過：至少生成一個物件；simulation 開始後該物件的位置必須改變；到達目標後必須透過 `combat.damage` 造成可觀察傷害。
+- 只在守衛上方生成一顆靜止球體，不算完成「砸下來」或「造成傷害」。
 
 ## 第一階段 critical path
 

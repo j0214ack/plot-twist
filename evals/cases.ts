@@ -24,6 +24,14 @@ const cases: Record<string, LiveEvalCase> = {
     minimumMovedEntities: 0,
     minimumDamage: 1,
   },
+  "falling-meteor-v1": {
+    id: "falling-meteor-v1",
+    utterance: "放隕石砸下來，對守衛造成傷害",
+    simulationSeconds: 4,
+    minimumSpawnedEntities: 1,
+    minimumMovedEntities: 1,
+    minimumDamage: 1,
+  },
 };
 
 export const getLiveEvalCase = (id: string): LiveEvalCase => {

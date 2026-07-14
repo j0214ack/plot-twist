@@ -36,4 +36,21 @@ describe("GeneratedModuleLoader", () => {
       "invalid MechanicModule",
     );
   });
+
+  // Spec: validation-plan.md H8; generated source cannot contain an obvious blocking loop.
+  it("rejects an unbounded loop before evaluating generated source", () => {
+    const loader = new GeneratedModuleLoader();
+
+    expect(() =>
+      loader.instantiate(
+        `() => ({
+          label: "Frozen spell",
+          tags: [],
+          setup() { while (true) {} },
+          dispose() {},
+        })`,
+        {},
+      ),
+    ).toThrow("unbounded loop");
+  });
 });

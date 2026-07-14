@@ -100,7 +100,7 @@ npm run dev
 
 開啟 `http://127.0.0.1:5173`。預設畫面使用真正的 generative compiler：原始 utterance 與 scene snapshot 送到本機 `/api/spells`，由 server 透過 OpenAI Responses API 取得 structured `SpellBundle`；瀏覽器只收到 generated source，不會取得 API key。
 
-按住 `V`（或按住畫面上的「說話」按鈕）即可用麥克風詠唱，放開後會經本機 `/api/transcriptions` 轉成文字並直接施放。第一次使用時需允許瀏覽器麥克風權限；若裝置不支援錄音，文字輸入仍可使用。API key 在語音流程中同樣只存在 server。
+按住 `V`（或畫面上的「按住說話」按鈕）即可用麥克風詠唱，說完放開後會經本機 `/api/transcriptions` 轉成文字並直接施放。第一次使用時需允許瀏覽器麥克風權限；權限視窗若中斷原本的按壓，依旁註提示重新按住一次即可。Playable demo 預設使用 `gpt-4o-transcribe`；若裝置不支援錄音，文字輸入仍可使用。API key 在語音流程中同樣只存在 server。
 
 ```bash
 npm test       # deterministic pipeline／Game SDK／rollback
@@ -122,6 +122,17 @@ npm run eval:live
 - 同一流程已在 Arc 中由輸入框端到端驗證。
 
 這只通過第一個 H1 case，不代表模型已在所有 utterance 上可靠。後續仍需要多 action、reference／constraint、protected outcome、跨法術 dependency 與 latency 的 eval set。
+
+## 隕石 regression 證據
+
+2026-07-14 針對「放隕石砸下來，對守衛造成傷害」完成兩層驗證：
+
+- `gpt-4o-transcribe` 對合成繁中音訊輸出完整原句，約 0.79 秒；
+- 補強 source ABI 後，Fast profile（Luna + low）連續三次約 4.8–5.9 秒生成一個新 module；
+- 三次 module 都從守衛上方生成隕石，以 3D `moveToward` 墜落，抵達後透過 `combat.damage` 造成 30–35 傷害；
+- 每次 simulation 都觀察到 1 個生成物、1 個移動物件與實際 HP 下降，三次 live Eval 皆通過。
+
+合成音訊不是現場噪音下的最終語音品質保證；仍需用隊員的麥克風做人工 playtest。
 
 ## 暫不處理
 

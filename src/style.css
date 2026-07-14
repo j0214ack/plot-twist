@@ -399,9 +399,10 @@ button {
 .spell-console .mic-button {
   border-color: rgba(110, 229, 193, 0.24);
   color: #8edcc5;
+  white-space: nowrap;
 }
 
-.mic-button > span {
+.mic-button > .mic-dot {
   display: inline-block;
   width: 6px;
   height: 6px;
@@ -411,11 +412,26 @@ button {
   box-shadow: 0 0 8px currentcolor;
 }
 
+.mic-button .mic-label {
+  margin-right: 5px;
+  font-weight: 500;
+}
+
 .spell-console .mic-button.is-recording {
   border-color: rgba(255, 87, 122, 0.72);
   color: #ff718d;
   background: rgba(255, 67, 105, 0.12);
   box-shadow: 0 0 28px rgba(255, 67, 105, 0.16);
+  animation: recording-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes recording-pulse {
+  from {
+    box-shadow: 0 0 16px rgba(255, 67, 105, 0.12);
+  }
+  to {
+    box-shadow: 0 0 32px rgba(255, 67, 105, 0.34);
+  }
 }
 
 kbd {

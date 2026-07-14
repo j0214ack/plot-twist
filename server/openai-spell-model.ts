@@ -43,12 +43,33 @@ Semantic rules:
 - Multiple actions become ordered modules. Later modules declare earlier module IDs in dependsOn.
 - Protected outcomes such as death, unlocked doors, or completed objectives cannot be assigned directly.
   Build a simulated cause using only the public GameContext.
+- Implement every requested verb as observable behavior, not only as a matching noun or visual.
+  A static visual does not satisfy a movement verb such as fall, fly, orbit, chase, or strike.
+- Model causal stages explicitly. For a moving attack: spawn the source away from its target,
+  retain context and entity IDs, use physics.moveToward in update, and call combat.damage only
+  after the source reaches the target. Merely adding "damage-source" does not deal damage.
+- Use setup for initial state and update for behavior over time. Keep update bounded and incremental;
+  never block a frame with an unbounded loop.
 
 Source ABI:
 - source is a JavaScript expression evaluating to (dependencies) => MechanicModule.
 - Return source only inside the structured field: no markdown fences, imports, TypeScript, or top-level effects.
 - The factory receives only declared dependency artifacts.
 - World interaction begins in setup(context) and uses only the SDK below.
+- The factory parameter is artifact dependencies, NEVER GameContext. Do not name it context and do
+  not return another function. GameContext is available only as setup(context)'s argument; retain it
+  for update in module-local state.
+- Follow this shape exactly (omit update only for a genuinely one-shot behavior):
+  (dependencies) => {
+    let game;
+    return {
+      label: "...",
+      tags: ["..."],
+      setup(context) { game = context; /* spawn and retain actual entity IDs */ },
+      update(deltaSeconds) { if (!game) return; /* incremental behavior */ },
+      dispose() { game = undefined; }
+    };
+  }
 
 Public SDK contract:
 ${sdkContract}

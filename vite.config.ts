@@ -1,5 +1,8 @@
 import { defineConfig, loadEnv } from "vite";
-import { createOpenAiTranscriptionService } from "./server/openai-transcription";
+import {
+  createOpenAiTranscriptionService,
+  DEFAULT_TRANSCRIPTION_MODEL,
+} from "./server/openai-transcription";
 import { spellApiPlugin, type SpellCompileService } from "./server/spell-api";
 import { resolveSpellGenerationProfile } from "./server/spell-generation-profile";
 import { transcriptionApiPlugin, type TranscriptionService } from "./server/transcription-api";
@@ -26,7 +29,7 @@ export default defineConfig(({ mode }) => {
   const transcription: TranscriptionService = env.OPENAI_API_KEY
     ? createOpenAiTranscriptionService({
         apiKey: env.OPENAI_API_KEY,
-        model: env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
+        model: env.OPENAI_TRANSCRIPTION_MODEL || DEFAULT_TRANSCRIPTION_MODEL,
       })
     : {
         transcribe: async () => {
