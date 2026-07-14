@@ -1,5 +1,18 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DUNGEON_ROOM_ASSETS, getBakedEntityAsset } from "./asset-catalog";
+
+const externalGlbResources = (filePath: string): string[] => {
+  const file = readFileSync(filePath);
+  const jsonLength = file.readUInt32LE(12);
+  const manifest = JSON.parse(
+    file.subarray(20, 20 + jsonLength).toString().replace(/\u0000/g, "").trim(),
+  ) as { images?: Array<{ uri?: string }> };
+  return (manifest.images ?? []).flatMap(({ uri }) =>
+    uri && !uri.startsWith("data:") ? [uri] : [],
+  );
+};
 
 describe("CC0 visual asset catalog", () => {
   // Spec: validation-plan.md "Demo visual asset pass".
@@ -30,5 +43,22 @@ describe("CC0 visual asset catalog", () => {
     expect(DUNGEON_ROOM_ASSETS.every(({ url }) => url.startsWith("/assets/cc0/"))).toBe(true);
     expect(DUNGEON_ROOM_ASSETS.some(({ role }) => role === "floor")).toBe(true);
     expect(DUNGEON_ROOM_ASSETS.some(({ role }) => role === "wall")).toBe(true);
+  });
+
+  // Spec: validation-plan.md "Demo visual asset pass": vendored assets are self-contained.
+  // Regression: Kenney GLBs rendered white when their shared colormap was not copied.
+  it("vendors every external texture referenced by a baked GLB", () => {
+    const entityUrls = ["player", "guardian", "door", "key"].flatMap((id) => {
+      const asset = getBakedEntityAsset(id);
+      return asset ? [asset.url] : [];
+    });
+    const urls = new Set([...entityUrls, ...DUNGEON_ROOM_ASSETS.map(({ url }) => url)]);
+
+    for (const url of urls) {
+      const glbPath = join(process.cwd(), "public", url);
+      for (const dependency of externalGlbResources(glbPath)) {
+        expect(existsSync(resolve(dirname(glbPath), dependency)), dependency).toBe(true);
+      }
+    }
   });
 });
