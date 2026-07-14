@@ -121,6 +121,16 @@ Latency profile、預設模型與 Fast mode gate 見 [Decision 0003](decisions/0
 - 觀眾能指出輸入中的哪些細節出現在新 mechanic；
 - 只有通過以上條件才開始把大量時間投入 VFX、聲音與影片剪輯。
 
+### Demo visual asset pass
+
+目前 technical spike 已能以真實模型把語音編譯成可執行 mechanic；下一個 polish pass 將 baked 房間、玩家、守衛、門與鑰匙的 primitive placeholder 換成來源與授權可追溯的 CC0 低多邊形素材。
+
+- 素材替換只發生在 Three.js renderer，不改 Entity、collider、affordance、HP、鎖或 objective；
+- baked entity 以穩定 ID 對應素材，任意 generated entity 仍依 `VisualSpec` 使用 runtime primitives，避免把生成式結果偷換成預製技能美術；
+- 所有素材隨 repo 提供並記錄作者、原始頁面與授權，不在遊戲啟動時依賴第三方 CDN；
+- 素材載入失敗時保留 primitive fallback，不能讓畫面載入問題拖垮 playable loop；
+- 程序式 portal、墨跡、粒子與 spell VFX 屬於 renderer effect，不需要為了「全素材化」改成外部模型。
+
 ## Mock creep guardrail
 
 自然語言案例失敗時：
