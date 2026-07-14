@@ -86,6 +86,7 @@
 - [World Model 與 Game SDK v0](game-sdk.md)
 - [PoC 驗證與實作計畫](validation-plan.md)
 - [後續功能筆記：已學會的咒語 Artifact](learned-spell-artifacts.md)
+- [Public demo access session 與部署邊界](decisions/0005-access-gated-public-demo.md)
 
 ## 執行 playable spike
 
@@ -109,6 +110,14 @@ npm run eval:live
 ```
 
 `eval:live` 使用真實模型與未寫入 reference harness 的 prompt，結果輸出到 ignored 的 `evals/results/`。它不是 unit test：模型輸出不比對固定 source，而是實際載入、執行並觀察產生與移動的 entity。
+
+## Public playable preview
+
+公開 preview 以同源 Fly app 提供靜態遊戲與兩個模型 API。`OPENAI_API_KEY`、`DEMO_SESSION_SECRET` 與活動前使用的 `DEMO_ACCESS_CODE` 必須存成 hosting secrets；正式 origin 由 `ALLOWED_ORIGIN` 設定。設定 access code 時，玩家先解鎖一次並取得短效 HttpOnly session；Demo Day 移除 `DEMO_ACCESS_CODE` 後，頁面會自動取得 anonymous demo session，模型 API 仍保留 exact-origin 與 signed-session 驗證。完整邊界見 [Decision 0005](decisions/0005-access-gated-public-demo.md)。
+
+- Playable URL：<https://plot-twist-unwritten-spell.fly.dev/>
+- 活動前的 access code 只透過團隊私訊分享，不提交至 Git 或前端 bundle。
+- Demo Day 切換成免輸入模式：`flyctl secrets unset DEMO_ACCESS_CODE --app plot-twist-unwritten-spell`。不需要修改或重新 build runtime code。
 
 ## 第一筆 live Eval 證據
 
