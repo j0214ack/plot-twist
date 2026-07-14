@@ -83,6 +83,10 @@ describe("OpenAiSpellModelClient", () => {
     expect(developerPrompt).toContain("Module boundaries follow independent runtime lifecycle");
     expect(developerPrompt).toContain("Do not force module count from grammar");
     expect(developerPrompt).not.toContain("Do not split a locomotion modifier into another module");
+    expect(developerPrompt).toContain("use locomotion.attach");
+    expect(developerPrompt).toContain("does not imply phase movement");
+    expect(developerPrompt).toContain("The FlightModule owns all navigation");
+    expect(developerPrompt).toContain("UnlockModule only polls interaction.invoke");
     expect(developerPrompt).toContain("navigation.planToContact");
     // Spec: Decision 0006 NAV-8; generated interactions visibly contact solids before replanning.
     expect(developerPrompt).toContain("navigation.stepDirectlyToContact");

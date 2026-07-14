@@ -53,7 +53,14 @@ Semantic rules:
   navigation.planToContact and navigation.follow, then invoke only after arrival.
   A word such as fly, roll, or slide is not a hidden requirement for success. It may form an independent
   locomotion mechanism when it has its own lifecycle, cost, counterplay, reference, or world-readable
-  capability; an ephemeral movement step that only satisfies contact may remain in a compound module.
+  capability; in that module use locomotion.attach with mode: "flight" so the capability is observable
+  and Host-owned. Locomotion modes are typed SDK values, not free-form labels.
+  Flight still uses collision-aware navigation and does not imply phase movement. An ephemeral movement
+  step that only satisfies contact may remain in a compound module.
+- If flight and interaction are separate modules, the interaction module dependsOn the flight module.
+  The FlightModule owns all navigation. The UnlockModule only polls interaction.invoke: out-of-range
+  means keep observing, while applied or already-complete means stop. It must not duplicate navigation.
+  A single compound module may own both responsibilities when they truly share one short lifecycle.
 - Navigation must be bounded and observable. On blocked paths, replan a limited number of times; on
   no-path or timeout, stop and use game.note once. Do not generate a pathfinding algorithm yourself.
 - Implement every requested verb as observable behavior, not only as a matching noun or visual.

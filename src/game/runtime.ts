@@ -8,6 +8,8 @@ import { ManaPool } from "./mana";
 import type {
   EntitySnapshot,
   GameContext,
+  LocomotionEffectRequest,
+  LocomotionEffectSnapshot,
   MechanicModule,
   QuillNote,
   SpawnPrimitiveRequest,
@@ -20,7 +22,10 @@ interface LoadedModule {
   artifact: SpellArtifact;
   module: MechanicModule;
   ownedEntities: Set<string>;
+  ownedEffectIds: Set<string>;
 }
+
+const LOCOMOTION_EFFECT_MANA_COST = 4;
 
 const primitiveManaCost = (request: SpawnPrimitiveRequest): number => {
   const volume = request.size.x * request.size.y * request.size.z;
@@ -29,7 +34,9 @@ const primitiveManaCost = (request: SpawnPrimitiveRequest): number => {
 
 export class ModuleRuntime {
   private readonly loaded = new Map<string, LoadedModule>();
+  private readonly locomotionEffects = new Map<string, LocomotionEffectSnapshot>();
   private nextModuleId = 1;
+  private nextEffectId = 1;
   private elapsedSeconds = 0;
 
   constructor(
@@ -41,22 +48,31 @@ export class ModuleRuntime {
   load(module: MechanicModule): SpellArtifact {
     const id = `spell-${this.nextModuleId++}`;
     const ownedEntities = new Set<string>();
+    const ownedEffectIds = new Set<string>();
     const artifact: SpellArtifact = {
       id,
       label: module.label,
       tags: [...module.tags],
       entityIds: [],
+      effectIds: [],
       createdAt: this.elapsedSeconds,
     };
-    const loaded: LoadedModule = { artifact, module, ownedEntities };
+    const loaded: LoadedModule = { artifact, module, ownedEntities, ownedEffectIds };
 
     try {
       module.setup(this.createContext(loaded));
       artifact.entityIds = [...ownedEntities];
+      artifact.effectIds = [...ownedEffectIds];
       this.loaded.set(id, loaded);
-      return { ...artifact, entityIds: [...artifact.entityIds], tags: [...artifact.tags] };
+      return {
+        ...artifact,
+        entityIds: [...artifact.entityIds],
+        effectIds: [...artifact.effectIds],
+        tags: [...artifact.tags],
+      };
     } catch (error) {
       for (const entityId of ownedEntities) this.world.destroyOwned(entityId, id);
+      for (const effectId of ownedEffectIds) this.locomotionEffects.delete(effectId);
       module.dispose();
       throw error;
     }
@@ -92,7 +108,14 @@ export class ModuleRuntime {
       ...artifact,
       tags: [...artifact.tags],
       entityIds: [...artifact.entityIds],
+      effectIds: [...artifact.effectIds],
     }));
+  }
+
+  listLocomotionEffects(): LocomotionEffectSnapshot[] {
+    return [...this.locomotionEffects.values()].map(
+      (effect) => this.cloneLocomotionEffect(effect)!,
+    );
   }
 
   note(note: QuillNote): void {
@@ -108,12 +131,15 @@ export class ModuleRuntime {
       for (const entityId of loaded.ownedEntities) {
         this.world.destroyOwned(entityId, loaded.artifact.id);
       }
+      for (const effectId of loaded.ownedEffectIds) {
+        this.locomotionEffects.delete(effectId);
+      }
       this.loaded.delete(loaded.artifact.id);
     }
   }
 
   private createContext(loaded: LoadedModule): GameContext {
-    const { artifact, ownedEntities } = loaded;
+    const { artifact, ownedEntities, ownedEffectIds } = loaded;
 
     return {
       moduleId: artifact.id,
@@ -147,6 +173,21 @@ export class ModuleRuntime {
           planToContact(this.world, actorId, targetId, options.contactDistance),
         follow: (path, speed, deltaSeconds) =>
           followNavigationPath(this.world, path, speed, deltaSeconds),
+      },
+      locomotion: {
+        attach: (actorId, request) =>
+          this.attachLocomotionEffect(artifact.id, ownedEffectIds, actorId, request),
+        get: (effectId) => this.cloneLocomotionEffect(this.locomotionEffects.get(effectId)),
+        forActor: (actorId) =>
+          [...this.locomotionEffects.values()]
+            .filter((effect) => effect.actorId === actorId)
+            .map((effect) => this.cloneLocomotionEffect(effect)!),
+        remove: (effectId) => {
+          const effect = this.locomotionEffects.get(effectId);
+          if (!effect || effect.ownerId !== artifact.id) return false;
+          ownedEffectIds.delete(effectId);
+          return this.locomotionEffects.delete(effectId);
+        },
       },
       combat: {
         damage: (sourceId, targetId, requestedDamage) => {
@@ -250,5 +291,79 @@ export class ModuleRuntime {
       adjustments: ratio < 1 ? ["geometry-scaled-to-mana"] : [],
       status: ratio < 1 ? "partial" : "complete",
     };
+  }
+
+  private attachLocomotionEffect(
+    moduleId: string,
+    ownedEffectIds: Set<string>,
+    actorId: string,
+    request: LocomotionEffectRequest,
+  ): WorldMutationResult<LocomotionEffectRequest, LocomotionEffectSnapshot> {
+    const actor = this.world.get(actorId);
+    const validTags =
+      request.tags === undefined ||
+      (Array.isArray(request.tags) && request.tags.every((tag) => typeof tag === "string"));
+    if (!request.mode?.trim() || !validTags) {
+      return {
+        requested: request,
+        manaSpent: 0,
+        adjustments: ["invalid-locomotion-request"],
+        status: "rejected",
+      };
+    }
+    if (request.mode !== "flight") {
+      return {
+        requested: request,
+        manaSpent: 0,
+        adjustments: ["unsupported-locomotion-mode"],
+        status: "rejected",
+      };
+    }
+    if (
+      !actor?.active ||
+      (actor.ownerId !== moduleId && !actor.affordances.includes("movable"))
+    ) {
+      return {
+        requested: request,
+        manaSpent: 0,
+        adjustments: ["actor-not-movable"],
+        status: "rejected",
+      };
+    }
+
+    const { spent, ratio } = this.mana.spend(LOCOMOTION_EFFECT_MANA_COST, 1);
+    if (ratio < 1) {
+      return {
+        requested: request,
+        manaSpent: 0,
+        adjustments: ["insufficient-mana"],
+        status: "rejected",
+      };
+    }
+
+    const effect: LocomotionEffectSnapshot = {
+      id: `locomotion-${this.nextEffectId++}`,
+      actorId,
+      ownerId: moduleId,
+      mode: request.mode,
+      tags: [...(request.tags ?? [])],
+      collisionPolicy: "solid",
+    };
+    this.locomotionEffects.set(effect.id, effect);
+    ownedEffectIds.add(effect.id);
+
+    return {
+      requested: request,
+      actual: this.cloneLocomotionEffect(effect),
+      manaSpent: spent,
+      adjustments: [],
+      status: "complete",
+    };
+  }
+
+  private cloneLocomotionEffect(
+    effect: LocomotionEffectSnapshot | undefined,
+  ): LocomotionEffectSnapshot | undefined {
+    return effect ? { ...effect, tags: [...effect.tags] } : undefined;
   }
 }
