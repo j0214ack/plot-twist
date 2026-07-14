@@ -12,6 +12,8 @@ import { createOpenAiSpellModelClient } from "../server/openai-spell-model";
 import { resolveSpellGenerationProfile } from "../server/spell-generation-profile";
 import { evaluateObservableBehavior } from "./behavior-evaluator";
 import { getLiveEvalCase } from "./cases";
+import { evaluateLocomotionExpectation } from "./locomotion-evaluator";
+import { evaluateLocomotionInteractionComposition } from "./module-responsibility-evaluator";
 import { setupEvalScenario } from "./scenario";
 
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
@@ -95,6 +97,13 @@ const doorUnlocked = scenario.doorId
 const noteMatched = evalCase.expectedNoteSubstring
   ? notes.some((note) => note.includes(evalCase.expectedNoteSubstring!))
   : true;
+const locomotion = evaluateLocomotionExpectation(
+  runtime.listLocomotionEffects(),
+  evalCase.expectedLocomotionMode,
+);
+const moduleComposition = evalCase.expectedLocomotionMode
+  ? evaluateLocomotionInteractionComposition(bundle)
+  : undefined;
 
 const behavior = evaluateObservableBehavior({
   sources,
@@ -112,6 +121,8 @@ const passed =
   actorDistance >= (evalCase.minimumActorDistance ?? 0) &&
   (evalCase.expectedDoorUnlocked === undefined ||
     doorUnlocked === evalCase.expectedDoorUnlocked) &&
+  locomotion.matched &&
+  (moduleComposition?.matched ?? true) &&
   noteMatched;
 const result = {
   caseId: evalCase.id,
@@ -129,6 +140,8 @@ const result = {
     doorUnlocked,
     notes,
     noteMatched,
+    locomotion,
+    moduleComposition,
   },
   runtimeError,
   passed,

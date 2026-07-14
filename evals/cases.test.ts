@@ -34,6 +34,8 @@ describe("getLiveEvalCase", () => {
     expect(flying.expectedDoorUnlocked).toBe(true);
     expect(terse.minimumActorDistance).toBeGreaterThan(0);
     expect(flying.minimumActorDistance).toBeGreaterThan(0);
+    expect(terse.expectedLocomotionMode).toBeUndefined();
+    expect(flying.expectedLocomotionMode).toBe("flight");
     expect(terse).not.toHaveProperty("expectedModuleCount");
     expect(flying).not.toHaveProperty("expectedModuleCount");
   });
@@ -46,5 +48,16 @@ describe("getLiveEvalCase", () => {
     expect(sealed.expectedDoorUnlocked).toBe(false);
     expect(sealed.expectedNoteSubstring).toContain("找不到");
     expect(sealed.minimumActorDistance).toBeGreaterThan(0);
+  });
+
+  // Spec: Decision 0007 LOC-4 through LOC-6; flight remains observable and solid-colliding.
+  it("requires a sealed flying key to manifest flight without bypassing its cage", () => {
+    const sealedFlight = getLiveEvalCase("key-unlock-flying-sealed-v1");
+
+    expect(sealedFlight.utterance).toContain("飛去開鎖");
+    expect(sealedFlight.scenario).toBe("key-door-sealed");
+    expect(sealedFlight.expectedLocomotionMode).toBe("flight");
+    expect(sealedFlight.expectedDoorUnlocked).toBe(false);
+    expect(sealedFlight.expectedNoteSubstring).toContain("找不到");
   });
 });

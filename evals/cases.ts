@@ -9,6 +9,7 @@ export interface LiveEvalCase {
   expectedDoorUnlocked?: boolean;
   expectedNoteSubstring?: string;
   minimumActorDistance?: number;
+  expectedLocomotionMode?: string;
 }
 
 const cases: Record<string, LiveEvalCase> = {
@@ -57,6 +58,7 @@ const cases: Record<string, LiveEvalCase> = {
     scenario: "key-door-open",
     expectedDoorUnlocked: true,
     minimumActorDistance: 1,
+    expectedLocomotionMode: "flight",
   },
   "key-unlock-sealed-v1": {
     id: "key-unlock-sealed-v1",
@@ -69,6 +71,19 @@ const cases: Record<string, LiveEvalCase> = {
     expectedDoorUnlocked: false,
     expectedNoteSubstring: "找不到",
     minimumActorDistance: 0.2,
+  },
+  "key-unlock-flying-sealed-v1": {
+    id: "key-unlock-flying-sealed-v1",
+    utterance: "讓鑰匙飛去開鎖",
+    simulationSeconds: 5,
+    minimumSpawnedEntities: 0,
+    minimumMovedEntities: 0,
+    minimumDamage: 0,
+    scenario: "key-door-sealed",
+    expectedDoorUnlocked: false,
+    expectedNoteSubstring: "找不到",
+    minimumActorDistance: 0.2,
+    expectedLocomotionMode: "flight",
   },
 };
 
