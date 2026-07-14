@@ -97,6 +97,7 @@ UnlockModule (dependsOn FlightModule artifact)
 - v0 唯一可附加的 canonical mode 是 typed `"flight"`。任意字串如 `"fly"` 會被拒絕，避免 world-readable capability 退化成無法推理的標籤；未來增加其他 mode 必須擴充 SDK contract，而不是在 Eval 做同義詞 router。
 - Flight effect 目前收取 4 Mana 的 Host-metered activation cost，collision policy 固定為 `solid`。尚未加入持續專注、垂直高度或 phase policy。
 - 2026-07-14 Fast profile live Eval「讓鑰匙飛去開鎖」以 2 個 generated modules 在 12.5 秒完成：FlightModule 建立 `flight` effect 並獨自負責 navigation，UnlockModule 依賴它且只觀察 interaction，最後接觸門並解鎖。
+- 2026-07-14 以玩家實際使用的同義說法「讓鑰匙飛去解鎖」重跑 Fast profile：12.5 秒生成 2 個 modules，鑰匙移動 3.1、門成功解鎖；runtime 觀察到 canonical `flight`，module responsibility rubric 通過。這證明 `解鎖` 不需要 Host keyword 特例。
 - 同句在 sealed cage scenario 以 2 個 generated modules 在 9.3 秒完成：flight effect 保持可觀察，鑰匙撞到 solid 後停止、門維持 locked，旁註顯示找不到可行路線。兩個 Eval 都通過 module responsibility rubric，沒有固定 module-count gate。
 
 ## 對既有決策的關係

@@ -90,6 +90,8 @@ describe("OpenAiSpellModelClient", () => {
     expect(developerPrompt).toContain("navigation.planToContact");
     // Spec: Decision 0006 NAV-8; generated interactions visibly contact solids before replanning.
     expect(developerPrompt).toContain("navigation.stepDirectlyToContact");
+    // Spec: design.md "結果式回饋"; generated code should reserve notes for useful exceptions.
+    expect(developerPrompt).toContain("Do not call game.note for ordinary success");
     expect(developerPrompt).toContain("The factory parameter is artifact dependencies, NEVER GameContext");
     expect(developerPrompt).toContain("setup(context) { game = context");
   });
