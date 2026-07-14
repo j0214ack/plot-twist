@@ -1,5 +1,10 @@
 import { defineConfig, loadEnv } from "vite";
 import {
+  resolveDemoAccessOptions,
+  resolvePreviewAllowedHosts,
+} from "./server/demo-access-config";
+import { demoAccessPlugin } from "./server/demo-access";
+import {
   createOpenAiTranscriptionService,
   DEFAULT_TRANSCRIPTION_MODEL,
 } from "./server/openai-transcription";
@@ -9,8 +14,11 @@ import { transcriptionApiPlugin, type TranscriptionService } from "./server/tran
 import { createOpenAiSpellModelClient } from "./server/openai-spell-model";
 import { SpellCompiler } from "./src/generative/spell-compiler";
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, isPreview, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  const previewAllowedHosts = env.ALLOWED_ORIGIN
+    ? resolvePreviewAllowedHosts(env.ALLOWED_ORIGIN, Boolean(isPreview))
+    : undefined;
   const profile = resolveSpellGenerationProfile(env);
   const compiler: SpellCompileService = env.OPENAI_API_KEY
     ? new SpellCompiler(
@@ -38,9 +46,18 @@ export default defineConfig(({ mode }) => {
       };
 
   return {
-    plugins: [spellApiPlugin(compiler), transcriptionApiPlugin(transcription)],
+    plugins: [
+      ...(command === "serve"
+        ? [demoAccessPlugin(resolveDemoAccessOptions(env, { isPreview: Boolean(isPreview) }))]
+        : []),
+      spellApiPlugin(compiler),
+      transcriptionApiPlugin(transcription),
+    ],
     server: {
       host: "127.0.0.1",
+    },
+    preview: {
+      allowedHosts: previewAllowedHosts,
     },
   };
 });
