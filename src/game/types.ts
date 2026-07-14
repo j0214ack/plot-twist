@@ -55,6 +55,35 @@ export interface EntityRecord extends Omit<EntitySpec, "id" | "tags" | "affordan
   active: boolean;
 }
 
+export interface SolidMovementResult {
+  status: "moved" | "blocked" | "invalid";
+  position?: Vec3;
+  blockerIds: string[];
+}
+
+export interface InteractionResult {
+  status: "applied" | "out-of-range" | "incompatible" | "already-complete" | "invalid";
+  actorId: string;
+  targetId: string;
+}
+
+export interface NavigationPath {
+  actorId: string;
+  targetId: string;
+  contactDistance: number;
+  waypoints: Vec3[];
+  cursor: number;
+}
+
+export type NavigationPlanResult =
+  | { status: "path-found"; path: NavigationPath }
+  | { status: "arrived" | "no-path" | "invalid" };
+
+export interface NavigationFollowResult {
+  status: "moving" | "arrived" | "blocked" | "invalid";
+  blockerIds: string[];
+}
+
 export interface WorldMutationResult<TRequested, TActual = TRequested> {
   requested: TRequested;
   actual?: TActual;
@@ -104,11 +133,25 @@ export interface GameContext {
   readonly physics: {
     moveToward(entityId: string, target: Vec3, speed: number, deltaSeconds: number): boolean;
   };
+  readonly navigation: {
+    stepDirectlyToContact(
+      actorId: string,
+      targetId: string,
+      options: { contactDistance: number; speed: number },
+      deltaSeconds: number,
+    ): NavigationFollowResult;
+    planToContact(
+      actorId: string,
+      targetId: string,
+      options: { contactDistance: number },
+    ): NavigationPlanResult;
+    follow(path: NavigationPath, speed: number, deltaSeconds: number): NavigationFollowResult;
+  };
   readonly combat: {
     damage(sourceId: string, targetId: string, requestedDamage: number): WorldMutationResult<number>;
   };
   readonly interaction: {
-    invoke(actorId: string, targetId: string, affordance: "unlock"): boolean;
+    invoke(actorId: string, targetId: string, affordance: "unlock"): InteractionResult;
   };
   readonly artifacts: {
     recent(tag?: string): SpellArtifact | undefined;

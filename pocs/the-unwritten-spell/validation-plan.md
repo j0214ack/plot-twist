@@ -18,6 +18,7 @@
 | H6：結果式回饋能教會玩家 | 使用一個模糊或超出法力的詠唱 | 旁註能用一句話指出實際縮減或意外，而不要求施放前確認 |
 | H7：Demo 有 WOW moment | 讓未參與開發的人觀看完整流程 | 對方能理解「AI 現場生成新機制」並主動描述驚喜點 |
 | H8：錯誤咒語不會拖垮 Host | 讓 generated module 在 `update` 拋錯，並用無關或誤辨識 transcript 施法 | 該 artifact 被隔離並顯示旁註；主遊戲、其他 modules 與下一次施法仍可運作 |
+| H9：因果互動能滿足空間前提 | 分別說「鑰匙開鎖」並讓路徑無障礙、可繞路、完全封閉 | 前兩者接觸後解鎖；封閉時 bounded replan 後顯示 no-path，不能穿牆或直接改 lock |
 
 ## Primary scenario：牆、火與鑰匙
 
@@ -60,6 +61,15 @@ Generated module 的 `update` 錯誤必須在 module boundary 被捕捉：清掉
 - Mechanic 通過：至少生成一個物件；simulation 開始後該物件的位置必須改變；到達目標後必須透過 `combat.damage` 造成可觀察傷害。
 - 只在守衛上方生成一顆靜止球體，不算完成「砸下來」或「造成傷害」。
 
+## 接觸與尋路 regression cases
+
+- 「鑰匙開鎖」與「讓鑰匙飛去開鎖」都必須包含同一個 unlock interaction goal；後者另外要求 flight locomotion mechanism。Flight 可以是有獨立 lifecycle 的 module，也可以在真正不可獨立互動的 one-shot case 留在 compound module；Eval 不以固定 module 數量判定成功。
+- 若 flight 與 unlock 分成兩個 modules，FlightModule 負責 locomotion，UnlockModule 應觀察 contact precondition，而不是把 `dependsOn` 誤當成「飛行已完成」。
+- 無障礙時，鑰匙先移動到門的接觸距離，再透過 `interaction.invoke` 解鎖。
+- 有可繞過的 generated solid 時，路徑不能穿牆，重新規劃後仍可抵達。
+- 鑰匙被 generated solids 完全封閉時，先做可觀察的 direct-contact attempt，移動被 collider 擋住後再 bounded replan；最後顯示「找不到能接觸到門的路」，門保持 locked。
+- 「門現在打開」仍是沒有可模擬原因的 protected outcome，不能因新增 navigation 而直接成功。
+
 ## 第一階段 critical path
 
 1. 建立房間、玩家、守衛、投射物、HP、鑰匙、鎖與門。
@@ -91,6 +101,7 @@ Unit test 不比較固定 source string，也不得因 fake model 回傳合法 b
 - 僅使用 public Game SDK；
 - 是否建立原因而非直接寫 protected outcome；
 - action 數量與 dependency 是否合理；
+- module 邊界是否符合 lifecycle、代價、反制、引用與 world-readable capability，而非只按句中動詞切割；
 - utterance 的獨特細節是否出現在 mechanic；
 - 在 sandbox 模擬固定秒數後是否出現預期可觀察行為；
 - generation、repair 與 first-interactive latency；

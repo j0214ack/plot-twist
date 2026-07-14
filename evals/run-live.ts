@@ -12,6 +12,7 @@ import { createOpenAiSpellModelClient } from "../server/openai-spell-model";
 import { resolveSpellGenerationProfile } from "../server/spell-generation-profile";
 import { evaluateObservableBehavior } from "./behavior-evaluator";
 import { getLiveEvalCase } from "./cases";
+import { setupEvalScenario } from "./scenario";
 
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 
@@ -22,39 +23,11 @@ const profile = resolveSpellGenerationProfile(process.env);
 const evalCase = getLiveEvalCase(process.env.EVAL_CASE ?? "unseen-orbiting-moons-v1");
 
 const world = new GameWorld();
-const player = world.add({
-  id: "player",
-  name: "Handless caster",
-  tags: ["player", "caster"],
-  position: { x: -3, y: 0.5, z: 0 },
-  size: { x: 0.8, y: 1, z: 0.8 },
-  visual: { shape: "sphere", color: 0x8de8ff },
-  affordances: [],
-  protected: true,
-});
-const guardian = world.add({
-  id: "guardian",
-  name: "Gate guardian",
-  tags: ["enemy", "guardian", "damageable"],
-  position: { x: 3, y: 0.8, z: 0 },
-  size: { x: 1, y: 1.6, z: 1 },
-  visual: { shape: "box", color: 0xff5c72 },
-  stats: { hp: 100, maxHp: 100 },
-  affordances: [],
-  protected: true,
-});
-
-const scene = [player, guardian].map(({ id, name, tags, affordances, position }) => ({
-  id,
-  name,
-  tags,
-  affordances,
-  position,
-}));
+const scenario = setupEvalScenario(world, evalCase.scenario ?? "guardian");
 const request: SpellCompileRequest = {
   utterance: evalCase.utterance,
-  focusedEntityId: guardian.id,
-  scene,
+  focusedEntityId: scenario.focusedEntityId,
+  scene: scenario.scene,
   recentArtifacts: [],
 };
 
@@ -66,7 +39,8 @@ const compiler = new SpellCompiler(
     serviceTier: profile.serviceTier,
   }),
 );
-const runtime = new ModuleRuntime(world, new ManaPool(100), () => {});
+const notes: string[] = [];
+const runtime = new ModuleRuntime(world, new ManaPool(100), (note) => notes.push(note.text));
 const executor = new BundleExecutor(runtime, new GeneratedModuleLoader());
 
 const startedAt = performance.now();
@@ -82,7 +56,12 @@ const staticEvaluation = evaluateObservableBehavior({
 let runtimeError: string | undefined;
 let generatedBeforeUpdate: ReturnType<GameWorld["list"]> = [];
 let generatedAfterUpdate: ReturnType<GameWorld["list"]> = [];
-const targetHpBeforeUpdate = world.get(guardian.id)?.stats?.hp;
+const targetHpBeforeUpdate = scenario.targetHpEntityId
+  ? world.get(scenario.targetHpEntityId)?.stats?.hp
+  : undefined;
+const actorPositionBeforeUpdate = scenario.observedActorId
+  ? world.get(scenario.observedActorId)?.position
+  : undefined;
 
 if (staticEvaluation.forbiddenGlobalUses.length === 0) {
   try {
@@ -96,7 +75,26 @@ if (staticEvaluation.forbiddenGlobalUses.length === 0) {
   }
 }
 
-const targetHpAfterUpdate = world.get(guardian.id)?.stats?.hp;
+const targetHpAfterUpdate = scenario.targetHpEntityId
+  ? world.get(scenario.targetHpEntityId)?.stats?.hp
+  : undefined;
+const actorPositionAfterUpdate = scenario.observedActorId
+  ? world.get(scenario.observedActorId)?.position
+  : undefined;
+const actorDistance =
+  actorPositionBeforeUpdate && actorPositionAfterUpdate
+    ? Math.hypot(
+        actorPositionAfterUpdate.x - actorPositionBeforeUpdate.x,
+        actorPositionAfterUpdate.y - actorPositionBeforeUpdate.y,
+        actorPositionAfterUpdate.z - actorPositionBeforeUpdate.z,
+      )
+    : 0;
+const doorUnlocked = scenario.doorId
+  ? world.get(scenario.doorId)?.tags.includes("unlocked") ?? false
+  : undefined;
+const noteMatched = evalCase.expectedNoteSubstring
+  ? notes.some((note) => note.includes(evalCase.expectedNoteSubstring!))
+  : true;
 
 const behavior = evaluateObservableBehavior({
   sources,
@@ -110,7 +108,11 @@ const passed =
   behavior.forbiddenGlobalUses.length === 0 &&
   behavior.spawnedEntities >= evalCase.minimumSpawnedEntities &&
   behavior.movedEntities >= evalCase.minimumMovedEntities &&
-  behavior.damageDealt >= evalCase.minimumDamage;
+  behavior.damageDealt >= evalCase.minimumDamage &&
+  actorDistance >= (evalCase.minimumActorDistance ?? 0) &&
+  (evalCase.expectedDoorUnlocked === undefined ||
+    doorUnlocked === evalCase.expectedDoorUnlocked) &&
+  noteMatched;
 const result = {
   caseId: evalCase.id,
   utterance: evalCase.utterance,
@@ -122,6 +124,12 @@ const result = {
   generationLatencyMs,
   moduleCount: bundle.modules.length,
   behavior,
+  interaction: {
+    actorDistance,
+    doorUnlocked,
+    notes,
+    noteMatched,
+  },
   runtimeError,
   passed,
   bundle,

@@ -64,11 +64,11 @@ describe("GameWorld protected affordances", () => {
       protected: true,
     });
 
-    expect(world.invokeUnlock("fake-key", "door")).toBe(false);
-    expect(world.invokeUnlock("real-key", "door")).toBe(false);
+    expect(world.invokeUnlock("fake-key", "door").status).toBe("incompatible");
+    expect(world.invokeUnlock("real-key", "door").status).toBe("out-of-range");
 
     world.setPosition("real-key", vec3(3, 0, 0));
-    expect(world.invokeUnlock("real-key", "door")).toBe(true);
+    expect(world.invokeUnlock("real-key", "door").status).toBe("applied");
     expect(world.get("door")?.tags).toContain("unlocked");
   });
 });

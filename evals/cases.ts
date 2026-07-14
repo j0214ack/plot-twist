@@ -5,6 +5,10 @@ export interface LiveEvalCase {
   minimumSpawnedEntities: number;
   minimumMovedEntities: number;
   minimumDamage: number;
+  scenario?: "guardian" | "key-door-open" | "key-door-sealed";
+  expectedDoorUnlocked?: boolean;
+  expectedNoteSubstring?: string;
+  minimumActorDistance?: number;
 }
 
 const cases: Record<string, LiveEvalCase> = {
@@ -31,6 +35,40 @@ const cases: Record<string, LiveEvalCase> = {
     minimumSpawnedEntities: 1,
     minimumMovedEntities: 1,
     minimumDamage: 1,
+  },
+  "key-unlock-terse-v1": {
+    id: "key-unlock-terse-v1",
+    utterance: "鑰匙開鎖",
+    simulationSeconds: 5,
+    minimumSpawnedEntities: 0,
+    minimumMovedEntities: 0,
+    minimumDamage: 0,
+    scenario: "key-door-open",
+    expectedDoorUnlocked: true,
+    minimumActorDistance: 1,
+  },
+  "key-unlock-flying-v1": {
+    id: "key-unlock-flying-v1",
+    utterance: "讓鑰匙飛去開鎖",
+    simulationSeconds: 5,
+    minimumSpawnedEntities: 0,
+    minimumMovedEntities: 0,
+    minimumDamage: 0,
+    scenario: "key-door-open",
+    expectedDoorUnlocked: true,
+    minimumActorDistance: 1,
+  },
+  "key-unlock-sealed-v1": {
+    id: "key-unlock-sealed-v1",
+    utterance: "鑰匙開鎖",
+    simulationSeconds: 5,
+    minimumSpawnedEntities: 0,
+    minimumMovedEntities: 0,
+    minimumDamage: 0,
+    scenario: "key-door-sealed",
+    expectedDoorUnlocked: false,
+    expectedNoteSubstring: "找不到",
+    minimumActorDistance: 0.2,
   },
 };
 
