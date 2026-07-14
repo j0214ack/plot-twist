@@ -1,5 +1,7 @@
 import type { QuillNote } from "./game/types";
+import { nextStepGuidance } from "./game-guidance";
 import { SPELL_EXAMPLES } from "./spell-examples";
+import type { VoiceCastingState } from "./voice/voice-casting-controller";
 
 export interface HudState {
   mana: number;
@@ -8,6 +10,7 @@ export interface HudState {
   playerMaxHp: number;
   guardianHp: number;
   guardianMaxHp: number;
+  doorUnlocked: boolean;
   artifacts: number;
   completed: boolean;
 }
@@ -17,13 +20,17 @@ export class GameUi {
   private readonly form: HTMLFormElement;
   private readonly input: HTMLInputElement;
   private readonly castButton: HTMLButtonElement;
+  private readonly micButton: HTMLButtonElement;
   private readonly stage: HTMLElement;
   private readonly manaBar: HTMLElement;
   private readonly healthBar: HTMLElement;
   private readonly guardianBar: HTMLElement;
+  private readonly nextStep: HTMLElement;
   private readonly artifactCount: HTMLElement;
   private readonly notes: HTMLElement;
   private readonly victory: HTMLElement;
+  private casting = false;
+  private voiceState: VoiceCastingState = "idle";
 
   constructor(root: HTMLElement) {
     root.innerHTML = `
@@ -36,6 +43,11 @@ export class GameUi {
           <p class="subtitle">未寫之咒</p>
         </header>
         <div class="runtime-badge"><span></span> LIVE GENERATIVE RUNTIME · SDK v0</div>
+
+        <section class="next-step-card" aria-live="polite" aria-hidden="true">
+          <span></span>
+          <p></p>
+        </section>
 
         <section class="objective-card" aria-label="Objective">
           <p class="section-label">UNWRITTEN OBJECTIVE</p>
@@ -78,14 +90,17 @@ export class GameUi {
               maxlength="140"
               placeholder="說出世界裡原本不存在的法則……"
             />
-            <button type="submit">詠唱 <kbd>↵</kbd></button>
+            <button class="mic-button" type="button" aria-label="按住說出咒語">
+              <span></span> 說話 <kbd>V</kbd>
+            </button>
+            <button class="cast-button" type="submit">詠唱 <kbd>↵</kbd></button>
           </form>
           <div class="spell-examples" aria-label="Example incantations">
             ${SPELL_EXAMPLES.map(
               ({ label, utterance }) => `<button data-spell="${utterance}">${label}</button>`,
             ).join("")}
           </div>
-          <p class="controls"><kbd>WASD</kbd> MOVE · <kbd>SPACE</kbd> DASH · 詠唱時移動會變慢</p>
+          <p class="controls"><kbd>WASD</kbd> MOVE · <kbd>SPACE</kbd> DASH · HOLD <kbd>V</kbd> SPEAK</p>
         </section>
 
         <aside class="quill-notes" aria-live="polite"></aside>
@@ -102,11 +117,13 @@ export class GameUi {
     this.canvas = root.querySelector<HTMLCanvasElement>("canvas")!;
     this.form = root.querySelector<HTMLFormElement>("form")!;
     this.input = root.querySelector<HTMLInputElement>("input")!;
-    this.castButton = this.form.querySelector<HTMLButtonElement>("button")!;
+    this.castButton = this.form.querySelector<HTMLButtonElement>(".cast-button")!;
+    this.micButton = this.form.querySelector<HTMLButtonElement>(".mic-button")!;
     this.stage = root.querySelector<HTMLElement>(".quill-stage")!;
     this.manaBar = root.querySelector<HTMLElement>(".bar-mana")!;
     this.healthBar = root.querySelector<HTMLElement>(".bar-health")!;
     this.guardianBar = root.querySelector<HTMLElement>(".guardian-status .bar i")!;
+    this.nextStep = root.querySelector<HTMLElement>(".next-step-card")!;
     this.artifactCount = root.querySelector<HTMLElement>(".artifact-line strong")!;
     this.notes = root.querySelector<HTMLElement>(".quill-notes")!;
     this.victory = root.querySelector<HTMLElement>(".victory-panel")!;
@@ -137,11 +154,43 @@ export class GameUi {
     });
   }
 
+  onVoiceInput(start: () => void, stop: () => void): void {
+    this.micButton.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      this.micButton.setPointerCapture(event.pointerId);
+      start();
+    });
+    const finish = (event: PointerEvent): void => {
+      if (this.micButton.hasPointerCapture(event.pointerId)) {
+        this.micButton.releasePointerCapture(event.pointerId);
+      }
+      stop();
+    };
+    this.micButton.addEventListener("pointerup", finish);
+    this.micButton.addEventListener("pointercancel", finish);
+  }
+
   setCasting(casting: boolean): void {
-    this.input.disabled = casting;
-    this.castButton.disabled = casting;
-    this.stage.classList.toggle("is-writing", casting);
+    this.casting = casting;
+    this.syncInputAvailability();
+    this.stage.classList.toggle("is-writing", casting || this.voiceState === "transcribing");
     if (casting) this.input.blur();
+  }
+
+  setVoiceState(state: VoiceCastingState): void {
+    this.voiceState = state;
+    this.syncInputAvailability();
+    this.micButton.classList.toggle("is-recording", state === "recording");
+    this.stage.classList.toggle("is-listening", state === "requesting" || state === "recording");
+    this.stage.classList.toggle("is-writing", this.casting || state === "transcribing");
+
+    const labels: Record<VoiceCastingState, string> = {
+      idle: "旁註正在等待一句話",
+      requesting: "正在請求麥克風權限……",
+      recording: "正在聽。放開 V 就施放",
+      transcribing: "旁註正在辨認你的咒語……",
+    };
+    this.stage.querySelector<HTMLElement>(".stage-text")!.textContent = labels[state];
   }
 
   setStage(stage: "idle" | "listening" | "writing" | "manifesting"): void {
@@ -159,6 +208,10 @@ export class GameUi {
     for (const example of document.querySelectorAll("[data-spell]")) {
       example.classList.remove("selected");
     }
+  }
+
+  setIncantation(utterance: string): void {
+    this.input.value = utterance;
   }
 
   pushNote(note: QuillNote): void {
@@ -179,9 +232,27 @@ export class GameUi {
     this.guardianBar.style.width = `${(state.guardianHp / state.guardianMaxHp) * 100}%`;
     this.artifactCount.textContent = String(state.artifacts);
     if (state.guardianHp <= 0) document.body.classList.add("guardian-defeated");
+
+    const guidance = nextStepGuidance({
+      guardianDefeated: state.guardianHp <= 0,
+      doorUnlocked: state.doorUnlocked,
+      completed: state.completed,
+    });
+    this.nextStep.querySelector("span")!.textContent = guidance?.label ?? "";
+    this.nextStep.querySelector("p")!.textContent = guidance?.text ?? "";
+    this.nextStep.classList.toggle("visible", Boolean(guidance));
+    this.nextStep.setAttribute("aria-hidden", String(!guidance));
+
     if (state.completed) {
       this.victory.classList.add("visible");
       this.victory.setAttribute("aria-hidden", "false");
     }
+  }
+
+  private syncInputAvailability(): void {
+    const voiceBusy = this.voiceState !== "idle";
+    this.input.disabled = this.casting || voiceBusy;
+    this.castButton.disabled = this.casting || voiceBusy;
+    this.micButton.disabled = this.casting || this.voiceState === "transcribing";
   }
 }

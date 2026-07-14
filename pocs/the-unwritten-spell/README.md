@@ -85,6 +85,7 @@
 - [體驗與魔法系統](design.md)
 - [World Model 與 Game SDK v0](game-sdk.md)
 - [PoC 驗證與實作計畫](validation-plan.md)
+- [後續功能筆記：已學會的咒語 Artifact](learned-spell-artifacts.md)
 
 ## 執行 playable spike
 
@@ -98,6 +99,8 @@ npm run dev
 ```
 
 開啟 `http://127.0.0.1:5173`。預設畫面使用真正的 generative compiler：原始 utterance 與 scene snapshot 送到本機 `/api/spells`，由 server 透過 OpenAI Responses API 取得 structured `SpellBundle`；瀏覽器只收到 generated source，不會取得 API key。
+
+按住 `V`（或按住畫面上的「說話」按鈕）即可用麥克風詠唱，放開後會經本機 `/api/transcriptions` 轉成文字並直接施放。第一次使用時需允許瀏覽器麥克風權限；若裝置不支援錄音，文字輸入仍可使用。API key 在語音流程中同樣只存在 server。
 
 ```bash
 npm test       # deterministic pipeline／Game SDK／rollback

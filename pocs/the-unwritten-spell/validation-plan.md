@@ -36,8 +36,9 @@
 4. 對最近生成的 enclosure 詠唱火焰。
 5. 火焰透過 collision/volume 與 Damageable 降低守衛 HP。
 6. 守衛倒下後由 baked rule 掉落鑰匙。
-7. 詠唱讓鑰匙自行進入相容鎖孔。
-8. 門的 baked rule 解鎖，玩家進入傳送陣。
+7. 右上角持續提示「現在施咒讓鑰匙去打開門」，避免首次試玩者失去下一步；門解鎖後提示消失。
+8. 詠唱讓鑰匙自行進入相容鎖孔。
+9. 門的 baked rule 解鎖，玩家進入傳送陣。
 
 ## Negative cases
 

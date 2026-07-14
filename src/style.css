@@ -1,6 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Mono:wght@300;400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap");
 
 :root {
+  --ui-scale: 1;
+
   font-family: "DM Mono", "Noto Sans TC", monospace;
   color: #e9f7ff;
   background: #05060d;
@@ -61,6 +63,8 @@ button {
   left: 34px;
   z-index: 3;
   pointer-events: none;
+  transform: scale(var(--ui-scale));
+  transform-origin: left top;
 }
 
 .eyebrow,
@@ -103,6 +107,48 @@ button {
   backdrop-filter: blur(12px);
   font-size: 9px;
   letter-spacing: 0.11em;
+  transform: scale(var(--ui-scale));
+  transform-origin: right top;
+}
+
+.next-step-card {
+  position: absolute;
+  top: 91px;
+  right: 34px;
+  z-index: 9;
+  width: 310px;
+  padding: 14px 16px;
+  transform: translateX(18px) scale(var(--ui-scale));
+  transform-origin: right top;
+  border: 1px solid rgba(82, 231, 183, 0.3);
+  border-left: 3px solid #49ddb0;
+  color: #dffcf2;
+  background: linear-gradient(135deg, rgba(7, 20, 20, 0.94), rgba(8, 14, 22, 0.9));
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.38), 0 0 28px rgba(73, 221, 176, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms, transform 300ms;
+}
+
+.next-step-card.visible {
+  transform: translateX(0) scale(var(--ui-scale));
+  opacity: 1;
+}
+
+.next-step-card span {
+  display: block;
+  margin-bottom: 5px;
+  color: #69e5bd;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+}
+
+.next-step-card p {
+  margin: 0;
+  font-family: "Noto Sans TC", sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .runtime-badge span {
@@ -129,8 +175,10 @@ button {
 }
 
 .objective-card {
-  top: 118px;
+  top: 142px;
   left: 34px;
+  transform: scale(var(--ui-scale));
+  transform-origin: left top;
 }
 
 .objective-card > p:nth-child(2) {
@@ -153,6 +201,8 @@ button {
 .status-card {
   right: 34px;
   bottom: 188px;
+  transform: scale(var(--ui-scale));
+  transform-origin: right bottom;
 }
 
 .stat-line {
@@ -211,7 +261,8 @@ button {
   left: 50%;
   z-index: 3;
   width: min(340px, 30vw);
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: center top;
   text-align: center;
 }
 
@@ -241,7 +292,8 @@ button {
   z-index: 5;
   width: min(820px, calc(100% - 52px));
   padding: 13px 16px 12px;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: center bottom;
   border: 1px solid rgba(108, 214, 238, 0.22);
   background: linear-gradient(160deg, rgba(7, 10, 19, 0.93), rgba(10, 12, 25, 0.84));
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.55), inset 0 1px rgba(255, 255, 255, 0.025);
@@ -286,7 +338,7 @@ button {
 
 .spell-console form {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   gap: 9px;
   align-items: center;
 }
@@ -342,6 +394,28 @@ button {
 .spell-console form > button:disabled {
   cursor: wait;
   opacity: 0.35;
+}
+
+.spell-console .mic-button {
+  border-color: rgba(110, 229, 193, 0.24);
+  color: #8edcc5;
+}
+
+.mic-button > span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 8px currentcolor;
+}
+
+.spell-console .mic-button.is-recording {
+  border-color: rgba(255, 87, 122, 0.72);
+  color: #ff718d;
+  background: rgba(255, 67, 105, 0.12);
+  box-shadow: 0 0 28px rgba(255, 67, 105, 0.16);
 }
 
 kbd {
@@ -403,7 +477,8 @@ kbd {
   gap: 9px;
   align-items: center;
   padding: 7px 12px;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: center bottom;
   border: 1px solid rgba(100, 212, 239, 0.12);
   border-radius: 20px;
   color: #69828e;
@@ -416,6 +491,16 @@ kbd {
 .quill-stage.is-writing {
   border-color: rgba(100, 225, 248, 0.32);
   color: #b6eff8;
+}
+
+.quill-stage.is-listening {
+  border-color: rgba(93, 231, 186, 0.38);
+  color: #b9f6e3;
+}
+
+.quill-stage.is-listening .quill-mark {
+  color: #61e4b9;
+  animation: runtime-pulse 700ms ease-in-out infinite;
 }
 
 .quill-mark {
@@ -451,7 +536,7 @@ kbd {
 
 .quill-notes {
   position: absolute;
-  top: 104px;
+  top: 178px;
   right: 34px;
   z-index: 8;
   display: flex;
@@ -459,6 +544,8 @@ kbd {
   flex-direction: column;
   gap: 8px;
   pointer-events: none;
+  transform: scale(var(--ui-scale));
+  transform-origin: right top;
 }
 
 .quill-note {
@@ -574,6 +661,12 @@ kbd {
     display: none;
   }
 
+  .next-step-card {
+    top: 142px;
+    right: 18px;
+    width: min(310px, calc(100% - 36px));
+  }
+
   .title-lockup {
     top: 20px;
     left: 20px;
@@ -601,6 +694,12 @@ kbd {
 
   .quill-stage {
     bottom: 176px;
+  }
+
+  .quill-notes {
+    top: 222px;
+    right: 18px;
+    width: calc(100% - 36px);
   }
 }
 
