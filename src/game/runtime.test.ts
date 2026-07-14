@@ -50,6 +50,146 @@ describe("ModuleRuntime", () => {
     expect(world.get(spawnedId)).toBeUndefined();
   });
 
+  // Spec: Decision 0007 LOC-1, LOC-3 and PoC implementation slice ownership cleanup.
+  it("owns first-class locomotion effects and removes them with their module", () => {
+    const world = new GameWorld();
+    world.add({
+      id: "key",
+      name: "Unique key",
+      tags: ["key", "unique"],
+      position: vec3(),
+      size: vec3(0.4, 0.15, 0.15),
+      visual: { shape: "box", color: 0xffcc33 },
+      affordances: ["movable", "unlocker"],
+      protected: true,
+    });
+    const runtime = new ModuleRuntime(world, new ManaPool(100, 0), () => {});
+    let ownerContext: GameContext | undefined;
+    let effectId = "";
+    let manaSpent = 0;
+
+    const flightArtifact = runtime.load({
+      label: "Teach the key to fly",
+      tags: ["flight", "locomotion"],
+      setup(game) {
+        ownerContext = game;
+        const result = game.locomotion.attach("key", {
+          mode: "flight",
+          tags: ["airborne"],
+        });
+        effectId = result.actual?.id ?? "";
+        manaSpent = result.manaSpent;
+      },
+      dispose() {},
+    });
+
+    expect(effectId).not.toBe("");
+    expect(manaSpent).toBeGreaterThan(0);
+    expect(flightArtifact.effectIds).toEqual([effectId]);
+    expect(ownerContext?.locomotion.forActor("key")).toEqual([
+      expect.objectContaining({
+        id: effectId,
+        actorId: "key",
+        mode: "flight",
+        collisionPolicy: "solid",
+        tags: ["airborne"],
+      }),
+    ]);
+    const hostTelemetry = runtime.listLocomotionEffects();
+    expect(hostTelemetry).toEqual([
+      expect.objectContaining({ id: effectId, actorId: "key", mode: "flight" }),
+    ]);
+    hostTelemetry[0]?.tags.push("mutated-outside-runtime");
+    expect(runtime.listLocomotionEffects()[0]?.tags).toEqual(["airborne"]);
+
+    let crossModuleRemoval = true;
+    runtime.load({
+      label: "Unrelated spell",
+      tags: [],
+      setup(game) {
+        crossModuleRemoval = game.locomotion.remove(effectId);
+      },
+      dispose() {},
+    });
+    expect(crossModuleRemoval).toBe(false);
+
+    runtime.dispose(flightArtifact.id);
+    let remainingEffects = [effectId];
+    runtime.load({
+      label: "Inspect locomotion",
+      tags: [],
+      setup(game) {
+        remainingEffects = game.locomotion.forActor("key").map(({ id }) => id);
+      },
+      dispose() {},
+    });
+    expect(remainingEffects).toEqual([]);
+  });
+
+  // Spec: Decision 0007 LOC-1; locomotion participates in Host-owned cost metering.
+  it("rejects a locomotion effect when no Mana is available", () => {
+    const world = new GameWorld();
+    world.add({
+      id: "key",
+      name: "Unique key",
+      tags: ["key", "unique"],
+      position: vec3(),
+      size: vec3(0.4, 0.15, 0.15),
+      visual: { shape: "box", color: 0xffcc33 },
+      affordances: ["movable"],
+    });
+    const runtime = new ModuleRuntime(world, new ManaPool(0, 0), () => {});
+    let status = "not-attempted";
+    let effects = ["unexpected"];
+
+    runtime.load({
+      label: "Try to make the key fly",
+      tags: ["flight"],
+      setup(game) {
+        status = game.locomotion.attach("key", { mode: "flight" }).status;
+        effects = game.locomotion.forActor("key").map(({ id }) => id);
+      },
+      dispose() {},
+    });
+
+    expect(status).toBe("rejected");
+    expect(effects).toEqual([]);
+  });
+
+  // Spec: Decision 0007 LOC-1; first-class modes are stable ABI values, not free-form labels.
+  it("rejects a noncanonical locomotion mode instead of creating opaque world state", () => {
+    const world = new GameWorld();
+    world.add({
+      id: "key",
+      name: "Unique key",
+      tags: ["key"],
+      position: vec3(),
+      size: vec3(0.4, 0.15, 0.15),
+      visual: { shape: "box", color: 0xffcc33 },
+      affordances: ["movable"],
+    });
+    const runtime = new ModuleRuntime(world, new ManaPool(100, 0), () => {});
+    let status = "not-attempted";
+    let adjustments: string[] = [];
+
+    runtime.load({
+      label: "Use an opaque movement label",
+      tags: [],
+      setup(game) {
+        const result = game.locomotion.attach("key", {
+          mode: "fly",
+        } as never);
+        status = result.status;
+        adjustments = result.adjustments;
+      },
+      dispose() {},
+    });
+
+    expect(status).toBe("rejected");
+    expect(adjustments).toContain("unsupported-locomotion-mode");
+    expect(runtime.listLocomotionEffects()).toEqual([]);
+  });
+
   it("scales a mutation down when actual mana is insufficient", () => {
     const world = new GameWorld();
     const runtime = new ModuleRuntime(world, new ManaPool(5, 0), () => {});
@@ -432,5 +572,65 @@ describe("ModuleRuntime", () => {
     expect(status).toBe("blocked");
     expect(world.get("actor")?.position.x).toBeGreaterThan(0);
     expect(world.get("actor")?.position.x).toBeLessThan(0.7);
+  });
+
+  // Spec: Decision 0007 LOC-4; flight is first-class locomotion, not implicit phasing.
+  it("keeps a flying actor blocked by solid geometry", () => {
+    const world = new GameWorld();
+    world.add({
+      id: "key",
+      name: "Flying key",
+      tags: ["key"],
+      position: vec3(0, 0.3, 0),
+      size: vec3(0.4, 0.15, 0.15),
+      visual: { shape: "box", color: 0xffcc33 },
+      affordances: ["movable"],
+    });
+    world.add({
+      id: "door",
+      name: "Target door",
+      tags: ["door"],
+      position: vec3(4, 0.3, 0),
+      size: vec3(0.4, 2, 3),
+      visual: { shape: "box", color: 0x444466 },
+    });
+    world.add({
+      id: "cage-wall",
+      name: "Solid cage wall",
+      tags: ["wall", "solid"],
+      position: vec3(0.8, 0.3, 0),
+      size: vec3(0.2, 2, 1.8),
+      visual: { shape: "box", color: 0xffcc33 },
+    });
+    const runtime = new ModuleRuntime(world, new ManaPool(100, 0), () => {});
+    let movementStatus = "not-started";
+    let context: GameContext | undefined;
+
+    runtime.load({
+      label: "Fly toward the door",
+      tags: ["flight"],
+      setup(game) {
+        context = game;
+        game.locomotion.attach("key", { mode: "flight" });
+      },
+      update(deltaSeconds) {
+        if (!context || movementStatus === "blocked") return;
+        movementStatus = context.navigation.stepDirectlyToContact(
+          "key",
+          "door",
+          { contactDistance: 0.7, speed: 4 },
+          deltaSeconds,
+        ).status;
+      },
+      dispose() {},
+    });
+
+    for (let frame = 0; frame < 60; frame += 1) runtime.update(1 / 60);
+
+    expect(runtime.listLocomotionEffects()).toEqual([
+      expect.objectContaining({ mode: "flight", collisionPolicy: "solid" }),
+    ]);
+    expect(movementStatus).toBe("blocked");
+    expect(world.get("key")?.position.x).toBeLessThan(0.7);
   });
 });

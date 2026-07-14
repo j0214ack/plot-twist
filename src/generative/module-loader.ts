@@ -22,6 +22,7 @@ const immutableArtifact = (artifact: SpellArtifact): SpellArtifact =>
     ...artifact,
     tags: Object.freeze([...artifact.tags]) as unknown as string[],
     entityIds: Object.freeze([...artifact.entityIds]) as unknown as string[],
+    effectIds: Object.freeze([...artifact.effectIds]) as unknown as string[],
   });
 
 const obviousUnboundedLoops = [

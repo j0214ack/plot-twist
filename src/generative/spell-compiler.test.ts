@@ -62,6 +62,12 @@ describe("SpellCompiler", () => {
     expect(modelInput?.sdkContract).toContain("stepDirectlyToContact");
     expect(modelInput?.sdkContract).toContain("follow(path");
     expect(modelInput?.sdkContract).toContain('"out-of-range"');
+    // Spec: Decision 0007 LOC-1 through LOC-4; generated modules use the generic locomotion substrate.
+    expect(modelInput?.sdkContract).toContain("effectIds: string[]");
+    expect(modelInput?.sdkContract).toContain("readonly locomotion");
+    expect(modelInput?.sdkContract).toContain("attach(actorId: string");
+    expect(modelInput?.sdkContract).toContain('mode: "flight"');
+    expect(modelInput?.sdkContract).toContain('collisionPolicy: "solid"');
     // Spec: game-sdk.md Affordance and protected state; validation-plan.md Primary scenario step 5.
     expect(modelInput?.sdkContract).toContain(
       'sourceId must name an entity spawned by this module with the "damage-source" tag',

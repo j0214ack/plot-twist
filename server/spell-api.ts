@@ -25,6 +25,7 @@ const SpellCompileRequestSchema = z.object({
         label: z.string(),
         tags: z.array(z.string()),
         entityIds: z.array(z.string()),
+        effectIds: z.array(z.string()),
         createdAt: z.number(),
       }),
     )

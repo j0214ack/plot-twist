@@ -1,6 +1,6 @@
 # Decision 0007：MechanicModule 邊界與 first-class locomotion
 
-狀態：Accepted design direction；implementation pending
+狀態：Accepted for PoC；v0 implementation complete
 
 日期：2026-07-14
 
@@ -89,6 +89,15 @@ UnlockModule (dependsOn FlightModule artifact)
 - v0 仍只驗證俯視角 XZ navigation，不因 first-class locomotion 立即加入完整 3D navmesh、飛行高度、跳躍或群體避障。
 - 可以先讓 flight 成為有獨立 lifecycle 的 XZ locomotion effect，保留視覺、代價與反制語意；完整垂直運動留待後續。
 - 第一個 implementation slice 應先驗證 effect ownership、collision、contact observer、dependency cleanup 與 no-path；不擴充成固定技能庫。
+
+## v0 實作與證據
+
+- Public `GameContext.locomotion` 提供 `attach`、`get`、`forActor` 與 owner-only `remove`。Effect 由 Host 配發 ID、記錄 owner，並在 module setup 失敗、bundle rollback 或 dispose 時清除。
+- `SpellArtifact.effectIds` 讓 dependent module 能引用前一個 module 建立的 capability；`dependsOn` 仍只表示 artifact 已存在，不表示移動完成。
+- v0 唯一可附加的 canonical mode 是 typed `"flight"`。任意字串如 `"fly"` 會被拒絕，避免 world-readable capability 退化成無法推理的標籤；未來增加其他 mode 必須擴充 SDK contract，而不是在 Eval 做同義詞 router。
+- Flight effect 目前收取 4 Mana 的 Host-metered activation cost，collision policy 固定為 `solid`。尚未加入持續專注、垂直高度或 phase policy。
+- 2026-07-14 Fast profile live Eval「讓鑰匙飛去開鎖」以 2 個 generated modules 在 12.5 秒完成：FlightModule 建立 `flight` effect 並獨自負責 navigation，UnlockModule 依賴它且只觀察 interaction，最後接觸門並解鎖。
+- 同句在 sealed cage scenario 以 2 個 generated modules 在 9.3 秒完成：flight effect 保持可觀察，鑰匙撞到 solid 後停止、門維持 locked，旁註顯示找不到可行路線。兩個 Eval 都通過 module responsibility rubric，沒有固定 module-count gate。
 
 ## 對既有決策的關係
 

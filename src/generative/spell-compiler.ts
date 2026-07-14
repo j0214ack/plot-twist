@@ -21,6 +21,7 @@ interface SpellArtifact {
   label: string;
   tags: string[];
   entityIds: string[];
+  effectIds: string[];
   createdAt: number;
 }
 
@@ -70,6 +71,20 @@ interface NavigationFollowResult {
   blockerIds: string[];
 }
 
+interface LocomotionEffectRequest {
+  mode: "flight";
+  tags?: string[];
+}
+
+interface LocomotionEffectSnapshot {
+  id: string;
+  actorId: string;
+  ownerId: string;
+  mode: "flight";
+  tags: string[];
+  collisionPolicy: "solid";
+}
+
 interface MechanicModule {
   readonly label: string;
   readonly tags: string[];
@@ -100,6 +115,15 @@ interface GameContext {
       NavigationPlanResult;
     // Advances the actor incrementally. Replan when blocked; never loop inside one frame.
     follow(path: NavigationPath, speed: number, deltaSeconds: number): NavigationFollowResult;
+  };
+  readonly locomotion: {
+    // Attaches a world-readable, module-owned movement capability. The Host meters its Mana cost.
+    attach(actorId: string, request: LocomotionEffectRequest):
+      WorldMutationResult<LocomotionEffectRequest, LocomotionEffectSnapshot>;
+    get(effectId: string): LocomotionEffectSnapshot | undefined;
+    forActor(actorId: string): LocomotionEffectSnapshot[];
+    // A module can remove only effects it owns; Host cleanup also removes them on dispose.
+    remove(effectId: string): boolean;
   };
   readonly combat: {
     // sourceId must name an entity spawned by this module with the "damage-source" tag.

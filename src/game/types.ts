@@ -84,6 +84,22 @@ export interface NavigationFollowResult {
   blockerIds: string[];
 }
 
+export type LocomotionMode = "flight";
+
+export interface LocomotionEffectRequest {
+  mode: LocomotionMode;
+  tags?: string[];
+}
+
+export interface LocomotionEffectSnapshot {
+  id: string;
+  actorId: string;
+  ownerId: string;
+  mode: LocomotionMode;
+  tags: string[];
+  collisionPolicy: "solid";
+}
+
 export interface WorldMutationResult<TRequested, TActual = TRequested> {
   requested: TRequested;
   actual?: TActual;
@@ -105,6 +121,7 @@ export interface SpellArtifact {
   label: string;
   tags: string[];
   entityIds: string[];
+  effectIds: string[];
   createdAt: number;
 }
 
@@ -146,6 +163,15 @@ export interface GameContext {
       options: { contactDistance: number },
     ): NavigationPlanResult;
     follow(path: NavigationPath, speed: number, deltaSeconds: number): NavigationFollowResult;
+  };
+  readonly locomotion: {
+    attach(
+      actorId: string,
+      request: LocomotionEffectRequest,
+    ): WorldMutationResult<LocomotionEffectRequest, LocomotionEffectSnapshot>;
+    get(effectId: string): LocomotionEffectSnapshot | undefined;
+    forActor(actorId: string): LocomotionEffectSnapshot[];
+    remove(effectId: string): boolean;
   };
   readonly combat: {
     damage(sourceId: string, targetId: string, requestedDamage: number): WorldMutationResult<number>;

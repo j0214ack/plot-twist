@@ -10,6 +10,7 @@ describe("GeneratedModuleLoader", () => {
       label: "Crystal enclosure",
       tags: ["enclosure"],
       entityIds: ["wall-1"],
+      effectIds: [],
       createdAt: 0,
     };
     const loader = new GeneratedModuleLoader();
