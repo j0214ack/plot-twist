@@ -54,7 +54,6 @@ export class GenerativeSpellController {
 
       this.options.onStageChange?.("manifesting");
       this.executor.execute(bundle);
-      this.runtime.note({ tone: "success", text: bundle.summary });
       return { accepted: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

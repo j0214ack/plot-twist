@@ -43,7 +43,8 @@ const setup = (api: SpellApiClient) => {
     size: { x: 1, y: 2, z: 1 },
     visual: { shape: "box", color: 0xff0000 },
   });
-  const runtime = new ModuleRuntime(world, new ManaPool(), () => {});
+  const notes: string[] = [];
+  const runtime = new ModuleRuntime(world, new ManaPool(), (note) => notes.push(note.text));
   const stages: string[] = [];
   const casting: boolean[] = [];
   const controller = new GenerativeSpellController(
@@ -56,14 +57,14 @@ const setup = (api: SpellApiClient) => {
       onCastingChange: (value) => casting.push(value),
     },
   );
-  return { world, runtime, controller, stages, casting };
+  return { world, runtime, controller, stages, casting, notes };
 };
 
 describe("GenerativeSpellController", () => {
   // Spec: validation-plan.md Gate B and H5; real generation runs while the game loop remains external.
   it("sends the current scene, manifests the returned bundle, and exposes casting state", async () => {
     const compile = vi.fn(async () => generatedBundle);
-    const { world, runtime, controller, stages, casting } = setup({ compile });
+    const { world, runtime, controller, stages, casting, notes } = setup({ compile });
 
     const result = await controller.submit("召喚三顆紫色月亮", "guardian");
 
@@ -79,6 +80,8 @@ describe("GenerativeSpellController", () => {
     expect(runtime.listArtifacts()).toHaveLength(1);
     expect(stages).toEqual(["writing", "manifesting", "idle"]);
     expect(casting).toEqual([true, false]);
+    // Spec: design.md "結果式回饋"; ordinary success is visual, not another narration card.
+    expect(notes).toEqual([]);
   });
 
   // Spec: design.md casting rhythm; only one utterance compiles at a time.

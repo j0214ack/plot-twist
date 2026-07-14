@@ -40,6 +40,17 @@ describe("getLiveEvalCase", () => {
     expect(flying).not.toHaveProperty("expectedModuleCount");
   });
 
+  // Spec: validation-plan.md H10 and contact regression cases; interaction wording is not a Host keyword.
+  it("evaluates the player's 解鎖 wording as the same flying causal interaction", () => {
+    const synonym = getLiveEvalCase("key-unlock-flying-synonym-v1");
+
+    expect(synonym.utterance).toBe("讓鑰匙飛去解鎖");
+    expect(synonym.scenario).toBe("key-door-open");
+    expect(synonym.expectedDoorUnlocked).toBe(true);
+    expect(synonym.minimumActorDistance).toBeGreaterThan(0);
+    expect(synonym.expectedLocomotionMode).toBe("flight");
+  });
+
   // Spec: Decision 0006 NAV-8 and NAV-9; a sealed causal actor must fail visibly.
   it("evaluates a sealed key as no-path without changing the protected lock", () => {
     const sealed = getLiveEvalCase("key-unlock-sealed-v1");

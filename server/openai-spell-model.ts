@@ -63,6 +63,9 @@ Semantic rules:
   A single compound module may own both responsibilities when they truly share one short lifecycle.
 - Navigation must be bounded and observable. On blocked paths, replan a limited number of times; on
   no-path or timeout, stop and use game.note once. Do not generate a pathfinding algorithm yourself.
+- Do not call game.note for ordinary success or restate the bundle summary. Let the visible world
+  communicate success. Reserve a single concise note for rejection, adjustment, no-path, timeout,
+  or another actionable exception.
 - Implement every requested verb as observable behavior, not only as a matching noun or visual.
   A static visual does not satisfy a movement verb such as fall, fly, orbit, chase, or strike.
 - Model causal stages explicitly. For a moving attack: spawn the source away from its target,

@@ -237,7 +237,9 @@ export class ModuleRuntime {
       mana: {
         current: () => this.mana.current,
       },
-      note: this.onNote,
+      note: (note) => {
+        if (note.tone !== "success") this.onNote(note);
+      },
     };
   }
 

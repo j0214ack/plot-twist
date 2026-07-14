@@ -38,13 +38,17 @@
 
 第一個例外是守衛倒下、唯一鑰匙掉落後：右上角持續顯示「現在施咒讓鑰匙去打開門」，直到門解鎖。它不能只用幾秒後消失的旁註呈現。
 
+Technical spike 尚未提供自由指向／選取時，compiler 的 `focusedEntityId` 必須跟著 baked 關卡的當前阻礙交接，而不是永遠停在守衛：
+
+- `FOCUS-1`：守衛存活時預設 focus 是守衛；守衛倒下且門仍鎖住時改為門；門解鎖後改為傳送門。這只是場景 context，不得覆蓋玩家在 utterance 中明確說出的 actor 或 target。
+
 ### Technical spike 的 HUD 可讀性
 
 桌面 HUD 以 1440 × 900 viewport 為基準；更大的 viewport 依寬、高之中較小的比例一起放大，最多 1.45 倍。較小螢幕不縮到基準以下，繼續使用既有窄螢幕 media queries，避免文字因整體縮放而更難閱讀。
 
 ### Mobile presentation
 
-手機不是把桌面 HUD 等比例縮小。它與桌面共用同一個遊戲世界與施法 pipeline，但只呈現橫向遊戲畫面、左下 virtual joystick、右下按住詠唱的麥克風，以及必要的旁註、next-step 與 victory feedback。文字 spell console、咒語範例、桌面 status cards 與鍵盤說明不出現在手機模式。
+手機不是把桌面 HUD 等比例縮小。它與桌面共用同一個遊戲世界與施法 pipeline，但只呈現橫向遊戲畫面、精簡的雙方 HP、左下 virtual joystick、右下按住詠唱的麥克風，以及必要的 transcript、旁註、next-step 與 victory feedback。文字 spell console、咒語範例、桌面 status cards 與鍵盤說明不出現在手機模式。
 
 一般手機瀏覽器第一次進入時，先提示電腦體驗較完整；若仍用手機，建議加入主畫面取得 app-like fullscreen。已從主畫面以 fullscreen／standalone display mode 啟動時略過提示。直向手機以旋轉提示阻擋遊戲操作，完整判準見 [Decision 0008](decisions/0008-mobile-presentation-and-pwa-shell.md)。
 
@@ -82,6 +86,8 @@
 ## 詠唱與生成等待
 
 玩家按住詠唱鍵說話，放開後直接提交，不進入確認對話。AI 生成、驗證與載入程式期間，遊戲保持運作：守衛繼續攻擊，玩家則以降低的移動速度閃躲。
+
+Request-based STT 回傳完整 transcript 時，手機必須立刻顯示「你說：……」，並在 compiler 書寫期間持續可見。這是讓玩家核對辨識結果的 echo，不是確認步驟；它不能等待 spell generation 完成，也不把第一版改成 realtime partial transcription。
 
 ### Technical spike 的死亡保護
 

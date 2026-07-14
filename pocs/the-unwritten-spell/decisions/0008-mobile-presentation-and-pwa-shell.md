@@ -40,16 +40,19 @@ Moving parts 最少，但不會產生觸控移動、不能辨認 installed displ
 - `MOB-2`：Mobile gameplay 是 landscape only。Web app manifest 宣告 landscape orientation；一般瀏覽器若處於 portrait，顯示不可略過的旋轉提示並暫停畫面操作。
 - `MOB-3`：Mobile browser mode 在進入遊戲前顯示一次體驗提示：電腦體驗較完整；若仍使用手機，建議加入主畫面後從 icon 啟動。玩家可以繼續使用橫向 browser mode。
 - `MOB-4`：若實際 display mode 已是 `fullscreen`／`standalone`，或 iOS 回報 `navigator.standalone`，不顯示 `MOB-3` 的提示。判斷依實際 display mode，不只依 manifest 是否存在。
-- `MOB-5`：Mobile presentation 隱藏桌面 title、objective、status cards、guardian HUD、文字 spell console、範例咒語與鍵盤說明。保留 access gate、結果旁註、必要的 next-step guidance 與 victory state。
+- `MOB-5`（由 `MOB-10` 部分 supersede）：Mobile presentation 隱藏桌面 title、objective、status cards、guardian HUD、文字 spell console、範例咒語與鍵盤說明。保留 access gate、結果旁註、必要的 next-step guidance 與 victory state。
 - `MOB-6`：Mobile 的可操作控制只有左下 virtual joystick 與右下 push-to-talk microphone。手機不提供遊戲內文字咒語 fallback；桌面仍保留 Decision 0004 的文字 fallback。
 - `MOB-7`：Virtual joystick 將 pointer 相對中心的位置正規化成既有 `PlayerInput.moveX`／`moveZ`，限制最大幅度並套用 dead zone。pointer release、cancel、blur 或失去 capture 時必須歸零，不能讓角色持續漂移。v0 不另加 mobile dash button。
 - `MOB-8`：PWA manifest 使用 `display: fullscreen`、`orientation: landscape`、stable `id`／`start_url` 與 192／512 icons。若平台不支援 fullscreen，允許依標準 fallback 到 standalone。Technical spike 不宣稱 offline support。
 - `MOB-9`：Mobile mode 不建立第二套 world、simulation、spell compiler 或 voice controller。裝置模式只決定 presentation 與 `PlayerInput` adapter，不改 Game SDK 或生成機制。
+- `MOB-10`：Mobile 不恢復整套桌面 status cards，但必須提供玩家與守衛各一條精簡 HP bar；兩者讀取同一份 `HudState`，不得建立第二套戰鬥狀態。
+- `MOB-11`：Request-based STT 完成後，Mobile 在 spell generation 期間顯示完整 transcript，讓玩家能看出辨識是否正確；它不增加確認步驟，也不改成 realtime partial transcription。
 
 ## 驗收
 
 - Pure state tests 覆蓋 desktop、mobile browser、installed fullscreen／standalone 與 portrait gate。
 - Joystick tests 覆蓋 dead zone、最大幅度、pointer ownership 與 release／cancel reset。
+- Mobile presentation tests 覆蓋雙方 HP 與 transcript echo 的可見性、共用狀態與更新 wiring。
 - Production build 包含可讀取的 manifest、192／512 icons、`viewport-fit=cover` 與 landscape preference。
 - 人工 mobile QA 確認 browser mode 顯示一次提示、installed mode 略過提示、portrait 阻擋、landscape 可以移動與按住麥克風。
 

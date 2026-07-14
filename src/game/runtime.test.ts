@@ -50,6 +50,25 @@ describe("ModuleRuntime", () => {
     expect(world.get(spawnedId)).toBeUndefined();
   });
 
+  // Spec: design.md "結果式回饋"; ordinary generated success stays visual while exceptions remain audible.
+  it("suppresses generated success narration but preserves actionable notes", () => {
+    const world = new GameWorld();
+    const notes: Array<{ tone: string; text: string }> = [];
+    const runtime = new ModuleRuntime(world, new ManaPool(100), (note) => notes.push(note));
+
+    runtime.load({
+      label: "Visible result",
+      tags: ["test"],
+      setup(context) {
+        context.note({ tone: "success", text: "法術成功，這是一段普通成功旁白。" });
+        context.note({ tone: "warning", text: "法力不足，範圍已縮小。" });
+      },
+      dispose() {},
+    });
+
+    expect(notes).toEqual([{ tone: "warning", text: "法力不足，範圍已縮小。" }]);
+  });
+
   // Spec: Decision 0007 LOC-1, LOC-3 and PoC implementation slice ownership cleanup.
   it("owns first-class locomotion effects and removes them with their module", () => {
     const world = new GameWorld();

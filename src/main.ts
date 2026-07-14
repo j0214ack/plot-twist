@@ -1,4 +1,5 @@
 import "./style.css";
+import { resolveCastFocus } from "./cast-focus";
 import { DemoAccessOverlay } from "./demo-access-overlay";
 import { DemoSessionClient, DemoSessionController } from "./demo-session";
 import { KeyboardInput } from "./input";
@@ -113,7 +114,10 @@ const renderer = new ThreeGameRenderer(ui.canvas);
 
 const cast = async (utterance: string): Promise<void> => {
   if (!demoSession.isReady) return;
-  const submission = await generativeSpells.submit(utterance, "guardian");
+  const submission = await generativeSpells.submit(
+    utterance,
+    resolveCastFocus(world.list()),
+  );
   if (submission.accepted && !submission.error) ui.clearIncantation();
 };
 

@@ -60,6 +60,18 @@ const cases: Record<string, LiveEvalCase> = {
     minimumActorDistance: 1,
     expectedLocomotionMode: "flight",
   },
+  "key-unlock-flying-synonym-v1": {
+    id: "key-unlock-flying-synonym-v1",
+    utterance: "讓鑰匙飛去解鎖",
+    simulationSeconds: 5,
+    minimumSpawnedEntities: 0,
+    minimumMovedEntities: 0,
+    minimumDamage: 0,
+    scenario: "key-door-open",
+    expectedDoorUnlocked: true,
+    minimumActorDistance: 1,
+    expectedLocomotionMode: "flight",
+  },
   "key-unlock-sealed-v1": {
     id: "key-unlock-sealed-v1",
     utterance: "鑰匙開鎖",

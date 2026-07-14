@@ -26,9 +26,11 @@ export class GameUi {
   private readonly micLabels: HTMLElement[];
   private readonly stage: HTMLElement;
   private readonly manaBar: HTMLElement;
-  private readonly healthBar: HTMLElement;
-  private readonly guardianBar: HTMLElement;
+  private readonly healthBars: HTMLElement[];
+  private readonly guardianBars: HTMLElement[];
   private readonly nextStep: HTMLElement;
+  private readonly incantationEcho: HTMLElement;
+  private readonly incantationEchoText: HTMLElement;
   private readonly artifactCount: HTMLElement;
   private readonly notes: HTMLElement;
   private readonly victory: HTMLElement;
@@ -53,6 +55,11 @@ export class GameUi {
           <p></p>
         </section>
 
+        <section class="incantation-echo" aria-live="polite" aria-hidden="true">
+          <span>你說</span>
+          <p class="incantation-echo-text"></p>
+        </section>
+
         <section class="objective-card" aria-label="Objective">
           <p class="section-label">UNWRITTEN OBJECTIVE</p>
           <p>Reach the passage. You have no hands.</p>
@@ -64,7 +71,7 @@ export class GameUi {
 
         <section class="status-card" aria-label="Player status">
           <div class="stat-line"><span>VITAL INK</span><span>HP</span></div>
-          <div class="bar"><i class="bar-health"></i></div>
+          <div class="bar"><i class="bar-health" data-player-health></i></div>
           <div class="stat-line"><span>WRITING POWER</span><span>MANA</span></div>
           <div class="bar mana"><i class="bar-mana"></i></div>
           <div class="artifact-line">ACTIVE MARGINALIA <strong>0</strong></div>
@@ -72,7 +79,18 @@ export class GameUi {
 
         <section class="guardian-status" aria-label="Guardian status">
           <span>THE REDACTOR</span>
-          <div class="bar enemy"><i></i></div>
+          <div class="bar enemy"><i data-guardian-health></i></div>
+        </section>
+
+        <section class="mobile-combat-hud" aria-label="Combat health">
+          <div class="mobile-player-health">
+            <span>YOU</span>
+            <div><i data-player-health></i></div>
+          </div>
+          <div class="mobile-guardian-health">
+            <span>THE REDACTOR</span>
+            <div><i data-guardian-health></i></div>
+          </div>
         </section>
 
         <div class="quill-stage" aria-live="polite">
@@ -145,9 +163,13 @@ export class GameUi {
     this.mobileJoystickKnob = this.mobileJoystick.querySelector<HTMLElement>(".joystick-knob")!;
     this.stage = root.querySelector<HTMLElement>(".quill-stage")!;
     this.manaBar = root.querySelector<HTMLElement>(".bar-mana")!;
-    this.healthBar = root.querySelector<HTMLElement>(".bar-health")!;
-    this.guardianBar = root.querySelector<HTMLElement>(".guardian-status .bar i")!;
+    this.healthBars = [...root.querySelectorAll<HTMLElement>("[data-player-health]")];
+    this.guardianBars = [...root.querySelectorAll<HTMLElement>("[data-guardian-health]")];
     this.nextStep = root.querySelector<HTMLElement>(".next-step-card")!;
+    this.incantationEcho = root.querySelector<HTMLElement>(".incantation-echo")!;
+    this.incantationEchoText = this.incantationEcho.querySelector<HTMLElement>(
+      ".incantation-echo-text",
+    )!;
     this.artifactCount = root.querySelector<HTMLElement>(".artifact-line strong")!;
     this.notes = root.querySelector<HTMLElement>(".quill-notes")!;
     this.victory = root.querySelector<HTMLElement>(".victory-panel")!;
@@ -241,6 +263,8 @@ export class GameUi {
 
   clearIncantation(): void {
     this.input.value = "";
+    this.incantationEcho.classList.remove("visible");
+    this.incantationEcho.setAttribute("aria-hidden", "true");
     for (const example of document.querySelectorAll("[data-spell]")) {
       example.classList.remove("selected");
     }
@@ -248,6 +272,9 @@ export class GameUi {
 
   setIncantation(utterance: string): void {
     this.input.value = utterance;
+    this.incantationEchoText.textContent = utterance;
+    this.incantationEcho.classList.add("visible");
+    this.incantationEcho.setAttribute("aria-hidden", "false");
   }
 
   pushNote(note: QuillNote): void {
@@ -264,8 +291,8 @@ export class GameUi {
 
   update(state: HudState): void {
     this.manaBar.style.width = `${(state.mana / state.maximumMana) * 100}%`;
-    this.healthBar.style.width = `${(state.playerHp / state.playerMaxHp) * 100}%`;
-    this.guardianBar.style.width = `${(state.guardianHp / state.guardianMaxHp) * 100}%`;
+    for (const bar of this.healthBars) bar.style.width = `${(state.playerHp / state.playerMaxHp) * 100}%`;
+    for (const bar of this.guardianBars) bar.style.width = `${(state.guardianHp / state.guardianMaxHp) * 100}%`;
     this.artifactCount.textContent = String(state.artifacts);
     if (state.guardianHp <= 0) document.body.classList.add("guardian-defeated");
 
