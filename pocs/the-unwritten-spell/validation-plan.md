@@ -20,6 +20,7 @@
 | H8：錯誤咒語不會拖垮 Host | 讓 generated module 在 `update` 拋錯，並用無關或誤辨識 transcript 施法 | 該 artifact 被隔離並顯示旁註；主遊戲、其他 modules 與下一次施法仍可運作 |
 | H9：因果互動能滿足空間前提 | 分別說「鑰匙開鎖」並讓路徑無障礙、可繞路、完全封閉 | 前兩者接觸後解鎖；封閉時 bounded replan 後顯示 no-path，不能穿牆或直接改 lock |
 | H10：Locomotion 是可組合的 first-class capability | 對「讓鑰匙飛去開鎖」分別使用開放與 sealed 場景 | 兩者都建立 Host-owned `flight` effect；若拆 modules，Flight 負責 navigation、Unlock 只觀察 contact；sealed 時不能穿牆或解鎖 |
+| H11：手機 presentation 保留核心操作 | 在 mobile browser、portrait 與 installed display mode 測試同一關卡 | browser mode 先提示、installed mode 略過；portrait 阻擋；landscape 只用 joystick 與 push-to-talk 即可移動和施法 |
 
 ## Primary scenario：牆、火與鑰匙
 
@@ -84,6 +85,16 @@ Generated module 的 `update` 錯誤必須在 module boundary 被捕捉：清掉
 7. 加入詠唱期間的戰鬥與移動懲罰。
 8. 加入 Mana 的 actual-result metering 與旁註的稀疏回饋。
 9. 最後補上旁註的視覺、聲音與一分鐘 demo 演出。
+
+## Mobile acceptance cases
+
+- Desktop 或只有窄 viewport、但 primary pointer 仍是 fine 的環境，維持完整桌面 UI 與 KeyboardInput。
+- Coarse pointer + touch 的 mobile browser mode 顯示一次電腦／加入主畫面建議，玩家可以選擇繼續。
+- `fullscreen`／`standalone` display mode 或 iOS standalone 不顯示 browser-mode 建議。
+- Mobile portrait 顯示不可略過的旋轉提示；切回 landscape 後恢復控制。
+- Mobile landscape 隱藏文字 console 與桌面 HUD，只顯示左下 joystick、右下 push-to-talk，以及必要的結果 feedback。
+- Joystick release、pointer cancel、window blur 都讓輸入歸零；麥克風仍維持「按住、說完、放開」語意。
+- Manifest、icons 與 viewport safe-area 設定存在；本階段不以 service worker 或 offline gameplay 作為 PWA 驗收條件。
 
 ## Implementation gates
 

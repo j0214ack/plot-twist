@@ -42,6 +42,12 @@
 
 桌面 HUD 以 1440 × 900 viewport 為基準；更大的 viewport 依寬、高之中較小的比例一起放大，最多 1.45 倍。較小螢幕不縮到基準以下，繼續使用既有窄螢幕 media queries，避免文字因整體縮放而更難閱讀。
 
+### Mobile presentation
+
+手機不是把桌面 HUD 等比例縮小。它與桌面共用同一個遊戲世界與施法 pipeline，但只呈現橫向遊戲畫面、左下 virtual joystick、右下按住詠唱的麥克風，以及必要的旁註、next-step 與 victory feedback。文字 spell console、咒語範例、桌面 status cards 與鍵盤說明不出現在手機模式。
+
+一般手機瀏覽器第一次進入時，先提示電腦體驗較完整；若仍用手機，建議加入主畫面取得 app-like fullscreen。已從主畫面以 fullscreen／standalone display mode 啟動時略過提示。直向手機以旋轉提示阻擋遊戲操作，完整判準見 [Decision 0008](decisions/0008-mobile-presentation-and-pwa-shell.md)。
+
 ### 結果式回饋
 
 旁註根據 runtime event 決定是否回應：
