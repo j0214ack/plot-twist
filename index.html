@@ -15,9 +15,175 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><text y=%2226%22 font-size=%2228%22>✦</text></svg>" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <style data-startup-loading-critical>
+      .startup-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        overflow: hidden;
+        place-items: center;
+        padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+          max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+        color: #e9f7ff;
+        background:
+          radial-gradient(circle at 50% 43%, rgba(51, 137, 166, 0.15), transparent 29%),
+          radial-gradient(circle at 50% 50%, #0a101c 0%, #05070e 52%, #020308 100%);
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition: opacity 520ms ease, visibility 0s linear 520ms;
+      }
+
+      .startup-loading::before,
+      .startup-loading::after {
+        position: absolute;
+        inset: 18px;
+        border: 1px solid rgba(112, 215, 235, 0.07);
+        pointer-events: none;
+        content: "";
+      }
+
+      .startup-loading::after {
+        inset: 25px;
+        border-color: rgba(112, 215, 235, 0.025);
+      }
+
+      .startup-loading.is-complete {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .startup-loading-panel {
+        position: relative;
+        width: min(440px, 82vw);
+        text-align: center;
+      }
+
+      .startup-loading-eyebrow {
+        margin: 0 0 14px;
+        color: #6fcde1;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 9px;
+        letter-spacing: 0.32em;
+      }
+
+      .startup-loading h1 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(36px, 7vw, 58px);
+        font-weight: 500;
+        letter-spacing: 0.015em;
+        line-height: 0.94;
+        text-shadow: 0 0 38px rgba(92, 210, 239, 0.16);
+      }
+
+      .startup-loading-subtitle {
+        margin: 12px 0 30px;
+        color: #657987;
+        font-family: system-ui, sans-serif;
+        font-size: 11px;
+        font-weight: 300;
+        letter-spacing: 0.55em;
+      }
+
+      .startup-loading-mark {
+        position: relative;
+        display: grid;
+        width: 76px;
+        height: 76px;
+        margin: 0 auto 27px;
+        place-items: center;
+        border: 1px solid rgba(113, 219, 239, 0.14);
+        border-radius: 50%;
+      }
+
+      .startup-loading-mark::before {
+        position: absolute;
+        inset: 7px;
+        border: 1px dashed rgba(113, 219, 239, 0.13);
+        border-radius: inherit;
+        animation: startup-orbit 8s linear infinite;
+        content: "";
+      }
+
+      .startup-loading-mark span {
+        color: #91eafa;
+        font-size: 24px;
+        text-shadow: 0 0 18px rgba(95, 223, 248, 0.7);
+        animation: startup-pulse 1.45s ease-in-out infinite alternate;
+      }
+
+      .startup-ink-line {
+        position: relative;
+        width: min(300px, 70vw);
+        height: 1px;
+        margin: 0 auto 16px;
+        overflow: hidden;
+        background: rgba(119, 209, 226, 0.11);
+      }
+
+      .startup-ink-line i {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 34%;
+        background: linear-gradient(90deg, transparent, #69d9ee, transparent);
+        box-shadow: 0 0 12px rgba(81, 214, 238, 0.5);
+        animation: startup-write 1.55s ease-in-out infinite;
+      }
+
+      .startup-loading-copy {
+        margin: 0;
+        color: #718591;
+        font-family: system-ui, sans-serif;
+        font-size: 11px;
+        font-weight: 300;
+        letter-spacing: 0.08em;
+      }
+
+      @keyframes startup-orbit {
+        to { transform: rotate(360deg); }
+      }
+
+      @keyframes startup-pulse {
+        from { opacity: 0.58; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1.08); }
+      }
+
+      @keyframes startup-write {
+        from { transform: translateX(-110%); }
+        to { transform: translateX(400%); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .startup-loading-mark::before,
+        .startup-loading-mark span,
+        .startup-ink-line i {
+          animation: none;
+        }
+      }
+    </style>
     <title>The Unwritten Spell</title>
   </head>
   <body>
+    <section
+      id="startup-loading"
+      class="startup-loading"
+      role="status"
+      aria-live="polite"
+      aria-hidden="false"
+      aria-label="正在展開遊戲世界"
+    >
+      <div class="startup-loading-panel">
+        <p class="startup-loading-eyebrow">OPENING THE MARGIN</p>
+        <h1>The Unwritten Spell</h1>
+        <p class="startup-loading-subtitle">未寫之咒</p>
+        <div class="startup-loading-mark" aria-hidden="true"><span>✦</span></div>
+        <div class="startup-ink-line" aria-hidden="true"><i></i></div>
+        <p class="startup-loading-copy">法典正在展開這個世界……</p>
+      </div>
+    </section>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

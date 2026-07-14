@@ -12,6 +12,7 @@ import { BundleExecutor } from "./generative/bundle-executor";
 import { GenerativeSpellController } from "./generative/generative-spell-controller";
 import { HttpSpellApiClient } from "./generative/http-spell-api";
 import { GeneratedModuleLoader } from "./generative/module-loader";
+import { DomStartupLoadingView, StartupLoadingController } from "./startup-loading";
 import { GameUi } from "./ui";
 import { calculateUiScale } from "./ui-scale";
 import { VirtualJoystickInput } from "./virtual-joystick";
@@ -22,13 +23,18 @@ import { VoiceCastingController } from "./voice/voice-casting-controller";
 
 const root = document.querySelector<HTMLElement>("#app");
 if (!root) throw new Error("Missing #app root");
+const startupLoadingElement = document.querySelector<HTMLElement>("#startup-loading");
+if (!startupLoadingElement) throw new Error("Missing #startup-loading root");
+const startupLoading = new StartupLoadingController(
+  new DomStartupLoadingView(startupLoadingElement),
+);
 
 const ui = new GameUi(root);
 const mobileExperienceUi = new MobileExperienceUi(root);
 const accessOverlay = new DemoAccessOverlay(root);
 const demoSession = new DemoSessionController(new DemoSessionClient(), accessOverlay);
 accessOverlay.onUnlock((accessCode) => void demoSession.unlock(accessCode));
-void demoSession.start();
+void demoSession.start().finally(() => startupLoading.markSessionSettled());
 const updateUiScale = (): void => {
   root.style.setProperty(
     "--ui-scale",
@@ -175,6 +181,7 @@ const frame = (time: number): void => {
   simulation.update(deltaSeconds, input.snapshot());
   runtime.update(deltaSeconds);
   renderer.sync(world.list(), (time - startedAt) / 1000);
+  startupLoading.markWorldRendered();
 
   const player = world.get("player");
   const guardian = world.get("guardian");

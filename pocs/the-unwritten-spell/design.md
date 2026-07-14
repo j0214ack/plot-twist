@@ -48,6 +48,16 @@
 
 一般手機瀏覽器第一次進入時，先提示電腦體驗較完整；若仍用手機，建議加入主畫面取得 app-like fullscreen。已從主畫面以 fullscreen／standalone display mode 啟動時略過提示。直向手機以旋轉提示阻擋遊戲操作，完整判準見 [Decision 0008](decisions/0008-mobile-presentation-and-pwa-shell.md)。
 
+### Startup loading presentation
+
+網頁與從主畫面啟動的 PWA 使用同一個 startup loading screen。它是啟動狀態的遮罩，不是假裝知道下載百分比的進度條。
+
+- `LOAD-1`：loading screen 由初始 HTML 提供，在遊戲 JavaScript 建立 UI 以前就能顯示；web 與 installed PWA 不分叉成兩套畫面。
+- `LOAD-2`：只有 Demo session bootstrap 已結束（ready、需要 access code，或可見錯誤）且遊戲世界已成功 render 第一幀後，loading screen 才淡出。兩個條件不假設固定完成順序。
+- `LOAD-3`：第一幀可以使用既有 primitive fallback；CC0 GLB 後續載入成功時再替換。單一素材失敗不能讓玩家永遠卡在 loading。
+- `LOAD-4`：loading screen 可以用羽毛筆、墨跡與不定進度動畫表達仍在工作，但不顯示虛假百分比、模型推理或固定倒數。
+- `LOAD-5`：loading 結束後才由 access gate、mobile browser notice 或 portrait gate 接手阻擋操作；loading 自己淡出後必須停止攔截 pointer，並對輔助技術標記為隱藏。
+
 ### 結果式回饋
 
 旁註根據 runtime event 決定是否回應：

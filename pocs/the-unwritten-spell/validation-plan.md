@@ -96,6 +96,14 @@ Generated module 的 `update` 錯誤必須在 module boundary 被捕捉：清掉
 - Joystick release、pointer cancel、window blur 都讓輸入歸零；麥克風仍維持「按住、說完、放開」語意。
 - Manifest、icons 與 viewport safe-area 設定存在；本階段不以 service worker 或 offline gameplay 作為 PWA 驗收條件。
 
+## Startup loading acceptance cases
+
+- 初始 HTML 在 `#app` 以外提供同一個 loading screen，因此一般網頁與 installed PWA 都能在 runtime bootstrap 前看到它。
+- Demo session 與第一個 world frame 無論何者先完成，loading 都要等待另一個條件；兩者完成後只 dismiss 一次。
+- Access code required 或 session transport error 也算 session bootstrap 已結束，loading 淡出後讓可操作的 access gate 與錯誤訊息接手。
+- Loading 不等待模型呼叫、麥克風授權或每一個 GLB 成功；renderer 的 primitive fallback 足以完成第一幀。
+- Loading 不顯示百分比；淡出後 `aria-hidden` 為 true 且不再攔截 pointer。
+
 ## Implementation gates
 
 ### TDD 與 LLM Eval 的責任邊界
