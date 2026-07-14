@@ -33,7 +33,7 @@ Phase A 的 exit gate：三個 reference modules 都能只透過 public Game SDK
 
 - `GEN-1`：自由語言只能進入真正的模型路徑；模型產物必須包含新生成的 module source code，不能只是挑 reference ID。
 - `GEN-2`：一次 utterance 可以編譯成一個 `SpellBundle`，其中包含一到多個 atomic modules。
-- `GEN-3`：action 決定 module 數量；reference 與 constraint 不應被誤算成另一個 module。
+- `GEN-3`（由 Decision 0007 部分 supersede）：action、reference 與 constraint 是理解玩家因果要求的輸入語意，不是 module 數量公式。Runtime 邊界改由 mechanism 的 lifecycle、代價、反制、引用與 world-readable capability 判斷；reference 與 constraint 本身仍不應被誤算成另一個 mechanism。
 - `GEN-4`：多個 modules 必須顯式描述順序或 dependency，後一個 module 可以引用前一個 artifact。
 - `GEN-5`：模型輸出需經 syntax check、capability validation、load 與最多一次自動修復；失敗時 rollback，不回退成關鍵字技能選擇。
 - `GEN-6`：驗收必須包含未寫入 reference harness 的 utterances 與 mechanics。
@@ -95,3 +95,5 @@ type MechanicModuleFactory = (dependencies: DependencyBindings) => MechanicModul
 ## 對現有決策的關係
 
 本決定不推翻 Decision 0001 的 web stack 或同 realm technical spike。它補足 reference modules 與 generated code 之間原本沒有寫清楚的 implementation gate，並強化 `game-sdk.md` 已有的「reference module 不得成為 prompt 對應技能」要求。
+
+Decision 0007 後續修正了 `GEN-3` 的 module 邊界判準，但不改變本決定的 phase boundary、source ABI、rollback 與禁止 mock parser 等要求。

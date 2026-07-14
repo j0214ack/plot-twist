@@ -91,15 +91,15 @@
 
 ## 一句話裡有多個 action
 
-玩家不需要一次只講一個 intent。一次 utterance 可以包含一到多個 action，系統會把它編譯成一個 `SpellBundle`，再依 dependency 逐一具現 atomic modules。
+玩家不需要一次只講一個 intent。一次 utterance 可以包含一到多個 action，系統會把它編譯成一個 `SpellBundle`，再依 dependency 逐一具現 modules。
 
-判斷 module 數量時要區分：
+理解玩家的話時要區分：
 
 - action：要求新增一段因果機制；
 - reference：指出 action 要作用於哪個既有物件或 artifact；
 - constraint：限制 action 的範圍、材質、條件或持續時間。
 
-因此「在剛才那道牆裡燃起一場火」只有一個 action；「生成一道牆，然後在裡面放火」才有兩個依序 action。若語意本身是一個複合機制，例如「用火焰構成一道牆」，模型也可以生成單一 module，不應靠關鍵字數量武斷拆招。
+這些語意不是 module 數量公式。Module 的邊界取決於一段 runtime mechanism 是否需要獨立 lifecycle、資源代價、反制方式、跨 module 引用，或是否改變世界可讀取的 capability。「生成一道牆，然後在裡面放火」通常需要兩個可獨立存在、引用與解除的 modules；「用火焰構成一道牆」則可能是一個共同建立與清除的 compound module。完整判準見 [Decision 0007](decisions/0007-mechanic-module-boundary-and-locomotion.md)。
 
 玩家不需逐招確認。旁註可以用墨行與「第 1／2 句」呈現執行狀態，但仍遵守不顯示私有推理、不提供虛假進度的原則。實作邊界見 [Decision 0002](decisions/0002-reference-harness-boundary.md)。
 
@@ -113,6 +113,8 @@
 - 「我已經過關了。」
 
 旁註可以把句子劃掉，讓法典回應：「世界拒絕沒有因果的結局。」玩家若改說「每當火球碰到鏡牆，就反彈並傷害發射者」，系統便可以生成一個正常參與碰撞與傷害計算的機制。
+
+「鑰匙開鎖」不是直接宣告結果：鑰匙是具有 `unlocker` affordance 的 actor，開鎖是它對門執行的合法 interaction goal。若鑰匙尚未接觸門，generated mechanic 應先讓它嘗試抵達有效距離；玩家多說的「飛、滾、滑行」可以形成獨立 locomotion mechanism，但不是讓 interaction 從失敗變成功的隱藏通關詞。路徑被 generated geometry 封死時，鑰匙必須碰撞、重新尋路並在 bounded timeout 後放棄，由旁註說明找不到能接觸目標的路。互動邊界見 [Decision 0006](decisions/0006-causal-interaction-navigation.md)，locomotion 與 module 判準見 [Decision 0007](decisions/0007-mechanic-module-boundary-and-locomotion.md)。
 
 房間與通道可以被生成，因為它們屬於允許修改的世界空間；唯一鑰匙、守衛生命、門鎖狀態與通關旗標則是受保護狀態。Generated code 可以影響它們，但必須經過世界既有的 affordance。
 

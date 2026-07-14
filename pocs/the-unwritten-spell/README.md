@@ -87,6 +87,8 @@
 - [PoC 驗證與實作計畫](validation-plan.md)
 - [後續功能筆記：已學會的咒語 Artifact](learned-spell-artifacts.md)
 - [Public demo access session 與部署邊界](decisions/0005-access-gated-public-demo.md)
+- [因果互動、接觸與動態尋路](decisions/0006-causal-interaction-navigation.md)
+- [MechanicModule 邊界與 first-class locomotion](decisions/0007-mechanic-module-boundary-and-locomotion.md)
 
 ## 執行 playable spike
 

@@ -23,7 +23,7 @@ interface SpellBundle {
 }
 ```
 
-Action 決定需要幾個 modules；reference 與 constraint 只是 module context。例如「在剛才那道牆裡放火」是一個 action 與一個 reference，不是牆、火兩個 action。完整語意與階段邊界見 [Decision 0002](decisions/0002-reference-harness-boundary.md)。
+Action、reference 與 constraint 用來理解玩家要求的因果，不直接決定 module 數量。Module 是具有獨立 ownership 與 lifecycle 的 runtime mechanism；若一段機制需要自己的資源代價、反制、跨法術引用或 world-readable capability，通常應獨立成 module，否則可以保留為共同建立與清除的 compound module。完整 phase boundary 見 [Decision 0002](decisions/0002-reference-harness-boundary.md)，module 判準見 [Decision 0007](decisions/0007-mechanic-module-boundary-and-locomotion.md)。
 
 每個 module 可以產生其中一種或多種 artifact 資源：
 
@@ -73,7 +73,8 @@ portal      → portal, enterable, story-goal
 | --- | --- |
 | World | query、spawn、destroy 非保護 Entity、讀取 tags 與 bounds |
 | Space | current room、focused surface、建立 geometry/collider、持續的 WorldPatch |
-| Physics | force、velocity、rigid body、collider、sensor、raycast、joint |
+| Physics | force、velocity、rigid body、collider、sensor、raycast、joint；physical movement 尊重 baked 與 generated solids |
+| Navigation | 依動態 solid geometry 規劃 XZ contact path、逐 frame follow、回報 arrived／blocked／no-path |
 | Combat | 建立受限 DamageSource、接受碰撞後的 damage、status 與 death event |
 | Events | update、collision、enter/exit、spawn/destroy、custom event |
 | Time | timer、cooldown、duration；歷史軌跡列為後續能力 |
@@ -82,6 +83,10 @@ portal      → portal, enterable, story-goal
 | Audio | 一次性與空間音效；生成語音不在 technical spike critical path |
 | UI | HUD、world label、狀態圖示與 generated component mount point |
 | Story | 讀取 objective、threat 與 story anchor；不能直接完成 objective |
+
+Navigation 是一般化的空間 capability，不知道「鑰匙」或「門」。Generated module 先從 affordance 選出 actor／target，再用 navigation 滿足 contact precondition，最後呼叫 interaction。Interaction 與 navigation 都回傳 structured result，讓 module 能 bounded replan、timeout，並在失敗時提供旁註；細節見 [Decision 0006](decisions/0006-causal-interaction-navigation.md)。
+
+Locomotion 也是 first-class capability：Host 提供一般化的移動、碰撞、navigation 與 effect lifecycle，generated module 則決定把哪一種 locomotion effect 賦予哪個 actor、維持多久、承擔什麼代價。FlightModule 不需要重新生成 pathfinding，也不等於預製的 `flyToAndUnlock()` 技能；其他 modules 可以查詢、反制或引用它產生的 capability。詳細邊界見 [Decision 0007](decisions/0007-mechanic-module-boundary-and-locomotion.md)。
 
 ## Affordance 與受保護狀態
 
