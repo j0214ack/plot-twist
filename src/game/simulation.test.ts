@@ -83,6 +83,21 @@ describe("baked Game Host rules", () => {
     expect(castingDistance).toBeGreaterThan(0);
   });
 
+  // Spec: design.md "Technical spike 的死亡保護" and validation-plan.md H5.
+  it("keeps the player alive at one HP through an arbitrarily long first cast", () => {
+    const world = new GameWorld();
+    const simulation = new GameSimulation(world);
+    simulation.setupLevel();
+    simulation.setCasting(true);
+
+    for (let frame = 0; frame < 1_200; frame += 1) {
+      simulation.update(0.05, { moveX: 0, moveZ: 0, dash: false });
+    }
+
+    expect(world.get("player")?.active).toBe(true);
+    expect(world.get("player")?.stats?.hp).toBe(1);
+  });
+
   it("completes the objective only after unlocking and entering the portal", () => {
     const lockedWorld = new GameWorld();
     const locked = new GameSimulation(lockedWorld);

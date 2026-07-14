@@ -152,7 +152,11 @@ export class GameSimulation {
         this.world.hostDestroy(projectile.id);
         this.projectileAges.delete(projectile.id);
       } else if (player?.active && moved && distanceXZ(moved.position, player.position) < 0.62) {
-        this.world.damage(projectile.id, player.id, 12);
+        const currentHp = player.stats?.hp ?? 1;
+        const nonLethalDamage = Math.min(12, Math.max(0, currentHp - 1));
+        if (nonLethalDamage > 0) {
+          this.world.damage(projectile.id, player.id, nonLethalDamage);
+        }
         this.world.hostDestroy(projectile.id);
         this.projectileAges.delete(projectile.id);
       } else if (age > 4 || !moved || Math.abs(moved.position.x) > 11 || Math.abs(moved.position.z) > 8) {
