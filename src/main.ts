@@ -2,6 +2,8 @@ import "./style.css";
 import { DemoAccessOverlay } from "./demo-access-overlay";
 import { DemoSessionClient, DemoSessionController } from "./demo-session";
 import { KeyboardInput } from "./input";
+import { resolveMobileExperience, type AppDisplayMode } from "./mobile-experience";
+import { MobileExperienceUi } from "./mobile-experience-ui";
 import { ManaPool } from "./game/mana";
 import { ModuleRuntime } from "./game/runtime";
 import { GameSimulation } from "./game/simulation";
@@ -12,6 +14,7 @@ import { HttpSpellApiClient } from "./generative/http-spell-api";
 import { GeneratedModuleLoader } from "./generative/module-loader";
 import { GameUi } from "./ui";
 import { calculateUiScale } from "./ui-scale";
+import { VirtualJoystickInput } from "./virtual-joystick";
 import { ThreeGameRenderer } from "./view/three-renderer";
 import { BrowserAudioRecorder } from "./voice/browser-audio-recorder";
 import { HttpTranscriptionClient } from "./voice/http-transcription-client";
@@ -21,6 +24,7 @@ const root = document.querySelector<HTMLElement>("#app");
 if (!root) throw new Error("Missing #app root");
 
 const ui = new GameUi(root);
+const mobileExperienceUi = new MobileExperienceUi(root);
 const accessOverlay = new DemoAccessOverlay(root);
 const demoSession = new DemoSessionController(new DemoSessionClient(), accessOverlay);
 accessOverlay.onUnlock((accessCode) => void demoSession.unlock(accessCode));
@@ -40,6 +44,23 @@ const simulation = new GameSimulation(world);
 simulation.setupLevel();
 let voiceBusy = false;
 
+let mobileNoticeDismissed = false;
+const displayMode = (): AppDisplayMode => {
+  if (window.matchMedia("(display-mode: fullscreen)").matches) return "fullscreen";
+  if (window.matchMedia("(display-mode: standalone)").matches) return "standalone";
+  return "browser";
+};
+const readMobileExperience = () =>
+  resolveMobileExperience({
+    coarsePointer: window.matchMedia("(pointer: coarse)").matches,
+    maxTouchPoints: navigator.maxTouchPoints,
+    portrait: window.matchMedia("(orientation: portrait)").matches,
+    displayMode: displayMode(),
+    iosStandalone: Boolean((navigator as Navigator & { standalone?: boolean }).standalone),
+    noticeDismissed: mobileNoticeDismissed,
+  });
+let mobileExperience = readMobileExperience();
+
 const generativeSpells = new GenerativeSpellController(
   world,
   runtime,
@@ -53,7 +74,35 @@ const generativeSpells = new GenerativeSpellController(
     onStageChange: (stage) => ui.setStage(stage),
   },
 );
-const input = new KeyboardInput();
+const keyboardInput = new KeyboardInput();
+const joystickInput = new VirtualJoystickInput(ui.mobileJoystick, ui.mobileJoystickKnob);
+const syncMobileExperience = (): void => {
+  mobileExperience = readMobileExperience();
+  mobileExperienceUi.render(mobileExperience);
+  joystickInput.setEnabled(
+    mobileExperience.inputMode === "joystick" && mobileExperience.controlsEnabled,
+  );
+};
+mobileExperienceUi.onContinue(() => {
+  mobileNoticeDismissed = true;
+  syncMobileExperience();
+});
+for (const query of [
+  "(pointer: coarse)",
+  "(orientation: portrait)",
+  "(display-mode: fullscreen)",
+  "(display-mode: standalone)",
+]) {
+  window.matchMedia(query).addEventListener("change", syncMobileExperience);
+}
+window.addEventListener("resize", syncMobileExperience);
+syncMobileExperience();
+const input = {
+  snapshot: () =>
+    mobileExperience.inputMode === "joystick"
+      ? joystickInput.snapshot()
+      : keyboardInput.snapshot(),
+};
 const renderer = new ThreeGameRenderer(ui.canvas);
 
 const cast = async (utterance: string): Promise<void> => {

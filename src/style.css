@@ -743,6 +743,375 @@ kbd {
   font-weight: 300;
 }
 
+.mobile-controls,
+.mobile-experience-notice,
+.mobile-portrait-gate {
+  display: none;
+}
+
+.mobile-experience-notice,
+.mobile-portrait-gate {
+  position: absolute;
+  inset: 0;
+  place-items: center;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    max(22px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom))
+    max(22px, env(safe-area-inset-left));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.mobile-experience-notice {
+  z-index: 40;
+  background:
+    radial-gradient(circle at 72% 30%, rgba(56, 169, 202, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(3, 7, 15, 0.97), rgba(6, 11, 21, 0.94));
+  backdrop-filter: blur(18px);
+}
+
+.mobile-experience-notice.visible,
+.mobile-portrait-gate.visible {
+  display: grid;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-experience-notice > div {
+  width: min(620px, 90vw);
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  padding: clamp(22px, 5vh, 38px) clamp(24px, 5vw, 46px);
+  border: 1px solid rgba(112, 221, 239, 0.22);
+  border-top-color: rgba(112, 221, 239, 0.62);
+  background: linear-gradient(145deg, rgba(9, 17, 29, 0.96), rgba(5, 9, 17, 0.98));
+  box-shadow: 0 26px 100px rgba(0, 0, 0, 0.64), 0 0 70px rgba(67, 187, 223, 0.08);
+}
+
+.mobile-experience-notice h2,
+.mobile-portrait-gate h2 {
+  margin: 10px 0 10px;
+  font-family: "Cormorant Garamond", "Noto Sans TC", serif;
+  font-weight: 600;
+  line-height: 1.08;
+}
+
+.mobile-experience-notice h2 {
+  font-size: clamp(27px, 6vh, 42px);
+}
+
+.mobile-experience-notice > div > p:not(.eyebrow) {
+  margin: 0;
+  color: #91a4af;
+  font-family: "Noto Sans TC", sans-serif;
+  font-size: clamp(11px, 2.3vh, 14px);
+  line-height: 1.7;
+}
+
+.mobile-experience-notice strong {
+  color: #bceef5;
+  font-weight: 500;
+}
+
+.mobile-install-hint {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin: clamp(16px, 3.8vh, 24px) 0;
+  color: #79cfe0;
+  font-size: clamp(8px, 1.8vh, 10px);
+  letter-spacing: 0.08em;
+}
+
+.mobile-install-hint span {
+  padding: 7px 9px;
+  border: 1px solid rgba(105, 219, 239, 0.2);
+  background: rgba(76, 190, 216, 0.06);
+}
+
+.mobile-install-hint i {
+  color: #496875;
+  font-style: normal;
+}
+
+.mobile-experience-notice button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(95, 220, 241, 0.38);
+  color: #bceff7;
+  background: rgba(70, 194, 219, 0.1);
+  cursor: pointer;
+  font-family: "Noto Sans TC", sans-serif;
+  font-size: 11px;
+}
+
+.mobile-portrait-gate {
+  z-index: 50;
+  color: #eafaff;
+  background:
+    radial-gradient(circle, rgba(41, 111, 139, 0.18), transparent 42%),
+    rgba(2, 5, 12, 0.98);
+  text-align: center;
+}
+
+.mobile-portrait-gate > div {
+  animation: portrait-enter 500ms ease both;
+}
+
+.mobile-portrait-gate .rotate-device {
+  display: inline-grid;
+  width: 62px;
+  height: 92px;
+  margin-bottom: 28px;
+  transform: rotate(90deg);
+  place-items: center;
+  border: 2px solid rgba(119, 225, 241, 0.72);
+  border-radius: 10px;
+  color: transparent;
+  box-shadow: 0 0 30px rgba(85, 211, 234, 0.16), inset 0 0 20px rgba(85, 211, 234, 0.05);
+}
+
+.mobile-portrait-gate .rotate-device::after {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #75deef;
+  box-shadow: 0 0 9px #75deef;
+  content: "";
+}
+
+.mobile-portrait-gate h2 {
+  font-size: 34px;
+}
+
+.mobile-portrait-gate p:not(.eyebrow) {
+  margin: 0;
+  color: #758d99;
+  font-family: "Noto Sans TC", sans-serif;
+  font-size: 12px;
+}
+
+#app.mobile-mode .game-shell {
+  min-height: 0;
+}
+
+#app.mobile-mode .title-lockup,
+#app.mobile-mode .runtime-badge,
+#app.mobile-mode .objective-card,
+#app.mobile-mode .status-card,
+#app.mobile-mode .guardian-status,
+#app.mobile-mode .spell-console,
+#app.mobile-mode .quill-stage {
+  display: none;
+}
+
+#app.mobile-mode .mobile-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: block;
+  opacity: 0.28;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+#app.mobile-mode.mobile-controls-enabled .mobile-controls {
+  opacity: 1;
+}
+
+.virtual-joystick {
+  position: absolute;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: max(22px, env(safe-area-inset-left));
+  width: 118px;
+  height: 118px;
+  border: 1px solid rgba(116, 216, 234, 0.2);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(78, 191, 214, 0.07) 0 36%, transparent 37%),
+    rgba(4, 10, 18, 0.52);
+  box-shadow: inset 0 0 34px rgba(59, 169, 197, 0.06), 0 10px 40px rgba(0, 0, 0, 0.26);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.joystick-ring {
+  position: absolute;
+  inset: 13px;
+  border: 1px dashed rgba(115, 218, 236, 0.18);
+  border-radius: inherit;
+}
+
+.joystick-ring::before,
+.joystick-ring::after {
+  position: absolute;
+  background: rgba(105, 216, 236, 0.13);
+  content: "";
+}
+
+.joystick-ring::before {
+  top: 50%;
+  right: 7px;
+  left: 7px;
+  height: 1px;
+}
+
+.joystick-ring::after {
+  top: 7px;
+  bottom: 7px;
+  left: 50%;
+  width: 1px;
+}
+
+.joystick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  place-items: center;
+  border: 1px solid rgba(126, 230, 246, 0.52);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, rgba(156, 237, 248, 0.28), rgba(32, 110, 132, 0.22));
+  box-shadow: 0 0 25px rgba(71, 195, 220, 0.15), inset 0 0 16px rgba(146, 235, 248, 0.08);
+  will-change: transform;
+}
+
+.joystick-knob i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8ce5f1;
+  box-shadow: 0 0 12px #6bd9eb;
+}
+
+.virtual-joystick.is-active .joystick-knob {
+  border-color: rgba(134, 238, 250, 0.88);
+  box-shadow: 0 0 34px rgba(71, 211, 231, 0.28), inset 0 0 18px rgba(146, 235, 248, 0.13);
+}
+
+.mobile-mic-button {
+  position: absolute;
+  right: max(22px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: grid;
+  width: 118px;
+  height: 118px;
+  padding: 14px;
+  place-items: center;
+  align-content: center;
+  border: 1px solid rgba(104, 230, 193, 0.4);
+  border-radius: 50%;
+  color: #a7eed8;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(89, 222, 181, 0.17), transparent 46%),
+    rgba(4, 13, 18, 0.68);
+  box-shadow: 0 0 32px rgba(58, 209, 168, 0.1), inset 0 0 28px rgba(69, 209, 169, 0.06);
+  cursor: pointer;
+  font-family: "Noto Sans TC", sans-serif;
+  touch-action: none;
+  user-select: none;
+}
+
+.mobile-mic-icon {
+  display: block;
+  width: 29px;
+  height: 29px;
+  margin-bottom: 5px;
+}
+
+.mobile-mic-icon svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.45;
+  filter: drop-shadow(0 0 7px currentcolor);
+}
+
+.mobile-mic-button .mic-label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.mobile-mic-hint {
+  margin-top: 4px;
+  color: #5e9586;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.mobile-mic-button.is-recording {
+  border-color: rgba(255, 91, 123, 0.82);
+  color: #ff8ba2;
+  background: radial-gradient(circle, rgba(255, 73, 108, 0.2), rgba(22, 7, 13, 0.78));
+  box-shadow: 0 0 42px rgba(255, 67, 105, 0.24), inset 0 0 30px rgba(255, 67, 105, 0.08);
+  animation: recording-pulse 700ms ease-in-out infinite alternate;
+}
+
+.mobile-mic-button:disabled {
+  cursor: wait;
+  opacity: 0.56;
+}
+
+#app.mobile-mode .next-step-card {
+  top: max(14px, env(safe-area-inset-top));
+  right: auto;
+  left: 50%;
+  width: min(360px, calc(100vw - 300px));
+  padding: 10px 14px;
+  transform: translate(-50%, -8px);
+  transform-origin: center top;
+}
+
+#app.mobile-mode .next-step-card.visible {
+  transform: translate(-50%, 0);
+}
+
+#app.mobile-mode .next-step-card p {
+  font-size: 12px;
+}
+
+#app.mobile-mode .quill-notes {
+  top: max(72px, calc(env(safe-area-inset-top) + 60px));
+  right: 50%;
+  width: min(380px, calc(100vw - 300px));
+  transform: translateX(50%);
+  transform-origin: center top;
+}
+
+#app.mobile-mode .quill-note {
+  padding: 9px 12px;
+  font-size: 10px;
+}
+
+#app.mobile-mode .victory-panel {
+  width: min(520px, calc(100vw - 60px));
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  padding: clamp(24px, 7vh, 38px);
+}
+
+@keyframes portrait-enter {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 @keyframes ink-write {
   0%,
   100% {
