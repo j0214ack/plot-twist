@@ -82,11 +82,11 @@ export class GameUi {
         </div>
 
         <section class="mobile-controls" aria-label="Mobile game controls">
-          <div class="virtual-joystick" aria-label="移動搖桿" aria-disabled="false">
+          <div class="virtual-joystick mobile-touch-control" aria-label="移動搖桿" aria-disabled="false">
             <span class="joystick-ring" aria-hidden="true"></span>
             <span class="joystick-knob" aria-hidden="true"><i></i></span>
           </div>
-          <button class="mic-button mobile-mic-button" type="button" aria-label="按住說出咒語">
+          <button class="mic-button mobile-mic-button mobile-touch-control" type="button" aria-label="按住說出咒語">
             <span class="mobile-mic-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" role="presentation">
                 <path d="M12 15.25a3.25 3.25 0 0 0 3.25-3.25V6a3.25 3.25 0 0 0-6.5 0v6A3.25 3.25 0 0 0 12 15.25Z" />
@@ -182,8 +182,12 @@ export class GameUi {
     for (const button of this.micButtons) {
       button.addEventListener("pointerdown", (event) => {
         event.preventDefault();
-        button.setPointerCapture(event.pointerId);
         start();
+        try {
+          button.setPointerCapture(event.pointerId);
+        } catch {
+          // Recording already started; release on the button still completes the gesture.
+        }
       });
       const finish = (event: PointerEvent): void => {
         if (button.hasPointerCapture(event.pointerId)) {

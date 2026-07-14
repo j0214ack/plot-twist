@@ -921,6 +921,18 @@ kbd {
   opacity: 1;
 }
 
+.mobile-touch-control {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.mobile-touch-control,
+.mobile-touch-control * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .virtual-joystick {
   position: absolute;
   bottom: max(18px, env(safe-area-inset-bottom));
@@ -933,9 +945,6 @@ kbd {
     radial-gradient(circle, rgba(78, 191, 214, 0.07) 0 36%, transparent 37%),
     rgba(4, 10, 18, 0.52);
   box-shadow: inset 0 0 34px rgba(59, 169, 197, 0.06), 0 10px 40px rgba(0, 0, 0, 0.26);
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
 }
 
 .joystick-ring {
@@ -1014,8 +1023,6 @@ kbd {
   box-shadow: 0 0 32px rgba(58, 209, 168, 0.1), inset 0 0 28px rgba(69, 209, 169, 0.06);
   cursor: pointer;
   font-family: "Noto Sans TC", sans-serif;
-  touch-action: none;
-  user-select: none;
 }
 
 .mobile-mic-icon {
