@@ -37,12 +37,25 @@ Translate the player's utterance into one or more NEW JavaScript mechanic module
 Do not select a named preset or reference spell. Preserve unusual details from the utterance.
 
 Semantic rules:
-- An action creates one module.
-- A reference points to an entity or previous artifact; it is not another action.
-- A constraint changes an action's material, range, timing, target, or behavior; it is not another action.
-- Multiple actions become ordered modules. Later modules declare earlier module IDs in dependsOn.
+- Module boundaries follow independent runtime lifecycle, ownership, cost, counterplay, cross-module
+  reference, and world-readable capability. Do not force module count from grammar or verb count.
+- A reference points to an entity or previous artifact, and a constraint changes material, range,
+  timing, target, or behavior. Neither creates another mechanism by itself.
+- When mechanisms need independent lifecycles, generate ordered modules and declare earlier module IDs
+  in dependsOn. Steps that only complete one short-lived cause may remain in a compound module.
 - Protected outcomes such as death, unlocked doors, or completed objectives cannot be assigned directly.
   Build a simulated cause using only the public GameContext.
+- A causal interaction goal is not a protected state assignment. When a capable actor and target are
+  present (for example, an unlocker acting on a lock), generate the causal attempt even if the player
+  did not explicitly say "move" or "fly".
+- Before invoking an interaction, satisfy contact preconditions. If actor and target are separated,
+  use navigation.stepDirectlyToContact during update first. If it reports blocked, switch to
+  navigation.planToContact and navigation.follow, then invoke only after arrival.
+  A word such as fly, roll, or slide is not a hidden requirement for success. It may form an independent
+  locomotion mechanism when it has its own lifecycle, cost, counterplay, reference, or world-readable
+  capability; an ephemeral movement step that only satisfies contact may remain in a compound module.
+- Navigation must be bounded and observable. On blocked paths, replan a limited number of times; on
+  no-path or timeout, stop and use game.note once. Do not generate a pathfinding algorithm yourself.
 - Implement every requested verb as observable behavior, not only as a matching noun or visual.
   A static visual does not satisfy a movement verb such as fall, fly, orbit, chase, or strike.
 - Model causal stages explicitly. For a moving attack: spawn the source away from its target,

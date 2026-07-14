@@ -1,4 +1,9 @@
 import { distance3D } from "./math";
+import {
+  followNavigationPath,
+  planToContact,
+  stepDirectlyToContact,
+} from "./navigation";
 import { ManaPool } from "./mana";
 import type {
   EntitySnapshot,
@@ -127,13 +132,21 @@ export class ModuleRuntime {
           const distance = distance3D(entity.position, target);
           if (distance === 0) return true;
           const step = Math.min(distance, Math.max(0, speed) * deltaSeconds);
-          const moved = this.world.setPosition(entityId, {
+          const moved = this.world.moveWithSolidCollision(entityId, {
             x: entity.position.x + ((target.x - entity.position.x) / distance) * step,
             y: entity.position.y + ((target.y - entity.position.y) / distance) * step,
             z: entity.position.z + ((target.z - entity.position.z) / distance) * step,
           });
-          return moved && step >= distance;
+          return moved.status === "moved" && step >= distance;
         },
+      },
+      navigation: {
+        stepDirectlyToContact: (actorId, targetId, options, deltaSeconds) =>
+          stepDirectlyToContact(this.world, actorId, targetId, options, deltaSeconds),
+        planToContact: (actorId, targetId, options) =>
+          planToContact(this.world, actorId, targetId, options.contactDistance),
+        follow: (path, speed, deltaSeconds) =>
+          followNavigationPath(this.world, path, speed, deltaSeconds),
       },
       combat: {
         damage: (sourceId, targetId, requestedDamage) => {
@@ -169,7 +182,9 @@ export class ModuleRuntime {
       },
       interaction: {
         invoke: (actorId, targetId, affordance) =>
-          affordance === "unlock" && this.world.invokeUnlock(actorId, targetId),
+          affordance === "unlock"
+            ? this.world.invokeUnlock(actorId, targetId)
+            : { status: "incompatible", actorId, targetId },
       },
       artifacts: {
         recent: (tag) =>

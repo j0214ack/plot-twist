@@ -83,4 +83,56 @@ describe("reference MechanicModules", () => {
     for (let index = 0; index < 50; index += 1) runtime.update(0.1);
     expect(world.get("door")?.tags).toContain("unlocked");
   });
+
+  // Spec: Decision 0006 NAV-8; an unreachable interaction retries for a bounded time and explains failure.
+  it("stops an enclosed key after bounded replanning and reports that no contact path exists", () => {
+    const world = new GameWorld();
+    world.add({
+      id: "key",
+      name: "Unique key",
+      tags: ["key", "unique"],
+      position: vec3(0, 0.3, 0),
+      size: vec3(0.4, 0.15, 0.15),
+      visual: { shape: "box", color: 0xffcc33 },
+      affordances: ["unlocker", "movable"],
+      protected: true,
+    });
+    world.add({
+      id: "door",
+      name: "Locked door",
+      tags: ["door", "locked"],
+      position: vec3(4, 0.3, 0),
+      size: vec3(0.4, 2, 3),
+      visual: { shape: "box", color: 0x444466 },
+      affordances: ["lock"],
+      protected: true,
+    });
+    for (const [index, wall] of [
+      { position: vec3(-0.8, 0.3, 0), size: vec3(0.2, 2, 1.8) },
+      { position: vec3(0.8, 0.3, 0), size: vec3(0.2, 2, 1.8) },
+      { position: vec3(0, 0.3, -0.8), size: vec3(1.8, 2, 0.2) },
+      { position: vec3(0, 0.3, 0.8), size: vec3(1.8, 2, 0.2) },
+    ].entries()) {
+      world.add({
+        id: `cage-wall-${index}`,
+        name: "Cage wall",
+        tags: ["wall", "solid"],
+        position: wall.position,
+        size: wall.size,
+        visual: { shape: "box", color: 0xffcc33 },
+      });
+    }
+    const notes: string[] = [];
+    const runtime = new ModuleRuntime(
+      world,
+      new ManaPool(200),
+      (note) => notes.push(note.text),
+    );
+
+    runtime.load(createKeyToLockModule());
+    for (let index = 0; index < 40; index += 1) runtime.update(0.1);
+
+    expect(world.get("door")?.tags).toContain("locked");
+    expect(notes).toEqual([expect.stringContaining("找不到能接觸到門的路")]);
+  });
 });

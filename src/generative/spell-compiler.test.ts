@@ -57,6 +57,11 @@ describe("SpellCompiler", () => {
     expect(modelInput?.sdkContract).toContain(
       "damage(sourceId: string, targetId: string, requestedDamage: number)",
     );
+    // Spec: Decision 0006 NAV-6 and NAV-7; generated modules get generic navigation and reasons.
+    expect(modelInput?.sdkContract).toContain("planToContact");
+    expect(modelInput?.sdkContract).toContain("stepDirectlyToContact");
+    expect(modelInput?.sdkContract).toContain("follow(path");
+    expect(modelInput?.sdkContract).toContain('"out-of-range"');
     // Spec: game-sdk.md Affordance and protected state; validation-plan.md Primary scenario step 5.
     expect(modelInput?.sdkContract).toContain(
       'sourceId must name an entity spawned by this module with the "damage-source" tag',

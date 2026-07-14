@@ -47,6 +47,29 @@ interface WorldMutationResult<TRequested, TActual = TRequested> {
   status: "complete" | "partial" | "rejected";
 }
 
+interface InteractionResult {
+  status: "applied" | "out-of-range" | "incompatible" | "already-complete" | "invalid";
+  actorId: string;
+  targetId: string;
+}
+
+interface NavigationPath {
+  actorId: string;
+  targetId: string;
+  contactDistance: number;
+  waypoints: Vec3[];
+  cursor: number;
+}
+
+type NavigationPlanResult =
+  | { status: "path-found"; path: NavigationPath }
+  | { status: "arrived" | "no-path" | "invalid" };
+
+interface NavigationFollowResult {
+  status: "moving" | "arrived" | "blocked" | "invalid";
+  blockerIds: string[];
+}
+
 interface MechanicModule {
   readonly label: string;
   readonly tags: string[];
@@ -64,8 +87,19 @@ interface GameContext {
       WorldMutationResult<SpawnPrimitiveRequest, EntitySnapshot>;
   };
   readonly physics: {
-    // Returns true only when the entity has reached target; false means still moving or rejected.
+    // Collision-aware. Returns true only when the entity reached target; false means moving, blocked, or rejected.
     moveToward(entityId: string, target: Vec3, speed: number, deltaSeconds: number): boolean;
+  };
+  readonly navigation: {
+    // Makes an observable straight-line contact attempt and reports the first solid collision.
+    stepDirectlyToContact(actorId: string, targetId: string,
+      options: { contactDistance: number; speed: number }, deltaSeconds: number):
+      NavigationFollowResult;
+    // Plans a physical XZ path around current baked and generated solid geometry.
+    planToContact(actorId: string, targetId: string, options: { contactDistance: number }):
+      NavigationPlanResult;
+    // Advances the actor incrementally. Replan when blocked; never loop inside one frame.
+    follow(path: NavigationPath, speed: number, deltaSeconds: number): NavigationFollowResult;
   };
   readonly combat: {
     // sourceId must name an entity spawned by this module with the "damage-source" tag.
@@ -74,7 +108,7 @@ interface GameContext {
       WorldMutationResult<number>;
   };
   readonly interaction: {
-    invoke(actorId: string, targetId: string, affordance: "unlock"): boolean;
+    invoke(actorId: string, targetId: string, affordance: "unlock"): InteractionResult;
   };
   readonly artifacts: {
     recent(tag?: string): SpellArtifact | undefined;

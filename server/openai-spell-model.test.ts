@@ -77,6 +77,15 @@ describe("OpenAiSpellModelClient", () => {
     expect(developerPrompt).toContain("A static visual does not satisfy a movement verb");
     expect(developerPrompt).toContain("moveToward");
     expect(developerPrompt).toContain("combat.damage");
+    // Spec: Decision 0006 NAV-1 through NAV-3 and Decision 0007 MOD-1 through MOD-5.
+    expect(developerPrompt).toContain("A causal interaction goal is not a protected state assignment");
+    expect(developerPrompt).toContain("satisfy contact preconditions");
+    expect(developerPrompt).toContain("Module boundaries follow independent runtime lifecycle");
+    expect(developerPrompt).toContain("Do not force module count from grammar");
+    expect(developerPrompt).not.toContain("Do not split a locomotion modifier into another module");
+    expect(developerPrompt).toContain("navigation.planToContact");
+    // Spec: Decision 0006 NAV-8; generated interactions visibly contact solids before replanning.
+    expect(developerPrompt).toContain("navigation.stepDirectlyToContact");
     expect(developerPrompt).toContain("The factory parameter is artifact dependencies, NEVER GameContext");
     expect(developerPrompt).toContain("setup(context) { game = context");
   });

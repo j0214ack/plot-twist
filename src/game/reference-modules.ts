@@ -1,5 +1,5 @@
-import { distanceXZ, pointInsideEntityXZ, vec3 } from "./math";
-import type { GameContext, MechanicModule } from "./types";
+import { pointInsideEntityXZ, vec3 } from "./math";
+import type { GameContext, MechanicModule, NavigationPath } from "./types";
 
 export const createEnclosureModule = (targetId: string): MechanicModule => {
   return {
@@ -123,6 +123,22 @@ export const createKeyToLockModule = (): MechanicModule => {
   let context: GameContext | undefined;
   let keyId: string | undefined;
   let lockId: string | undefined;
+  let path: NavigationPath | undefined;
+  let elapsedSeconds = 0;
+  let nextPlanAt = 0;
+  let tryingDirectContact = true;
+  let finished = false;
+
+  const tryUnlock = (): boolean => {
+    if (!context || !keyId || !lockId) return false;
+    const result = context.interaction.invoke(keyId, lockId, "unlock");
+    if (result.status !== "applied" && result.status !== "already-complete") return false;
+    finished = true;
+    if (result.status === "applied") {
+      context.note({ tone: "success", text: "鑰匙找到了它唯一能改寫的句子。" });
+    }
+    return true;
+  };
 
   return {
     label: "Send the key where it belongs",
@@ -134,24 +150,70 @@ export const createKeyToLockModule = (): MechanicModule => {
       if (!keyId || !lockId) throw new Error("Both a unique key and a locked door are required");
     },
     update(deltaSeconds) {
-      if (!context || !keyId || !lockId) return;
+      if (!context || !keyId || !lockId || finished) return;
       const key = context.world.get(keyId);
       const lock = context.world.get(lockId);
-      if (!key || !lock || lock.tags.includes("unlocked")) return;
+      if (!key || !lock) return;
+      if (lock.tags.includes("unlocked")) {
+        finished = true;
+        return;
+      }
 
-      context.physics.moveToward(keyId, lock.position, 4.8, deltaSeconds);
-      const movedKey = context.world.get(keyId);
-      if (movedKey && distanceXZ(movedKey.position, lock.position) <= 1.2) {
-        const didUnlock = context.interaction.invoke(keyId, lockId, "unlock");
-        if (didUnlock) {
-          context.note({ tone: "success", text: "鑰匙找到了它唯一能改寫的句子。" });
+      elapsedSeconds += deltaSeconds;
+
+      if (tryingDirectContact) {
+        const direct = context.navigation.stepDirectlyToContact(
+          keyId,
+          lockId,
+          { contactDistance: 1.2, speed: 4.8 },
+          deltaSeconds,
+        );
+        if (direct.status === "arrived") {
+          tryUnlock();
+          return;
         }
+        if (direct.status === "blocked" || direct.status === "invalid") {
+          tryingDirectContact = false;
+          nextPlanAt = elapsedSeconds;
+        } else {
+          return;
+        }
+      }
+
+      if (!path && elapsedSeconds >= nextPlanAt) {
+        const plan = context.navigation.planToContact(keyId, lockId, {
+          contactDistance: 1.2,
+        });
+        if (plan.status === "arrived") {
+          tryUnlock();
+          return;
+        }
+        path = plan.status === "path-found" ? plan.path : undefined;
+        nextPlanAt = elapsedSeconds + 0.4;
+      }
+
+      if (path) {
+        const movement = context.navigation.follow(path, 4.8, deltaSeconds);
+        if (movement.status === "arrived") {
+          tryUnlock();
+          return;
+        }
+        if (movement.status === "blocked" || movement.status === "invalid") {
+          path = undefined;
+        }
+      }
+
+      if (!path && elapsedSeconds >= 2.4) {
+        finished = true;
+        context.note({ tone: "warning", text: "鑰匙找不到能接觸到門的路。" });
       }
     },
     dispose() {
       context = undefined;
       keyId = undefined;
       lockId = undefined;
+      path = undefined;
+      finished = true;
     },
   };
 };
