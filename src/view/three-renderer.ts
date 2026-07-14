@@ -1,7 +1,18 @@
 import * as THREE from "three";
+import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkinnedModel } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { EntitySnapshot, VisualSpec } from "../game/types";
+import {
+  DUNGEON_ROOM_ASSETS,
+  getBakedEntityAsset,
+  type AssetVector,
+  type BakedEntityAsset,
+  type RoomAssetPlacement,
+} from "./asset-catalog";
+import { calculateAssetFit } from "./asset-fit";
 
 const updateMaterial = (object: THREE.Object3D, visual: VisualSpec): void => {
+  if (object.userData.usesSourceMaterials === true) return;
   object.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     const material = child.material;
@@ -18,8 +29,13 @@ export class ThreeGameRenderer {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
   private readonly meshes = new Map<string, THREE.Object3D>();
+  private readonly loader = new GLTFLoader();
+  private readonly assetCache = new Map<string, Promise<GLTF>>();
+  private readonly mixers = new Map<string, THREE.AnimationMixer>();
   private width = 0;
   private height = 0;
+  private lastElapsedSeconds = 0;
+  private disposed = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -41,11 +57,17 @@ export class ThreeGameRenderer {
   }
 
   sync(entities: EntitySnapshot[], elapsedSeconds: number): void {
+    const deltaSeconds = Math.max(0, elapsedSeconds - this.lastElapsedSeconds);
+    this.lastElapsedSeconds = elapsedSeconds;
+    for (const mixer of this.mixers.values()) mixer.update(deltaSeconds);
+
     const activeIds = new Set(entities.filter((entity) => entity.active).map((entity) => entity.id));
     for (const [id, mesh] of this.meshes) {
       if (!activeIds.has(id)) {
         this.scene.remove(mesh);
         this.meshes.delete(id);
+        this.mixers.get(id)?.stopAllAction();
+        this.mixers.delete(id);
       }
     }
 
@@ -69,10 +91,25 @@ export class ThreeGameRenderer {
   }
 
   dispose(): void {
+    this.disposed = true;
+    for (const mixer of this.mixers.values()) mixer.stopAllAction();
+    this.mixers.clear();
     this.renderer.dispose();
   }
 
   private createEntityObject(entity: EntitySnapshot): THREE.Object3D {
+    const fallback = this.createPrimitiveObject(entity);
+    const asset = getBakedEntityAsset(entity.id);
+    if (!asset) return fallback;
+
+    const root = new THREE.Group();
+    fallback.userData.assetFallback = true;
+    root.add(fallback);
+    void this.attachEntityAsset(root, entity, asset);
+    return root;
+  }
+
+  private createPrimitiveObject(entity: EntitySnapshot): THREE.Object3D {
     const material = new THREE.MeshStandardMaterial({
       color: entity.visual.color,
       emissive: entity.visual.emissive ?? 0,
@@ -110,6 +147,43 @@ export class ThreeGameRenderer {
       }
     });
     return object;
+  }
+
+  private async attachEntityAsset(
+    root: THREE.Group,
+    entity: EntitySnapshot,
+    asset: BakedEntityAsset,
+  ): Promise<void> {
+    try {
+      const gltf = await this.loadAsset(asset.url);
+      if (this.disposed || this.meshes.get(entity.id) !== root) return;
+
+      const { object, animationRoot } = this.createFittedAsset(
+        gltf,
+        [entity.size.x, entity.size.y, entity.size.z],
+        asset.rotation,
+        asset.hiddenNodes,
+      );
+      root.children
+        .filter((child) => child.userData.assetFallback === true)
+        .forEach((child) => root.remove(child));
+      root.add(object);
+      root.userData.usesSourceMaterials = true;
+      root.userData.assetMotion = object;
+      root.userData.unlockedLift = asset.unlockedLift ?? 0;
+      this.enableShadows(object, entity.tags.includes("wall") || entity.tags.includes("door"));
+
+      if (asset.animation) {
+        const clip = THREE.AnimationClip.findByName(gltf.animations, asset.animation);
+        if (clip) {
+          const mixer = new THREE.AnimationMixer(animationRoot);
+          mixer.clipAction(clip).play();
+          this.mixers.set(entity.id, mixer);
+        }
+      }
+    } catch (error) {
+      console.warn(`Unable to load CC0 asset for ${entity.id}; keeping primitive fallback.`, error);
+    }
   }
 
   private createPortal(
@@ -156,6 +230,114 @@ export class ThreeGameRenderer {
       object.rotation.y = elapsedSeconds * 2.3;
       object.position.y += Math.sin(elapsedSeconds * 4) * 0.08;
     }
+    if (entity.tags.includes("door")) {
+      const assetMotion = object.userData.assetMotion;
+      if (assetMotion instanceof THREE.Object3D) {
+        const lift = entity.tags.includes("unlocked") ? (object.userData.unlockedLift as number) : 0;
+        assetMotion.position.y = THREE.MathUtils.lerp(assetMotion.position.y, lift, 0.12);
+      }
+    }
+  }
+
+  private loadAsset(url: string): Promise<GLTF> {
+    const cached = this.assetCache.get(url);
+    if (cached) return cached;
+    const request = this.loader.loadAsync(url);
+    this.assetCache.set(url, request);
+    return request;
+  }
+
+  private createFittedAsset(
+    gltf: GLTF,
+    targetSize: AssetVector,
+    rotation: AssetVector = [0, 0, 0],
+    hiddenNodes: readonly string[] = [],
+  ): { object: THREE.Group; animationRoot: THREE.Object3D } {
+    const animationRoot = cloneSkinnedModel(gltf.scene);
+    for (const nodeName of hiddenNodes) {
+      animationRoot.getObjectByName(nodeName)?.scale.setScalar(0.001);
+    }
+
+    const oriented = new THREE.Group();
+    oriented.rotation.set(rotation[0], rotation[1], rotation[2]);
+    oriented.add(animationRoot);
+    oriented.updateMatrixWorld(true);
+
+    const bounds = new THREE.Box3().setFromObject(oriented);
+    if (bounds.isEmpty()) throw new Error("Loaded asset has no renderable bounds.");
+    const fit = calculateAssetFit(
+      {
+        min: [bounds.min.x, bounds.min.y, bounds.min.z],
+        max: [bounds.max.x, bounds.max.y, bounds.max.z],
+      },
+      targetSize,
+    );
+
+    const fitted = new THREE.Group();
+    fitted.position.set(fit.offset[0], fit.offset[1], fit.offset[2]);
+    fitted.scale.set(fit.scale[0], fit.scale[1], fit.scale[2]);
+    fitted.add(oriented);
+
+    const motion = new THREE.Group();
+    motion.add(fitted);
+    return { object: motion, animationRoot };
+  }
+
+  private enableShadows(object: THREE.Object3D, receiveShadow: boolean): void {
+    object.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = receiveShadow;
+    });
+  }
+
+  private addRoomAsset(placement: RoomAssetPlacement): void {
+    const root = new THREE.Group();
+    root.position.set(placement.position[0], placement.position[1], placement.position[2]);
+    const fallback = this.createRoomFallback(placement);
+    fallback.userData.assetFallback = true;
+    root.add(fallback);
+    this.scene.add(root);
+
+    void this.loadAsset(placement.url)
+      .then((gltf) => {
+        if (this.disposed || root.parent !== this.scene) return;
+        const { object } = this.createFittedAsset(
+          gltf,
+          placement.size,
+          placement.rotation,
+        );
+        root.remove(fallback);
+        root.add(object);
+        this.enableShadows(object, placement.role !== "decoration");
+      })
+      .catch((error: unknown) => {
+        console.warn(`Unable to load room asset ${placement.url}; keeping fallback.`, error);
+      });
+  }
+
+  private createRoomFallback(placement: RoomAssetPlacement): THREE.Object3D {
+    const material = new THREE.MeshStandardMaterial({
+      color: placement.role === "floor" ? 0x171828 : 0x111424,
+      emissive: placement.role === "wall" ? 0x10142b : 0x000000,
+      roughness: 0.82,
+    });
+    if (placement.role === "floor") {
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+      floor.rotation.x = -Math.PI / 2;
+      floor.scale.set(placement.size[0], placement.size[2], 1);
+      floor.receiveShadow = true;
+      return floor;
+    }
+
+    const geometry =
+      placement.role === "wall"
+        ? new THREE.BoxGeometry(1, 1, 1)
+        : new THREE.DodecahedronGeometry(0.5, 0);
+    const object = new THREE.Mesh(geometry, material);
+    object.scale.set(placement.size[0], placement.size[1], placement.size[2]);
+    object.receiveShadow = placement.role === "wall";
+    return object;
   }
 
   private addLighting(): void {
@@ -179,37 +361,17 @@ export class ThreeGameRenderer {
 
   private addRoom(): void {
     const floorMaterial = new THREE.MeshStandardMaterial({
-      color: 0x111420,
+      color: 0x18172a,
       roughness: 0.88,
       metalness: 0.08,
     });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 12), floorMaterial);
     floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.025;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    const grid = new THREE.GridHelper(18, 36, 0x34285b, 0x1b2030);
-    grid.position.y = 0.015;
-    this.scene.add(grid);
-
-    const wallMaterial = new THREE.MeshStandardMaterial({
-      color: 0x0b0e19,
-      emissive: 0x11162b,
-      roughness: 0.75,
-    });
-    const walls = [
-      { position: [0, 1.5, -6] as const, scale: [18, 3, 0.3] as const },
-      { position: [0, 1.5, 6] as const, scale: [18, 3, 0.3] as const },
-      { position: [-9, 1.5, 0] as const, scale: [0.3, 3, 12] as const },
-      { position: [9.8, 1.5, 0] as const, scale: [0.3, 3, 12] as const },
-    ];
-    for (const wall of walls) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), wallMaterial);
-      mesh.position.set(wall.position[0], wall.position[1], wall.position[2]);
-      mesh.scale.set(wall.scale[0], wall.scale[1], wall.scale[2]);
-      mesh.receiveShadow = true;
-      this.scene.add(mesh);
-    }
+    for (const placement of DUNGEON_ROOM_ASSETS) this.addRoomAsset(placement);
 
     const sigilMaterial = new THREE.MeshBasicMaterial({
       color: 0x6944a8,
