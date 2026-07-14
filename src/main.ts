@@ -1,4 +1,6 @@
 import "./style.css";
+import { DemoAccessOverlay } from "./demo-access-overlay";
+import { DemoSessionClient, DemoSessionController } from "./demo-session";
 import { KeyboardInput } from "./input";
 import { ManaPool } from "./game/mana";
 import { ModuleRuntime } from "./game/runtime";
@@ -19,6 +21,10 @@ const root = document.querySelector<HTMLElement>("#app");
 if (!root) throw new Error("Missing #app root");
 
 const ui = new GameUi(root);
+const accessOverlay = new DemoAccessOverlay(root);
+const demoSession = new DemoSessionController(new DemoSessionClient(), accessOverlay);
+accessOverlay.onUnlock((accessCode) => void demoSession.unlock(accessCode));
+void demoSession.start();
 const updateUiScale = (): void => {
   root.style.setProperty(
     "--ui-scale",
@@ -51,6 +57,7 @@ const input = new KeyboardInput();
 const renderer = new ThreeGameRenderer(ui.canvas);
 
 const cast = async (utterance: string): Promise<void> => {
+  if (!demoSession.isReady) return;
   const submission = await generativeSpells.submit(utterance, "guardian");
   if (submission.accepted && !submission.error) ui.clearIncantation();
 };
@@ -76,7 +83,7 @@ const voiceCasting = new VoiceCastingController(
 );
 
 const startVoiceCast = (): void => {
-  if (!generativeSpells.isCasting) void voiceCasting.start();
+  if (demoSession.isReady && !generativeSpells.isCasting) void voiceCasting.start();
 };
 const stopVoiceCast = (): void => {
   void voiceCasting.stop();
