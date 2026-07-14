@@ -2,7 +2,7 @@
 
 > 一個沒有手的施法者，只能說出願望；一支活著的羽毛筆，會把他的話現場寫成新的遊戲機制。
 
-狀態：PoC 規格草案
+狀態：Playable technical spike（Generative compiler 已接通）
 
 更新日期：2026-07-14
 
@@ -85,6 +85,40 @@
 - [體驗與魔法系統](design.md)
 - [World Model 與 Game SDK v0](game-sdk.md)
 - [PoC 驗證與實作計畫](validation-plan.md)
+
+## 執行 playable spike
+
+需求：Node.js、npm，以及一把只放在本機 server 的 OpenAI API key。
+
+```bash
+cp .env.example .env.local
+# 編輯 .env.local，填入 OPENAI_API_KEY；不要使用 VITE_ 前綴
+npm install
+npm run dev
+```
+
+開啟 `http://127.0.0.1:5173`。預設畫面使用真正的 generative compiler：原始 utterance 與 scene snapshot 送到本機 `/api/spells`，由 server 透過 OpenAI Responses API 取得 structured `SpellBundle`；瀏覽器只收到 generated source，不會取得 API key。
+
+```bash
+npm test       # deterministic pipeline／Game SDK／rollback
+npm run build  # TypeScript 與 production bundle
+npm run eval:live
+```
+
+`eval:live` 使用真實模型與未寫入 reference harness 的 prompt，結果輸出到 ignored 的 `evals/results/`。它不是 unit test：模型輸出不比對固定 source，而是實際載入、執行並觀察產生與移動的 entity。
+
+## 第一筆 live Eval 證據
+
+2026-07-14 以 `gpt-5.6` 測試「召喚三顆紫色的小月亮，排成三角形繞著守衛移動」：
+
+- 16.6 秒取得一個新生成的 module；
+- module 實際生成 3 個紫色 sphere；
+- 模擬 3 秒後 3 個 entity 都有移動；
+- source 使用 120° phase、守衛中心與 orbit target，保留三角形／環繞語意；
+- 沒有使用 `window`、`fetch`、timer 等未宣告 global；
+- 同一流程已在 Arc 中由輸入框端到端驗證。
+
+這只通過第一個 H1 case，不代表模型已在所有 utterance 上可靠。後續仍需要多 action、reference／constraint、protected outcome、跨法術 dependency 與 latency 的 eval set。
 
 ## 暫不處理
 

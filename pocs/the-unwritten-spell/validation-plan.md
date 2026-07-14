@@ -10,7 +10,7 @@
 
 | 假設 | 驗證方式 | 初步通過標準 |
 | --- | --- | --- |
-| H1：AI 能生成可執行 mechanic | 對未寫入 Host 的自然語言要求產生 module | 至少兩種 mechanic 不經人工修改或最多自動修復一次即可執行 |
+| H1：AI 能生成可執行 mechanic | 對未寫入 Host、reference harness 或 prompt 特例的自然語言要求產生 module source | 至少兩種未見 mechanic 不經人工修改或最多自動修復一次即可執行；選擇手寫 module 不算通過 |
 | H2：觀眾看得出輸入與結果的關係 | 使用含有不尋常細節的語音，連續展示輸入到具現 | 觀眾能指出至少兩個來自剛才話語的具體行為 |
 | H3：生成結果能跨法術組合 | 先生成 enclosure，再對「剛才那道牆裡」施放火焰 | 第二個 module 正確引用第一個 artifact，而非固定座標或預製分支 |
 | H4：Game SDK 能保護遊戲狀態 | 嘗試直接殺死守衛或打開門 | Generated code 無法直接改 HP、lock 或 objective，只能建立因果機制 |
@@ -60,6 +60,63 @@
 7. 加入詠唱期間的戰鬥與移動懲罰。
 8. 加入 Mana 的 actual-result metering 與旁註的稀疏回饋。
 9. 最後補上旁註的視覺、聲音與一分鐘 demo 演出。
+
+## Implementation gates
+
+### TDD 與 LLM Eval 的責任邊界
+
+| 層次 | 驗證方法 | 可以證明 | 不能宣稱 |
+| --- | --- | --- | --- |
+| Deterministic pipeline | TDD／unit tests，model client 可使用 fake | request context、schema、dependency、source validation、compile/load、capability、rollback、repair 次數 | 模型理解語意或能生成好 mechanic |
+| LLM behavior | 使用真實模型與未見 prompts 的 eval | action/reference/constraint、可執行率、因果合法性、輸入細節保留、novelty、latency | 完整遊戲體驗一定有趣 |
+| End-to-end experience | 真實模型的 scenario／browser test 與觀察者回饋 | 從 utterance 到世界變化是否可理解、有風險且有 WOW | production security 或長期平衡 |
+
+Unit test 不比較固定 source string，也不得因 fake model 回傳合法 bundle 就把 H1 標為通過。模型輸出可以有多個等價實作；Eval 應執行產物並依可觀察行為評分。
+
+第一版 live eval 至少記錄：
+
+- schema valid；
+- syntax／load success；
+- 僅使用 public Game SDK；
+- 是否建立原因而非直接寫 protected outcome；
+- action 數量與 dependency 是否合理；
+- utterance 的獨特細節是否出現在 mechanic；
+- 在 sandbox 模擬固定秒數後是否出現預期可觀察行為；
+- generation、repair 與 first-interactive latency；
+- prompt、model snapshot 與 compiler version。
+
+### Gate A：Reference harness 完成
+
+- 牆、火、鑰匙三個人工 modules 只透過 public Game SDK 完成；
+- harness 用 reference ID／factory 啟動，不解析玩家語言；
+- ownership cleanup、protected state、Mana adjustment 與 cross-artifact reference 有自動測試；
+- UI 清楚標示 Reference Mode；
+- 達成後停止替 mock 增加功能。
+
+### Gate B：Generative compiler 可驗證
+
+- 自由語言經模型產生真正的 module source，而非 reference ID；
+- syntax、capability validation、load、rollback 與最多一次 repair 可觀測；
+- 一個 utterance 可輸出含 1–N modules 的 `SpellBundle`；
+- action、reference、constraint 的代表性案例成為 eval fixtures；
+- 未見 mechanic 能走完生成到世界變化的路徑。
+
+### Gate C：可進 Demo polishing
+
+- Gate B 的成功案例與 deterministic fallback 在畫面上可清楚區分；
+- latency、成功率、repair 次數與 rollback 原因有記錄；
+- 觀眾能指出輸入中的哪些細節出現在新 mechanic；
+- 只有通過以上條件才開始把大量時間投入 VFX、聲音與影片剪輯。
+
+## Mock creep guardrail
+
+自然語言案例失敗時：
+
+1. 先確認 Game SDK 是否缺能力；若缺，新增以 SDK capability 為主題的 failing test。
+2. 若 SDK 足夠，把該 utterance 加進 generative compiler eval set。
+3. 不得在 reference harness 增加 keyword、regex、intent priority 或預製技能分支。
+
+每個 behavior test 都必須註明其對應的 hypothesis、`RHB-*`／`GEN-*` requirement 或其他 spec section。沒有 spec anchor 就先補決策，不直接實作。
 
 ## 第二階段／Stretch
 

@@ -75,6 +75,20 @@
 - 完全無法 grounding 的目標可以失敗或只生成無害效果；
 - 直接影響受保護結果的說法由法典拒絕，而不是偷偷換一個意思。
 
+## 一句話裡有多個 action
+
+玩家不需要一次只講一個 intent。一次 utterance 可以包含一到多個 action，系統會把它編譯成一個 `SpellBundle`，再依 dependency 逐一具現 atomic modules。
+
+判斷 module 數量時要區分：
+
+- action：要求新增一段因果機制；
+- reference：指出 action 要作用於哪個既有物件或 artifact；
+- constraint：限制 action 的範圍、材質、條件或持續時間。
+
+因此「在剛才那道牆裡燃起一場火」只有一個 action；「生成一道牆，然後在裡面放火」才有兩個依序 action。若語意本身是一個複合機制，例如「用火焰構成一道牆」，模型也可以生成單一 module，不應靠關鍵字數量武斷拆招。
+
+玩家不需逐招確認。旁註可以用墨行與「第 1／2 句」呈現執行狀態，但仍遵守不顯示私有推理、不提供虛假進度的原則。實作邊界見 [Decision 0002](decisions/0002-reference-harness-boundary.md)。
+
 ## 法典：可以創造原因，不能宣告結果
 
 以下說法沒有可遊玩的因果，因此不能直接生效：
