@@ -1,4 +1,5 @@
 import "./style.css";
+import { resolveAccessGatedFramePolicy } from "./access-gated-frame-policy";
 import { resolveCastFocus } from "./cast-focus";
 import { DemoAccessOverlay } from "./demo-access-overlay";
 import { DemoSessionClient, DemoSessionController } from "./demo-session";
@@ -149,18 +150,19 @@ const stopVoiceCast = (): void => {
 };
 ui.onVoiceInput(startVoiceCast, stopVoiceCast);
 
+const isEditingText = (target: EventTarget | null): boolean =>
+  target instanceof HTMLInputElement ||
+  target instanceof HTMLTextAreaElement ||
+  (target instanceof HTMLElement && target.isContentEditable);
+
 window.addEventListener("keydown", (event) => {
   const target = event.target;
-  const editingText =
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    (target instanceof HTMLElement && target.isContentEditable);
-  if (event.code !== "KeyV" || event.repeat || editingText) return;
+  if (event.code !== "KeyV" || event.repeat || isEditingText(target)) return;
   event.preventDefault();
   startVoiceCast();
 });
 window.addEventListener("keyup", (event) => {
-  if (event.code !== "KeyV") return;
+  if (event.code !== "KeyV" || isEditingText(event.target)) return;
   event.preventDefault();
   stopVoiceCast();
 });
@@ -177,30 +179,44 @@ world.on((event) => {
 
 let previousTime = performance.now();
 const startedAt = previousTime;
+let initialWorldFrameRendered = false;
 
 const frame = (time: number): void => {
   const deltaSeconds = Math.min(0.05, (time - previousTime) / 1000);
   previousTime = time;
-
-  simulation.update(deltaSeconds, input.snapshot());
-  runtime.update(deltaSeconds);
-  renderer.sync(world.list(), (time - startedAt) / 1000);
-  startupLoading.markWorldRendered();
-
-  const player = world.get("player");
-  const guardian = world.get("guardian");
-  const door = world.get("door");
-  ui.update({
-    mana: mana.current,
-    maximumMana: mana.maximum,
-    playerHp: player?.stats?.hp ?? 0,
-    playerMaxHp: player?.stats?.maxHp ?? 100,
-    guardianHp: guardian?.stats?.hp ?? 0,
-    guardianMaxHp: guardian?.stats?.maxHp ?? 100,
-    doorUnlocked: door?.tags.includes("unlocked") ?? false,
-    artifacts: runtime.listArtifacts().length,
-    completed: simulation.completed,
+  const framePolicy = resolveAccessGatedFramePolicy({
+    sessionReady: demoSession.isReady,
+    initialWorldFrameRendered,
   });
+
+  if (framePolicy.advanceWorld) {
+    simulation.update(deltaSeconds, input.snapshot());
+    runtime.update(deltaSeconds);
+  }
+  if (framePolicy.renderWorld) {
+    renderer.sync(world.list(), (time - startedAt) / 1000);
+    if (!initialWorldFrameRendered) {
+      initialWorldFrameRendered = true;
+      startupLoading.markWorldRendered();
+    }
+  }
+
+  if (framePolicy.updateHud) {
+    const player = world.get("player");
+    const guardian = world.get("guardian");
+    const door = world.get("door");
+    ui.update({
+      mana: mana.current,
+      maximumMana: mana.maximum,
+      playerHp: player?.stats?.hp ?? 0,
+      playerMaxHp: player?.stats?.maxHp ?? 100,
+      guardianHp: guardian?.stats?.hp ?? 0,
+      guardianMaxHp: guardian?.stats?.maxHp ?? 100,
+      doorUnlocked: door?.tags.includes("unlocked") ?? false,
+      artifacts: runtime.listArtifacts().length,
+      completed: simulation.completed,
+    });
+  }
 
   requestAnimationFrame(frame);
 };
