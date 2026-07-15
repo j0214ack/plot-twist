@@ -11,7 +11,8 @@ describe("startup loading bootstrap wiring", () => {
       /demoSession\.start\(\)\.finally\(\(\) => startupLoading\.markSessionSettled\(\)\)/,
     );
     expect(main).toMatch(
-      /renderer\.sync\(world\.list\(\), \(time - startedAt\) \/ 1000\);\s+startupLoading\.markWorldRendered\(\);/,
+      /renderer\.sync\(world\.list\(\), \(time - startedAt\) \/ 1000\);\s+if \(!initialWorldFrameRendered\) \{[^}]*startupLoading\.markWorldRendered\(\);/,
     );
+    expect(main).toContain("resolveAccessGatedFramePolicy");
   });
 });

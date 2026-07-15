@@ -41,6 +41,7 @@ API 永遠要求 server-issued session；活動前由 access code 換取 session
 - `PUB-8`：目前不新增會被正常玩家感受到的施法次數 quota。一次 utterance 是一次 `/api/spells` request；其 `SpellBundle` 可以包含一到多個 generated modules，不按 module 數量重複計次。
 - `PUB-9`：session、origin、method、content type 與 payload validation 都必須在任何 OpenAI 呼叫之前完成。
 - `PUB-10`：Fly.io 是本次短期 playable deployment 的 host，沿用同源前端與 Node/Vite API middleware。這不是 production hosting 標準；PoC 結束後若繼續公開，再把 preview server 換成正式 Node server。
+- `PUB-11`：Access gate 顯示期間，Host 只能 render 一張供 startup handoff 使用的初始世界畫面；在 demo session ready 前不得推進 simulation、runtime、HUD 或持續 WebGL frame。Gate 必須位於 mobile notice／portrait blocker 之上，且不能以全螢幕 backdrop blur 迫使低效能裝置在輸入 code 時持續合成背景遊戲。Session ready 後才恢復正常 frame loop。
 
 ## 安全邊界
 
@@ -56,4 +57,3 @@ Demo session 能阻擋沒有 session 的裸 API request、跨站 browser request
 ## 對既有決策的關係
 
 不改變 Decisions 0001–0004 的 Game SDK、generated source ABI、生成 profile 或 push-to-talk transport。它只在既有兩個同源模型 API 前增加公開 demo 的 transport authorization boundary。
-

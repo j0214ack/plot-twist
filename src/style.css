@@ -35,14 +35,13 @@ button {
 .demo-access-overlay {
   position: absolute;
   inset: 0;
-  z-index: 30;
+  z-index: 60;
   display: grid;
   place-items: center;
   padding: 24px;
   background:
     radial-gradient(circle at 50% 44%, rgba(35, 73, 92, 0.2), transparent 42%),
     rgba(2, 4, 10, 0.88);
-  backdrop-filter: blur(15px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 240ms ease;
