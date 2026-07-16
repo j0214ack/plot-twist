@@ -35,6 +35,120 @@ function executeChapterDoorAction(
 }
 
 describe("VerticalSliceWorld", () => {
+  it("LDO-LOCAL-014 ADR 0021 repeats an unresolved tutorial observation day without introducing the Wife", () => {
+    const world = createVerticalSliceWorld();
+
+    world.advanceTo(7 * 60 + 57);
+    world.pause();
+    world.resume();
+    world.advanceTo(DAY + 7 * 60 + 57);
+
+    expect(world.snapshot()).toMatchObject({
+      time: DAY + 7 * 60 + 57,
+      chapter: "tutorial",
+      chapterDay: null,
+      worldFacts: { livingRoomClock: "three_minutes_slow" },
+      intentions: [],
+      completedActions: [],
+      npcs: {
+        husband: {
+          locationId: "living_room",
+          visibleActivityId: "noticing_slow_clock",
+        },
+        wife: {
+          locationId: "dining_area",
+          visibleActivityId: "idle",
+        },
+      },
+    });
+    expect(world.events()).toContainEqual({
+      at: 8 * 60,
+      type: "routine_executed",
+      actorId: "husband",
+      routineId: "husband_sits_on_sofa",
+      locationId: "living_room",
+      visibleActivityId: "sitting_on_sofa",
+    });
+    expect(world.events()).toContainEqual({
+      at: 12 * 60 + 12,
+      type: "routine_executed",
+      actorId: "husband",
+      routineId: "husband_rinses_cup",
+      locationId: "dining_area",
+      visibleActivityId: "rinsing_cup",
+    });
+    expect(world.events()).toContainEqual({
+      at: 18 * 60 + 40,
+      type: "routine_executed",
+      actorId: "husband",
+      routineId: "husband_folds_sofa_throw",
+      locationId: "living_room",
+      visibleActivityId: "folding_sofa_throw",
+    });
+    expect(world.events()).toContainEqual({
+      at: 22 * 60 + 13,
+      type: "routine_executed",
+      actorId: "husband",
+      routineId: "husband_turns_off_lights",
+      locationId: "living_room",
+      visibleActivityId: "turning_off_lights",
+    });
+    expect(world.events()).toContainEqual(
+      expect.objectContaining({
+        at: DAY + 7 * 60 + 57,
+        type: "routine_executed",
+        actorId: "husband",
+        routineId: "husband_notices_slow_clock",
+      }),
+    );
+    expect(world.events()).not.toContainEqual(
+      expect.objectContaining({
+        type: "routine_executed",
+        actorId: "wife",
+      }),
+    );
+    expect(world.eligibleNarrativeActions("husband")).toEqual([
+      "interact_with_living_room_clock",
+    ]);
+  });
+
+  it("LDO-LOCAL-014 LDO-CH1-001 ADR 0021 starts Chapter 1 Day 1 after a delayed tutorial completion", () => {
+    const world = createVerticalSliceWorld();
+
+    world.advanceTo(DAY + 7 * 60 + 57);
+    world.pause();
+    world.commitNarrativeAction(
+      "husband",
+      "interact_with_living_room_clock",
+    );
+    world.resume();
+    world.advanceTo(DAY + 7 * 60 + 59);
+    world.advanceTo(2 * DAY + 8 * 60 + 20);
+
+    expect(world.snapshot()).toMatchObject({
+      time: 2 * DAY + 8 * 60 + 20,
+      chapter: 1,
+      chapterDay: 1,
+      worldFacts: { livingRoomClock: "accurate" },
+      npcs: {
+        husband: { visibleActivityId: "turning_before_closed_door" },
+        wife: { visibleActivityId: "taking_long_route_around_hall" },
+      },
+    });
+    expect(world.events()).toContainEqual(
+      expect.objectContaining({
+        at: 2 * DAY + 8 * 60 + 10,
+        routineId: "husband_route_turns_before_closed_door",
+      }),
+    );
+    expect(world.events()).toContainEqual(
+      expect.objectContaining({
+        at: 2 * DAY + 8 * 60 + 20,
+        routineId: "wife_takes_long_route_around_hall",
+      }),
+    );
+  });
+
   it("LDO-CH1-001 enters Chapter 1 Day 1 only after the completed tutorial reaches the following day", () => {
     const world = createVerticalSliceWorld();
     const chapterDayOne = 24 * 60;
@@ -827,7 +941,7 @@ describe("VerticalSliceWorld", () => {
         },
         wife: {
           locationId: "dining_area",
-          visibleActivityId: "drinking_water",
+          visibleActivityId: "idle",
         },
       },
     });
@@ -848,14 +962,6 @@ describe("VerticalSliceWorld", () => {
         routineId: "husband_sits_on_sofa",
         locationId: "living_room",
         visibleActivityId: "sitting_on_sofa",
-      },
-      {
-        at: 8 * 60,
-        type: "routine_executed",
-        actorId: "wife",
-        routineId: "wife_drinks_water",
-        locationId: "dining_area",
-        visibleActivityId: "drinking_water",
       },
     ]);
   });

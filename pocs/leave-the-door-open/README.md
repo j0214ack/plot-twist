@@ -225,8 +225,9 @@ rationale.
 - Accepted Chapter 1 design: [`chapter-1.md`](chapter-1.md)
 - Observer session logging: [`observer-session-logging.md`](observer-session-logging.md)
 - Living implementation journal: [`implementation-log.md`](implementation-log.md)
-- Character Cores: [`characters/husband.md`](characters/husband.md) and
-  [`characters/wife.md`](characters/wife.md)
+- Character Cores: Martin ([`characters/husband.md`](characters/husband.md))
+  and Elise ([`characters/wife.md`](characters/wife.md)); role IDs remain
+  internal ownership keys.
 - Character label-blind validation:
   [`characters/label-blind-validation.md`](characters/label-blind-validation.md)
 - Character label-blind baseline evidence:
@@ -262,6 +263,9 @@ rationale.
   - [`decisions/0017-give-authored-mind-state-transitions-to-the-judge.md`](decisions/0017-give-authored-mind-state-transitions-to-the-judge.md)
   - [`decisions/0018-serve-a-thin-browser-playtest-adapter.md`](decisions/0018-serve-a-thin-browser-playtest-adapter.md)
   - [`decisions/0019-use-isolated-codex-for-local-browser-play.md`](decisions/0019-use-isolated-codex-for-local-browser-play.md)
+  - [`decisions/0020-preserve-visible-progress-without-changing-action-gates.md`](decisions/0020-preserve-visible-progress-without-changing-action-gates.md)
+  - [`decisions/0021-let-tutorial-players-observe-before-acting.md`](decisions/0021-let-tutorial-players-observe-before-acting.md)
+  - [`decisions/0022-use-names-at-the-player-facing-boundary.md`](decisions/0022-use-names-at-the-player-facing-boundary.md)
 
 ## Verification and paid commands
 

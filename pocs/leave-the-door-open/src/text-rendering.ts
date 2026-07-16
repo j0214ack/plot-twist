@@ -11,6 +11,12 @@ const cueText: Record<PresentationCueId, string> = {
     "Living room — He looks up, starts to pass beneath it, then stops.",
   performance_beat: "",
   husband_sits: "Living room — He sits at the far end of the sofa.",
+  husband_rinses_cup:
+    "Dining area — He rinses his cup, dries the ring beneath it, and leaves it upside down.",
+  husband_folds_sofa_throw:
+    "Living room — He folds the sofa throw into the same narrow rectangle.",
+  husband_turns_off_lights:
+    "Living room — He turns off the lamps one by one, leaving the clock visible until last.",
   wife_drinks: "Dining area — She drinks a glass of water.",
   husband_reaches_door:
     "Hallway — He stops with one hand on the door handle.",
@@ -58,10 +64,18 @@ const cueText: Record<PresentationCueId, string> = {
 export const renderWorldText = (view: WorldView): string => {
   const lines: string[] = [];
   let renderedChapterDay: number | null = null;
+  const chapterStartCalendarDay =
+    view.chapter === 1 && view.chapterDay !== null
+      ? Math.floor(view.time / (24 * 60)) - view.chapterDay + 1
+      : null;
 
   for (const cue of view.timeline) {
-    const chapterDay = Math.floor(cue.at / (24 * 60));
-    if (chapterDay >= 1 && chapterDay !== renderedChapterDay) {
+    const calendarDay = Math.floor(cue.at / (24 * 60));
+    const chapterDay =
+      chapterStartCalendarDay !== null && calendarDay >= chapterStartCalendarDay
+        ? calendarDay - chapterStartCalendarDay + 1
+        : null;
+    if (chapterDay !== null && chapterDay !== renderedChapterDay) {
       lines.push(`Chapter 1 — Day ${chapterDay}`);
       renderedChapterDay = chapterDay;
     }
@@ -71,10 +85,13 @@ export const renderWorldText = (view: WorldView): string => {
   return lines.join("\n");
 };
 
-export const renderUIText = (view: UIView): string => {
+export const renderUIText = (
+  view: UIView,
+  options: { showFocus?: boolean } = {},
+): string => {
   const lines = [view.mode === "paused" ? "[Paused]" : "[Running]"];
 
-  if (view.selectedActor !== null) {
+  if (view.selectedActor !== null && options.showFocus !== false) {
     lines.push(`Focus: ${view.selectedActor.label}`);
   }
   for (const message of view.conversation.messages) {

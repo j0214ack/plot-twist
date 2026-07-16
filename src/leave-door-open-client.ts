@@ -107,6 +107,9 @@ export const parseScreenPossibilities = (
   return possibilities;
 };
 
+export const screenOffersNamedFocus = (screen: string): boolean =>
+  /^Chapter 1 — Day \d+$/m.test(screen);
+
 export class LeaveDoorOpenBrowserController {
   #sessionId: string | null = null;
   #busy = false;

@@ -28,7 +28,7 @@ Usage:
 Controls:
   type normally  speak inside the selected character's self-talk
   1, 2, ...      select a surfaced possibility
-  /resume        let the world continue after an intention forms
+  /resume        let the world continue, with or without an intention
   /help          show controls
   /quit          end the session
 

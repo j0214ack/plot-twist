@@ -35,6 +35,33 @@ function reachControllerDay2Handle(
 }
 
 describe("WorldProjector", () => {
+  it("LDO-LOCAL-014 ADR 0021 keeps the existing second resident outside the tutorial-safe projection until success", () => {
+    const world = createVerticalSliceWorld();
+    world.advanceTo(DAY + 7 * 60 + 57);
+
+    expect(world.snapshot().npcs).toHaveProperty("wife");
+    expect(projectWorld(world.snapshot(), world.events()).actors).toEqual([
+      {
+        id: "husband",
+        locationId: "living_room",
+        visibleActivityId: "noticing_slow_clock",
+      },
+    ]);
+
+    world.pause();
+    world.commitNarrativeAction(
+      "husband",
+      "interact_with_living_room_clock",
+    );
+    world.resume();
+    world.advanceTo(DAY + 8 * 60);
+
+    expect(projectWorld(world.snapshot(), world.events()).actors).toEqual([
+      expect.objectContaining({ id: "husband" }),
+      expect.objectContaining({ id: "wife" }),
+    ]);
+  });
+
   it("LDO-CH1-003 LDO-CH1-012 projects Chapter day/local time and renders both opening routines", () => {
     const world = createVerticalSliceWorld();
     const chapterDayOne = 24 * 60;
@@ -280,7 +307,7 @@ describe("GameProjector", () => {
         mode: "paused",
         selectedActor: {
           id: "husband",
-          label: "Husband",
+          label: "Martin",
         },
         actionOptions: [
           {

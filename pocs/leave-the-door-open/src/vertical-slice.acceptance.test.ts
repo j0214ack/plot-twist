@@ -26,7 +26,7 @@ describe("Leave the Door Open text vertical slice", () => {
     expect(clockOverlay).toBe(
       [
         "[Paused]",
-        "Focus: Husband",
+        "Focus: Martin",
         "Possibilities:",
         "1. Spend a moment with the clock.",
       ].join("\n"),
@@ -45,7 +45,7 @@ describe("Leave the Door Open text vertical slice", () => {
     expect(husbandOverlay).toBe(
       [
         "[Paused]",
-        "Focus: Husband",
+        "Focus: Martin",
         "Possibilities:",
         "1. Open the door just a little.",
       ].join("\n"),
@@ -64,7 +64,7 @@ describe("Leave the Door Open text vertical slice", () => {
     expect(wifeOverlay).toBe(
       [
         "[Paused]",
-        "Focus: Wife",
+        "Focus: Elise",
         "Possibilities:",
         "1. Remain at the threshold for one breath.",
       ].join("\n"),

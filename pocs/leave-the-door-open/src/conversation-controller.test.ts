@@ -427,7 +427,7 @@ describe("conversational Controller request state", () => {
       "closed_for_day",
     );
     expect(renderUIText(projectGame(controller.snapshot()).ui)).toContain(
-      "Husband has no more to add today. Observe the household or use /resume.",
+      "Martin has no more to add today. Observe the household or use /resume.",
     );
     await expect(
       controller.dispatch({

@@ -9,8 +9,10 @@ describe("Leave the Door Open friend-playtest page", () => {
     expect(html).toContain('id="ldo-screen"');
     expect(html).toContain('id="ldo-thought-form"');
     expect(html).toContain('id="ldo-possibilities"');
-    expect(html).toContain('data-command="/focus husband"');
-    expect(html).toContain('data-command="/focus wife"');
+    expect(html).toContain('data-command="/focus martin"');
+    expect(html).toContain('data-command="/focus elise"');
+    expect(html).toContain("進入 Martin 的想法");
+    expect(html).toContain("進入 Elise 的想法");
     expect(html).toContain('data-command="/resume"');
     expect(html).toContain('data-command="/help"');
     expect(html).toContain('id="ldo-access-form"');
@@ -32,5 +34,15 @@ describe("Leave the Door Open friend-playtest page", () => {
 
     expect(accessPanel).toContain("hidden");
     expect(accessForm).toContain("hidden");
+  });
+
+  // Spec: ADR 0021 LDO-WEB-009; unavailable mechanics are not advertised.
+  it("starts with Chapter 1 focus controls hidden", () => {
+    const html = readFileSync("leave-the-door-open/index.html", "utf8");
+    const focusControls = html.match(
+      /<div[^>]*id="ldo-focus-controls"[^>]*>/,
+    )?.[0];
+
+    expect(focusControls).toContain("hidden");
   });
 });

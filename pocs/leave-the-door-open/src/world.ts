@@ -19,6 +19,9 @@ export type LocationId =
 export type RoutineBehaviorId =
   | "husband_notices_slow_clock"
   | "husband_sits_on_sofa"
+  | "husband_rinses_cup"
+  | "husband_folds_sofa_throw"
+  | "husband_turns_off_lights"
   | "wife_drinks_water"
   | "husband_walks_to_hallway_door"
   | "wife_walks_through_hallway"
@@ -48,6 +51,9 @@ export type VisibleActivityId =
   | "noticing_slow_clock"
   | "interacting_with_clock"
   | "sitting_on_sofa"
+  | "rinsing_cup"
+  | "folding_sofa_throw"
+  | "turning_off_lights"
   | "drinking_water"
   | "stopped_at_door"
   | "opening_door_a_crack"
@@ -180,6 +186,7 @@ const psychologicalStageOrder: PsychologicalStage[] = [
 
 export class VerticalSliceWorld {
   readonly #ambientChoice: AmbientRoutineChoicePort;
+  #chapterOneStartDay: number | null = null;
   readonly #actionProgress: Partial<
     Record<NPCId, Partial<Record<NarrativeActionId, PsychologicalStage>>>
   > = {};
@@ -278,7 +285,8 @@ export class VerticalSliceWorld {
   eligibleNarrativeActions(actorId: NPCId): NarrativeActionId[] {
     if (
       actorId === "husband" &&
-      this.#state.time === 7 * 60 + 57 &&
+      this.#state.chapter === "tutorial" &&
+      this.#state.time % MINUTES_PER_DAY === 7 * 60 + 57 &&
       this.#state.npcs.husband.locationId === "living_room" &&
       this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
       !this.#hasIntention("husband", "interact_with_living_room_clock") &&
@@ -383,7 +391,12 @@ export class VerticalSliceWorld {
   }
 
   #executeScheduledRoutines(minute: number): void {
-    if (minute === 7 * 60 + 57) {
+    const localTime = minute % MINUTES_PER_DAY;
+    if (
+      this.#state.chapter === "tutorial" &&
+      this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
+      localTime === 7 * 60 + 57
+    ) {
       const variant = selectRoutineVariant(
         "husband_notices_slow_clock",
         this.#actionProgress.husband?.interact_with_living_room_clock ??
@@ -398,25 +411,67 @@ export class VerticalSliceWorld {
       });
     }
 
-    if (minute === 8 * 60) {
+    if (this.#state.chapter === "tutorial" && localTime === 8 * 60) {
       this.#executeRoutine({
         actorId: "husband",
         routineId: "husband_sits_on_sofa",
         locationId: "living_room",
         visibleActivityId: "sitting_on_sofa",
       });
+      if (this.#state.worldFacts.livingRoomClock === "accurate") {
+        this.#executeRoutine({
+          actorId: "wife",
+          routineId: "wife_drinks_water",
+          locationId: "dining_area",
+          visibleActivityId: "drinking_water",
+        });
+        this.#observeEvidence("wife", "living_room_clock_is_accurate");
+      }
+    }
+
+    if (
+      this.#state.chapter === "tutorial" &&
+      this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
+      localTime === 12 * 60 + 12
+    ) {
       this.#executeRoutine({
-        actorId: "wife",
-        routineId: "wife_drinks_water",
+        actorId: "husband",
+        routineId: "husband_rinses_cup",
         locationId: "dining_area",
-        visibleActivityId: "drinking_water",
+        visibleActivityId: "rinsing_cup",
       });
-      this.#observeEvidence("wife", "living_room_clock_is_accurate");
+    }
+
+    if (
+      this.#state.chapter === "tutorial" &&
+      this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
+      localTime === 18 * 60 + 40
+    ) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_folds_sofa_throw",
+        locationId: "living_room",
+        visibleActivityId: "folding_sofa_throw",
+      });
+    }
+
+    if (
+      this.#state.chapter === "tutorial" &&
+      this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
+      localTime === 22 * 60 + 13
+    ) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_turns_off_lights",
+        locationId: "living_room",
+        visibleActivityId: "turning_off_lights",
+      });
     }
 
     if (
       this.#state.chapter === 1 &&
-      minute === MINUTES_PER_DAY + 8 * 60 + 10
+      this.#state.chapterDay === 1 &&
+      localTime === 8 * 60 + 10
     ) {
       this.#executeRoutine({
         actorId: "husband",
@@ -428,7 +483,8 @@ export class VerticalSliceWorld {
 
     if (
       this.#state.chapter === 1 &&
-      minute === MINUTES_PER_DAY + 8 * 60 + 20
+      this.#state.chapterDay === 1 &&
+      localTime === 8 * 60 + 20
     ) {
       this.#executeRoutine({
         actorId: "wife",
@@ -440,7 +496,8 @@ export class VerticalSliceWorld {
 
     if (
       this.#state.chapter === 1 &&
-      minute === 2 * MINUTES_PER_DAY + 7 * 60 + 55
+      this.#state.chapterDay === 2 &&
+      localTime === 7 * 60 + 55
     ) {
       this.#executeAmbientSlot("chapter1_day2_morning_ambient", [
         "husband_tests_window_latch",
@@ -582,14 +639,15 @@ export class VerticalSliceWorld {
   #advanceChapterClock(minute: number): void {
     if (
       this.#state.chapter === "tutorial" &&
-      minute >= MINUTES_PER_DAY &&
-      this.#hasCompleted("husband", "interact_with_living_room_clock")
+      this.#chapterOneStartDay !== null &&
+      Math.floor(minute / MINUTES_PER_DAY) >= this.#chapterOneStartDay
     ) {
       this.#state.chapter = 1;
     }
 
-    if (this.#state.chapter === 1) {
-      this.#state.chapterDay = Math.floor(minute / MINUTES_PER_DAY);
+    if (this.#state.chapter === 1 && this.#chapterOneStartDay !== null) {
+      this.#state.chapterDay =
+        Math.floor(minute / MINUTES_PER_DAY) - this.#chapterOneStartDay + 1;
     }
   }
 
@@ -620,7 +678,8 @@ export class VerticalSliceWorld {
 
   #executeNarrativeDecisionPoints(minute: number): void {
     if (
-      minute === 7 * 60 + 59 &&
+      this.#state.chapter === "tutorial" &&
+      minute % MINUTES_PER_DAY === 7 * 60 + 59 &&
       this.#takeIntention("husband", "interact_with_living_room_clock")
     ) {
       this.#state.worldFacts.livingRoomClock = "accurate";
@@ -655,6 +714,8 @@ export class VerticalSliceWorld {
         "interact_with_living_room_clock",
         "completed",
       );
+      this.#chapterOneStartDay =
+        Math.floor(minute / MINUTES_PER_DAY) + 1;
     }
 
     if (

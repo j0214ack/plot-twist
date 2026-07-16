@@ -75,7 +75,7 @@ describe("conversation UI projection", () => {
     const ui = projectGame(controller.snapshot()).ui;
     expect(ui).toEqual({
       mode: "paused",
-      selectedActor: { id: "husband", label: "Husband" },
+      selectedActor: { id: "husband", label: "Martin" },
       conversation: {
         status: "idle",
         messages: [
@@ -98,9 +98,9 @@ describe("conversation UI projection", () => {
     expect(renderUIText(ui)).toBe(
       [
         "[Paused]",
-        "Focus: Husband",
+        "Focus: Martin",
         "You: Could the door simply remain undecided?",
-        "Husband: I could open only a narrow gap and then walk away.",
+        "Martin: I could open only a narrow gap and then walk away.",
         "Possibilities:",
         "1. Open the door just a little.",
       ].join("\n"),
@@ -114,7 +114,7 @@ describe("conversation UI projection", () => {
   it("LDO-HPT-004 renders pending and safe error states", () => {
     const baseView: UIView = {
       mode: "paused",
-      selectedActor: { id: "husband", label: "Husband" },
+      selectedActor: { id: "husband", label: "Martin" },
       conversation: {
         status: "awaiting_persona",
         messages: [],

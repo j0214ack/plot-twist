@@ -4,6 +4,7 @@ import {
   LeaveDoorOpenBrowserController,
   LeaveDoorOpenTransportError,
   parseScreenPossibilities,
+  screenOffersNamedFocus,
   type LeaveDoorOpenBrowserView,
   type LeaveDoorOpenTransport,
 } from "./leave-door-open-client";
@@ -15,12 +16,12 @@ describe("Leave the Door Open browser adapter", () => {
       startSession: vi.fn(async () => ({
         sessionId: "server-session-a",
         ended: false,
-        screen: "07:57 — The world pauses.\nFocus: Husband",
+        screen: "07:57 — The world pauses.\nMartin notices the slow clock.",
       })),
       submitInput: vi.fn(async (sessionId, input) => ({
         sessionId,
         ended: false,
-        screen: `Husband: ${input}`,
+        screen: `Martin: ${input}`,
       })),
     };
     const view: LeaveDoorOpenBrowserView = {
@@ -36,7 +37,7 @@ describe("Leave the Door Open browser adapter", () => {
 
     expect(view.showScreen).toHaveBeenNthCalledWith(
       1,
-      "07:57 — The world pauses.\nFocus: Husband",
+      "07:57 — The world pauses.\nMartin notices the slow clock.",
     );
     expect(transport.submitInput).toHaveBeenCalledWith(
       "server-session-a",
@@ -44,7 +45,7 @@ describe("Leave the Door Open browser adapter", () => {
     );
     expect(view.showScreen).toHaveBeenNthCalledWith(
       2,
-      "Husband: What made you stop here?",
+      "Martin: What made you stop here?",
     );
     expect(view.setBusy).toHaveBeenNthCalledWith(1, true);
     expect(view.setBusy).toHaveBeenLastCalledWith(false);
@@ -110,7 +111,7 @@ describe("Leave the Door Open browser adapter", () => {
     expect(
       parseScreenPossibilities(`
 [Paused]
-Focus: Wife
+Focus: Elise
 Possibilities:
 1. Remain at the threshold for one breath.
 2. Step across the threshold, then step back.
@@ -121,7 +122,21 @@ Continue talking or choose a Possibility.
       { number: 1, label: "Remain at the threshold for one breath." },
       { number: 2, label: "Step across the threshold, then step back." },
     ]);
-    expect(parseScreenPossibilities("Husband: I counted three minutes.")).toEqual([]);
+    expect(parseScreenPossibilities("Martin: I counted three minutes.")).toEqual([]);
+  });
+
+  // Spec: ADR 0021 LDO-WEB-009; this is projection only, not gameplay policy.
+  it("reveals named focus controls only after the safe screen establishes Chapter 1", () => {
+    expect(
+      screenOffersNamedFocus(
+        "07:57 — The world pauses.\nMartin notices the slow clock.",
+      ),
+    ).toBe(false);
+    expect(
+      screenOffersNamedFocus(
+        "Chapter 1 — Day 1\n08:20 — The world pauses.",
+      ),
+    ).toBe(true);
   });
 
   // Spec: ADR 0018 LDO-WEB-005; expiry is recoverable through a visible new-game state.

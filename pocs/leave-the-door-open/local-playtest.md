@@ -72,12 +72,13 @@ artifacts; ADR 0012 and `chapter-1.md` supersede its schedule and ending.
   not name or paraphrase the solution Action or a preferred story result. Its
   examples should demonstrate questioning an assumption or offering a reframe;
   they must not send the player searching for unavailable hidden biography.
-- **LDO-LOCAL-009 — Legible intention gate:** Onboarding and `/help` tell the
-  player to use `/resume` only after selecting a numbered Possibility and seeing
-  explicit confirmation that an intention formed. An accepted willingness
-  renders that confirmation. Premature `/resume` explains that conversationally
-  thinkable movement is not yet a world intention and repeats the visible gate
-  without exposing Action IDs, MindState, or Judge output. Local human play uses
+- **LDO-LOCAL-009 — Legible intention state:** Onboarding and `/help` distinguish
+  selecting a numbered Possibility and seeing explicit confirmation that an
+  intention formed from merely discussing an idea. An accepted willingness
+  renders that confirmation. During the tutorial, `/resume` without an
+  intention is a valid request to observe rather than an error; it schedules no
+  Action and must not imply that conversationally thinkable movement already
+  became executable. Local human play uses
   Persona prompt v7, which permits grounded present possibilities but forbids
   Persona from claiming that a contemplated movement will execute when time
   resumes or that Controller commitment already occurred. If the player
@@ -100,6 +101,17 @@ artifacts; ADR 0012 and `chapter-1.md` supersede its schedule and ending.
   in Chapter 1. Entering a number before a Possibility exists explains that
   none is available yet and redirects the player to discuss what may feel
   possible with the clock today without naming the hidden Action.
+- **LDO-LOCAL-014 — Exploratory tutorial controls:** A player may use `/resume`
+  as the first input to observe several ordinary Martin routines across the
+  rest of the day and reach the next
+  morning's slow-clock pause without solving or skipping the tutorial. This
+  cycle is repeatable, preserves validated conversation progress, and keeps
+  Chapter 1 Day 1 relative to the eventual completion day. Tutorial rendering
+  treats Martin as the implicit current voice: it does not display Focus
+  terminology, Elise, or an unavailable second-person control. Deterministic monkey
+  smoke tests exercise the public play-session/controller input capability,
+  including offered, invalid, and legacy commands, and prove that the session
+  remains recoverable. See ADR 0021.
 - **LDO-LOCAL-011 — Authored hints and bounded performance:** Routine behavior
   may select authored variants from validated Action-awareness progression and
   story state. Each story hint and its disclosure strength comes from an

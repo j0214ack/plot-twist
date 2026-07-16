@@ -8,6 +8,7 @@ import {
   HttpLeaveDoorOpenTransport,
   LeaveDoorOpenBrowserController,
   parseScreenPossibilities,
+  screenOffersNamedFocus,
   type LeaveDoorOpenBrowserView,
 } from "./leave-door-open-client";
 
@@ -22,6 +23,7 @@ const accessForm = required<HTMLFormElement>("#ldo-access-form");
 const accessInput = required<HTMLInputElement>("#ldo-access-code");
 const accessError = required<HTMLElement>("#ldo-access-error");
 const playPanel = required<HTMLElement>("#ldo-play-panel");
+const focusControls = required<HTMLElement>("#ldo-focus-controls");
 const screen = required<HTMLElement>("#ldo-screen");
 const possibilities = required<HTMLElement>("#ldo-possibilities");
 const thoughtForm = required<HTMLFormElement>("#ldo-thought-form");
@@ -47,6 +49,7 @@ class DomLeaveDoorOpenView implements LeaveDoorOpenBrowserView {
   }
 
   showScreen(nextScreen: string): void {
+    focusControls.hidden = !screenOffersNamedFocus(nextScreen);
     screen.textContent = nextScreen;
     screen.scrollTop = screen.scrollHeight;
     possibilities.replaceChildren(

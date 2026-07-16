@@ -985,3 +985,77 @@ free-form Actions.
 
 Run a new uninformed Agent from the tutorial through the window ending. Fresh10
 remains diagnostic evidence, not a completion witness.
+
+---
+
+## 2026-07-16 — Let tutorial players observe before they intervene
+
+### Objective and scope
+
+Repair the first human browser interaction: pressing continue before speaking
+must be a legitimate attempt to observe the house, and the tutorial must not
+advertise a second focus that its semantic controller rejects.
+
+### Authorization
+
+- `local-playtest.md` LDO-LOCAL-009, LDO-LOCAL-010, and LDO-LOCAL-014;
+- ADR 0021 observation-before-action and capability-shaped controls;
+- ADR 0022 player-facing character names.
+
+### Human evidence
+
+- The first browser input was **Let time continue**. The player wanted to learn
+  what ordinary life in the house looked like, but the old terminal flow
+  treated the input as failure because no intention had formed.
+- The same opening displayed Husband and Wife focus buttons even though the
+  clock tutorial allowed only one Persona. The controls taught a mechanic and
+  a second resident before either was available.
+- Follow-up direction clarified that the second resident already exists in the
+  World, but the tutorial camera should make the player believe they are only
+  following one person until the clock loop succeeds. This limited viewpoint
+  must not become a false World fact or a visual-renderer leak.
+
+### Red, Green, and evidence
+
+- World tests first failed because the clock Action and routine were tied to
+  absolute Day 0, the Wife routine appeared on an unresolved observation day,
+  and delayed success would skip Chapter Day 1.
+- Public play-session/controller monkey tests now cover first-input and repeated
+  resume, help, named and legacy focus commands, unavailable numbers, empty
+  input, and ordinary dialogue. Assertions inspect controller state rather than
+  DOM output: no Action executes, the slow clock persists, the tutorial remains
+  paused and recoverable, and validated conversation history survives.
+- An unresolved resume now advances through four authored Martin routines at
+  08:00, 12:12, 18:40, and 22:13 before returning to the next 07:57 clock
+  pause. The cycle can repeat. Elise remains in simulation state but has no
+  routine event and is excluded from the player-safe actor projection until
+  the clock succeeds.
+- Chapter Day 1 is calculated relative to the actual post-tutorial morning.
+  Repeated observation days no longer renumber or shorten the five-day causal
+  chapter.
+- The tutorial hides Focus labels and controls and contains no mention of
+  Elise, a household, multiple people, or future inner voices. Chapter 1 then
+  unlocks named Martin/Elise controls. Internal `husband`/`wife` IDs remain
+  unchanged.
+- Targeted tests passed, followed by 84 test files / 310 tests and a production
+  build. A later safe-projection regression increased the suite to 311 tests;
+  the final full-suite result is recorded at the next handoff boundary.
+
+### Friction and reusable lesson
+
+- A visible button is part of the game contract. Rejecting a curious first
+  click cannot be repaired by stronger instructions when observation is a
+  legitimate core verb.
+- Hiding a character in text is insufficient when a future visual renderer can
+  still read that actor from the safe projection. Limited narrative viewpoint
+  belongs at the projection boundary, while the World retains the full truth.
+- Monkey smoke tests are most useful at the public controller capability: they
+  prove arbitrary input cannot corrupt progress. A separate thin projection
+  assertion is enough for whether an unavailable control is displayed.
+
+### Next boundary
+
+Run a new uninformed Agent from the spoiler-free tutorial through the Chapter 1
+window ending. Record whether it chooses observation, conversation, or both and
+whether the multi-routine day establishes the intended rhythm without making
+the clock success feel optional.

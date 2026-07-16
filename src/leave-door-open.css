@@ -92,14 +92,16 @@ button:disabled { cursor: wait; opacity: 0.5; }
 .ldo-inline-form button { flex: 0 0 auto; padding: 0 20px; }
 label { display: block; margin: 0 0 8px; color: #554f44; font-size: 13px; }
 
-.ldo-controls {
+.ldo-controls,
+.ldo-focus-controls {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 16px;
 }
 
-.ldo-controls button { padding: 8px; font-size: 13px; }
+.ldo-controls button,
+.ldo-focus-controls button { padding: 8px; font-size: 13px; }
 .ldo-screen {
   min-height: 420px;
   max-height: 62vh;
@@ -144,7 +146,8 @@ footer {
 @media (max-width: 720px) {
   body { padding: 0; }
   .ldo-shell { min-height: 100vh; border: 0; padding: 24px 15px 34px; }
-  .ldo-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ldo-controls,
+  .ldo-focus-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ldo-screen { min-height: 380px; max-height: 56vh; }
   .ldo-inline-form { flex-direction: column; }
   .ldo-inline-form button { min-height: 46px; }

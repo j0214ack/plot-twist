@@ -20,6 +20,9 @@ export type PresentationCueId =
   | "husband_notices_clock"
   | "performance_beat"
   | "husband_sits"
+  | "husband_rinses_cup"
+  | "husband_folds_sofa_throw"
+  | "husband_turns_off_lights"
   | "wife_drinks"
   | "husband_reaches_door"
   | "world_paused"
@@ -108,8 +111,8 @@ export type GameView = {
 };
 
 const actorLabels: Record<NPCId, string> = {
-  husband: "Husband",
-  wife: "Wife",
+  husband: "Martin",
+  wife: "Elise",
 };
 
 export const projectWorld = (
@@ -122,7 +125,11 @@ export const projectWorld = (
   chapterDay: snapshot.chapterDay,
   localTime: snapshot.time % (24 * 60),
   paused: snapshot.paused,
-  actors: (["husband", "wife"] as const).map((id) => ({
+  actors: (snapshot.chapter === "tutorial" &&
+  snapshot.worldFacts.livingRoomClock === "three_minutes_slow"
+    ? (["husband"] as const)
+    : (["husband", "wife"] as const)
+  ).map((id) => ({
     id,
     ...snapshot.npcs[id],
   })),
@@ -296,6 +303,12 @@ const routineCue = (
       return "living_room_clock_slow";
     case "husband_sits_on_sofa":
       return "husband_sits";
+    case "husband_rinses_cup":
+      return "husband_rinses_cup";
+    case "husband_folds_sofa_throw":
+      return "husband_folds_sofa_throw";
+    case "husband_turns_off_lights":
+      return "husband_turns_off_lights";
     case "wife_drinks_water":
       return "wife_drinks";
     case "husband_walks_to_hallway_door":

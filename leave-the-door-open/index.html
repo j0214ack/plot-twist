@@ -38,9 +38,11 @@
       </section>
 
       <section class="ldo-play" id="ldo-play-panel" hidden>
+        <div id="ldo-focus-controls" class="ldo-focus-controls" aria-label="Inner voice controls" hidden>
+          <button type="button" data-play-control data-command="/focus martin">進入 Martin 的想法</button>
+          <button type="button" data-play-control data-command="/focus elise">進入 Elise 的想法</button>
+        </div>
         <div class="ldo-controls" aria-label="Play controls">
-          <button type="button" data-play-control data-command="/focus husband">進入先生的想法</button>
-          <button type="button" data-play-control data-command="/focus wife">進入妻子的想法</button>
           <button type="button" data-play-control data-command="/resume">讓時間繼續</button>
           <button type="button" data-play-control data-command="/help">玩法說明</button>
         </div>
@@ -53,7 +55,7 @@
         </section>
 
         <form id="ldo-thought-form" class="ldo-thought-form">
-          <label for="ldo-thought">對目前聚焦的角色說一句話</label>
+          <label for="ldo-thought">對你現在聽見的內在聲音說一句話</label>
           <div class="ldo-inline-form">
             <textarea
               id="ldo-thought"

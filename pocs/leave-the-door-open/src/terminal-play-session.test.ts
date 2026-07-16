@@ -72,16 +72,21 @@ describe("Leave the Door Open terminal play session", () => {
     await session.start();
 
     expect(outputs.at(-1)).toContain(
-      "You are a voice inside a stuck character's self-talk.",
+      "You are a voice inside Martin's self-talk.",
     );
-    expect(outputs.at(-1)).toContain("You cannot control their body.");
+    expect(outputs.at(-1)).toContain("Martin notices it most mornings");
+    expect(outputs.at(-1)).not.toMatch(
+      /\bElise\b|\bWife\b|household|each person|other inner voices/i,
+    );
+    expect(outputs.at(-1)).toContain("You cannot control his body.");
     expect(outputs.at(-1)).toContain(
-      "Your goal: Help this household begin moving again",
+      "Your goal: Help Martin discover a next step",
     );
     expect(outputs.at(-1)).toContain("Start here:");
     expect(outputs.at(-1)).toContain(
       "07:57 — Living room — The wall clock shows 07:54.",
     );
+    expect(outputs.at(-1)).not.toContain("Focus:");
     expect(outputs.at(-1)).toContain(
       "He looks up, starts to pass beneath it, then stops.",
     );
@@ -94,7 +99,7 @@ describe("Leave the Door Open terminal play session", () => {
     expect(outputs.at(-1)).not.toContain("Why did you stop here?");
     expect(outputs.at(-1)).toContain("No exact phrase is required.");
     expect(outputs.at(-1)).toContain(
-      "Use /resume only after you select a numbered Possibility and the screen says an intention has formed.",
+      "You can let time continue now to observe, or wait until an intention forms to change the world.",
     );
     expect(outputs.at(-1)).not.toContain("Leave the door as it is.");
     expect(outputs.at(-1)).not.toContain("Spend a moment with the clock.");
@@ -105,13 +110,16 @@ describe("Leave the Door Open terminal play session", () => {
     await session.handleInput("/help");
 
     expect(outputs.at(-1)).toContain(
-      "Your goal: Help this household begin moving again",
+      "Your goal: Help Martin discover a next step",
     );
     expect(outputs.at(-1)).toContain(
       'Try: "What made those three minutes worth stopping for today?"',
     );
     expect(outputs.at(-1)).toContain(
-      "Use /resume only after you select a numbered Possibility and the screen says an intention has formed.",
+      "You can let time continue now to observe, or wait until an intention forms to change the world.",
+    );
+    expect(outputs.at(-1)).not.toMatch(
+      /\bElise\b|\bWife\b|household|each person|other inner voices/i,
     );
 
     await session.handleInput("1");
@@ -119,15 +127,17 @@ describe("Leave the Door Open terminal play session", () => {
       "No numbered Possibility is available yet.",
     );
     expect(outputs.at(-1)).toContain(
-      "Keep talking with the Husband about what feels possible with the clock today.",
+      "Keep talking with Martin about what feels possible with the clock today.",
     );
 
-    await session.handleInput("/focus wife");
+    await session.handleInput("/focus elise");
     expect(outputs.at(-1)).toContain(
-      "During Three Minutes, focus stays with the Husband.",
+      "That inner voice is not available here. You are hearing Martin's thoughts.",
     );
-    expect(outputs.at(-1)).toContain("Focus: Husband");
-    expect(outputs.at(-1)).not.toContain("Focus: Wife");
+    expect(outputs.at(-1)).not.toContain("Focus:");
+    expect(outputs.at(-1)).not.toMatch(
+      /\bElise\b|\bWife\b|household|each person|other inner voices/i,
+    );
   });
 
   it("LDO-CH1-001 LDO-CH1-002 LDO-CH1-003 LDO-CH1-004 enters the next-morning chapter opening before player-selected focus", async () => {
@@ -190,13 +200,13 @@ describe("Leave the Door Open terminal play session", () => {
 
     await session.start();
     expect(outputs.at(-1)).toContain("07:57 — The world pauses.");
-    expect(outputs.at(-1)).toContain("Focus: Husband");
+    expect(outputs.at(-1)).not.toContain("Focus:");
     expect(outputs.at(-1)).not.toContain("Possibilities:");
 
     await session.handleInput("What made those three minutes worth stopping for today?");
     expect(outputs).toContainEqual(expect.stringContaining("Inner voice is responding…"));
     expect(outputs.at(-1)).toContain(
-      "Husband: I could spend less time fixing it than I have spent noticing it.",
+      "Martin: I could spend less time fixing it than I have spent noticing it.",
     );
     expect(outputs.at(-1)).toContain("1. Spend a moment with the clock.");
 
@@ -239,15 +249,15 @@ describe("Leave the Door Open terminal play session", () => {
     );
     expect(outputs.at(-1)).toContain("08:20 — The world pauses.");
     expect(outputs.at(-1)).toContain(
-      "Choose whose inner thoughts to enter: /focus husband or /focus wife.",
+      "Choose whose inner thoughts to enter: /focus martin or /focus elise.",
     );
     expect(outputs.at(-1)).not.toContain("Focus: Husband");
     expect(outputs.at(-1)).not.toContain("Open the door just a little.");
 
-    await session.handleInput("/focus wife");
+    await session.handleInput("/focus elise");
 
     expect(controller.snapshot().interaction.selectedNpcId).toBe("wife");
-    expect(outputs.at(-1)).toContain("Focus: Wife");
+    expect(outputs.at(-1)).toContain("Focus: Elise");
   });
 
   it("LDO-CH1-005 LDO-CH1-008 LDO-CH1-016 resumes without an intention with the fixed-Possibility boundary", async () => {
@@ -296,7 +306,7 @@ describe("Leave the Door Open terminal play session", () => {
       "Only numbered Possibilities can be selected as world actions; other conversation can still change how the character thinks.",
     );
     expect(outputs.at(-1)).toContain(
-      "Choose whose inner thoughts to enter: /focus husband or /focus wife.",
+      "Choose whose inner thoughts to enter: /focus martin or /focus elise.",
     );
     expect(outputs.at(-1)).not.toMatch(
       /open_door_a_crack|remain_at_threshold|step_inside_room|open_room_window|\bJudge\b|\bsurfaced\b|\bdefer\b/i,
@@ -312,7 +322,7 @@ describe("Leave the Door Open terminal play session", () => {
     expect(outputs.at(-1)).toContain(
       "Only numbered Possibilities can be selected as world actions; other conversation can still change how the character thinks.",
     );
-    expect(outputs.at(-1)).toContain("/focus husband or /focus wife");
+    expect(outputs.at(-1)).toContain("/focus martin or /focus elise");
     expect(outputs.at(-1)).not.toContain(
       "What made those three minutes worth stopping for today?",
     );
@@ -339,7 +349,7 @@ describe("Leave the Door Open terminal play session", () => {
       chapterDay: 2,
       paused: true,
     });
-    await session.handleInput("/focus husband");
+    await session.handleInput("/focus martin");
     expect(outputs.at(-1)).toContain("1. Open the door just a little.");
     await session.handleInput("1");
     await session.handleInput("/resume");
@@ -491,20 +501,28 @@ describe("Leave the Door Open terminal play session", () => {
     );
   });
 
-  it("LDO-LOCAL-006 does not advance past a decision point without an intention", async () => {
+  it("LDO-LOCAL-014 ADR 0021 treats first-input resume as repeatable observation while preserving controller progress", async () => {
     const outputs: string[] = [];
-    const unreachablePorts: ConversationPorts = {
+    const observationalPorts: ConversationPorts = {
       persona: {
         async takeTurn() {
-          throw new Error("Not exercised");
+          return {
+            reply: "I notice it, even if I am not choosing anything yet.",
+            shouldEndConversation: false,
+          };
         },
       },
       actionJudge: {
         async judgeMindStateTransition() {
-          throw new Error("Not exercised");
+          return { transitions: [], unmodeledShiftNote: null };
         },
-        async judgeAwareness() {
-          throw new Error("Not exercised");
+        async judgeAwareness(request) {
+          return {
+            judgments: request.actions.map(({ actionId }) => ({
+              actionId,
+              awareness: "faintly_imagined" as const,
+            })),
+          };
         },
         async judgeWillingness() {
           throw new Error("Not exercised");
@@ -512,27 +530,117 @@ describe("Leave the Door Open terminal play session", () => {
       },
     };
     const controller = createConversationalVerticalSliceGameController(
-      unreachablePorts,
+      observationalPorts,
     );
     const session = new TerminalPlaySession(controller, (screen) => {
       outputs.push(screen);
     });
     await session.start();
 
-    const result = await session.handleInput("/resume");
+    await session.handleInput("I want to watch what an ordinary day looks like.");
+    const first = await session.handleInput("/resume");
 
-    expect(result).toEqual({ ended: false });
+    expect(first).toEqual({ ended: false });
     expect(controller.snapshot().world).toMatchObject({
-      time: 7 * 60 + 57,
+      time: 24 * 60 + 7 * 60 + 57,
       paused: true,
+      chapter: "tutorial",
+      worldFacts: { livingRoomClock: "three_minutes_slow" },
       intentions: [],
+      completedActions: [],
     });
-    expect(outputs.at(-1)).toContain("No world intention has formed.");
+    expect(controller.snapshot().interaction).toMatchObject({
+      selectedNpcId: "husband",
+      messages: [
+        {
+          speaker: "player",
+          text: "I want to watch what an ordinary day looks like.",
+        },
+        {
+          speaker: "persona",
+          text: "I notice it, even if I am not choosing anything yet.",
+        },
+      ],
+    });
     expect(outputs.at(-1)).toContain(
-      "Something discussed in conversation is not executable yet.",
+      "08:00 — Living room — He sits at the far end of the sofa.",
     );
     expect(outputs.at(-1)).toContain(
-      "Continue until a numbered Possibility appears, then select it before using /resume.",
+      "12:12 — Dining area — He rinses his cup, dries the ring beneath it, and leaves it upside down.",
     );
+    expect(outputs.at(-1)).toContain(
+      "18:40 — Living room — He folds the sofa throw into the same narrow rectangle.",
+    );
+    expect(outputs.at(-1)).toContain(
+      "22:13 — Living room — He turns off the lamps one by one, leaving the clock visible until last.",
+    );
+    expect(outputs.at(-1)).not.toContain("She drinks a glass of water.");
+
+    const second = await session.handleInput("/resume");
+
+    expect(second).toEqual({ ended: false });
+    expect(controller.snapshot().world).toMatchObject({
+      time: 2 * 24 * 60 + 7 * 60 + 57,
+      paused: true,
+      chapter: "tutorial",
+      intentions: [],
+      completedActions: [],
+    });
+    expect(controller.snapshot().interaction.selectedNpcId).toBe("husband");
   });
+
+  it.each([
+    ["empty input", ""],
+    ["help", "/help"],
+    ["observe", "/resume"],
+    ["current named voice", "/focus martin"],
+    ["unavailable named voice", "/focus elise"],
+    ["legacy current voice", "/focus husband"],
+    ["legacy unavailable voice", "/focus wife"],
+    ["unavailable number", "1"],
+    ["ordinary dialogue", "What happens if I just watch for a while?"],
+  ])(
+    "LDO-LOCAL-014 ADR 0021 controller monkey smoke keeps the tutorial recoverable after %s",
+    async (_label, input) => {
+      const ports: ConversationPorts = {
+        persona: {
+          async takeTurn() {
+            return { reply: "I can notice that.", shouldEndConversation: false };
+          },
+        },
+        actionJudge: {
+          async judgeMindStateTransition() {
+            return { transitions: [], unmodeledShiftNote: null };
+          },
+          async judgeAwareness(request) {
+            return {
+              judgments: request.actions.map(({ actionId }) => ({
+                actionId,
+                awareness: "latent" as const,
+              })),
+            };
+          },
+          async judgeWillingness() {
+            throw new Error("No Possibility should be selectable");
+          },
+        },
+      };
+      const controller = createConversationalVerticalSliceGameController(ports);
+      const session = new TerminalPlaySession(controller, () => undefined);
+      await session.start();
+
+      const result = await session.handleInput(input);
+      const snapshot = controller.snapshot();
+
+      expect(result).toEqual({ ended: false });
+      expect(snapshot.world).toMatchObject({
+        chapter: "tutorial",
+        paused: true,
+        worldFacts: { livingRoomClock: "three_minutes_slow" },
+        intentions: [],
+        completedActions: [],
+      });
+      expect(snapshot.world.time).toBeGreaterThanOrEqual(7 * 60 + 57);
+    },
+  );
 });

@@ -54,7 +54,7 @@ describe("layered text rendering", () => {
     expect(uiLayer).toBe(
       [
         "[Paused]",
-        "Focus: Husband",
+        "Focus: Martin",
         "Possibilities:",
         "1. Open the door just a little.",
       ].join("\n"),

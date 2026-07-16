@@ -231,6 +231,16 @@ The Performance Director may decide whether this appears as a glance, a second
 look, a counted pause, or another compatible gesture. It cannot choose a
 different fact to hint or decide when a protected story clue should appear.
 
+Before any intention forms, letting time continue is also a valid exploratory
+move. The World follows Martin through several ordinary routines across the
+rest of the day, leaves the clock unchanged, and returns to the next morning's
+slow-clock moment. This observation cycle may repeat without skipping the
+tutorial or resetting validated conversation progress. Elise exists in the
+simulation, but the tutorial's limited narrative camera does not present her;
+this is not a claim that Martin lives alone. Martin is the implicit inner voice.
+Focus controls and Elise are introduced only when the corrected-clock
+observation opens Chapter 1. See ADRs 0021–0022 and `LDO-LOCAL-014`.
+
 ## Authoring constraints
 
 - Use the production PoC pipeline; do not hard-code a successful Judge result.

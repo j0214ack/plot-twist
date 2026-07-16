@@ -2,6 +2,9 @@
 
 Status: Accepted implementation design
 
+Player-facing character names are Martin (`husband`) and Elise (`wife`); the
+role IDs remain internal ownership keys. See ADR 0022.
+
 ## Narrative promise
 
 The Three Minutes prologue proved that a thought can create a small world
@@ -54,10 +57,14 @@ It must not tell the player to open, enter, clean, or change the room.
 
 ## Chapter time and conversation model
 
-- Day 0 contains the clock tutorial only. Its intention-gated teaching resume
-  remains unchanged.
-- Chapter time uses an absolute day plus minute-of-day internally. Renderers
-  show a chapter day and local clock time rather than a growing hour count.
+- The days before Chapter 1 contain the clock tutorial only. A no-intention
+  resume may advance through an ordinary routine to the next morning's clock
+  pause; it does not skip the required tutorial success loop.
+- World time uses an absolute day plus minute-of-day internally. Chapter Day 1
+  is computed relative to the morning after the tutorial succeeds, so optional
+  tutorial observation days do not renumber or shorten the chapter. Renderers
+  show the relative chapter day and local clock time rather than a growing hour
+  count.
 - Time never moves during a dialogue turn.
 - `/resume` after the tutorial always closes the current pause and advances to
   the next authored routine or decision moment:

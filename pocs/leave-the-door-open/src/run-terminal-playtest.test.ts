@@ -59,7 +59,7 @@ describe("local terminal playtest executable", () => {
       });
       expect(records[1]).toMatchObject({
         visibility: "player",
-        data: { screen: expect.stringContaining("Focus: Husband") },
+        data: { screen: expect.stringContaining("Martin") },
       });
       expect(records[2]).toMatchObject({
         visibility: "player",
