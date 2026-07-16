@@ -48,6 +48,10 @@ or persistence, or change Chapter 1's authored causal graph.
    session starts the real play surface and that submitted input advances that
    same session. Browser acceptance then verifies that the deployed page can
    start, submit text, focus, resume/help, and display the returned screen.
+8. **LDO-WEB-008 — Canonical page routing.** Requests for the convenient
+   no-trailing-slash path `/leave-the-door-open` redirect to the canonical
+   `/leave-the-door-open/` page in development and preview. They must never fall
+   through to the root Unwritten Spell HTML.
 
 ## Consequences
 

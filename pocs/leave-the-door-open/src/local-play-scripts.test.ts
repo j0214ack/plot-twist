@@ -12,7 +12,7 @@ describe("Leave the Door Open local play commands", () => {
       "tsx pocs/leave-the-door-open/src/run-terminal-playtest.ts",
     );
     expect(packageJson.scripts["play:ldo:web"]).toBe(
-      "vite --mode ldo-local-codex",
+      "vite --mode ldo-local-codex --open /leave-the-door-open/",
     );
     expect(packageJson.scripts["play:ldo"]).toBe("npm run play:ldo:text");
   });

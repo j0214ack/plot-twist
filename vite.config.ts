@@ -25,6 +25,7 @@ import {
   resolveLeaveDoorOpenWebOptions,
 } from "./server/leave-door-open-config";
 import { createLeaveDoorOpenWebSessionFactory } from "./server/leave-door-open-runtime";
+import { leaveDoorOpenPageRoutePlugin } from "./server/leave-door-open-page-route";
 import { OpenAiStructuredRoleModel } from "./pocs/leave-the-door-open/src/live-openai-model";
 import {
   CodexExecStructuredRoleModel,
@@ -124,6 +125,7 @@ export default defineConfig(({ command, isPreview, mode }) => {
 
   return {
     plugins: [
+      leaveDoorOpenPageRoutePlugin(),
       ...(command === "serve"
         ? [demoAccessPlugin(resolveDemoAccessOptions(env, { isPreview: Boolean(isPreview) }))]
         : []),

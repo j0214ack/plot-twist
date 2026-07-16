@@ -43,7 +43,9 @@ own machine. Repository sharing never shares credentials or plan usage.
 1. Add explicit `play:ldo:text` and `play:ldo:web` commands. Keep `play:ldo` as
    a backward-compatible alias for the text surface.
 2. `play:ldo:web` starts the existing Vite development server in an explicit
-   local-Codex mode and serves `/leave-the-door-open/`.
+   local-Codex mode, opens `/leave-the-door-open/` as its initial browser page,
+   and serves that canonical route. The command must not lead a player to the
+   root Unwritten Spell page.
 3. In that mode only, the Vite server injects
    `CodexExecStructuredRoleModel(LocalCodexExecClient)` into the existing web
    session factory. Every role retains ADR 0006's ephemeral, tool-disabled,

@@ -832,3 +832,45 @@ browser.
 
 Publish the scoped playtest branch for teammates while the full fresh Agent
 completion and Fly deployment remain separate gates.
+
+---
+
+## 2026-07-16 — Make the local HTML route unambiguous
+
+### Objective and scope
+
+Prevent the documented local browser command and the convenient no-slash URL
+from silently opening The Unwritten Spell instead of Leave the Door Open.
+
+### Authorization
+
+- ADR 0018 LDO-WEB-001 and LDO-WEB-008;
+- ADR 0019 Decision 2.
+
+### Red, Green, and evidence
+
+- The exact local failure was reproduced: `/leave-the-door-open/` served the
+  LDO page, but `/leave-the-door-open` fell through Vite's SPA fallback and
+  returned the root Unwritten Spell HTML. The local command also advertised
+  only the root server URL.
+- The route regression first failed because no canonical-page middleware
+  existed. The command regression first failed because `play:ldo:web` did not
+  open the LDO path.
+- A narrow Vite dev/preview middleware now redirects only the exact no-slash
+  alias with `308` to `/leave-the-door-open/`; the local command opens that
+  canonical page directly.
+- A real local HTTP probe followed the redirect to a `200` page containing the
+  LDO title, `#ldo-screen`, and LDO entry module. The complete suite passed with
+  84 test files and 293 tests, followed by a successful multi-page build.
+
+### Friction and reusable lesson
+
+- A multi-page build can be correct while the development server still hides
+  a missing trailing slash behind its root SPA fallback. Route aliases need an
+  explicit canonicalization boundary rather than relying on a player to copy
+  punctuation from documentation.
+
+### Next boundary
+
+Push the fix to the teammate branch, then deploy only after the same canonical
+route is verified from the clean production image.
