@@ -7,6 +7,7 @@ import type { LocationId, NarrativeActionId, NPCId, RoutineBehaviorId } from "./
 
 export type PerformanceRequest = {
   actorId: NPCId;
+  actorDisplayName: string;
   at: number;
   semanticBehavior:
     | {

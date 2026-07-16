@@ -14,6 +14,7 @@ import type {
 import type { PerformanceRecord } from "./performance";
 import { isAmbientRoutineId } from "./ambient-routines";
 import { isChapter1CausalRoutineId } from "./chapter1-routines";
+import { characterDisplayNames } from "./character-display";
 
 export type PresentationCueId =
   | "living_room_clock_slow"
@@ -110,11 +111,6 @@ export type GameView = {
   ui: UIView;
 };
 
-const actorLabels: Record<NPCId, string> = {
-  husband: "Martin",
-  wife: "Elise",
-};
-
 export const projectWorld = (
   snapshot: WorldSnapshot,
   events: GameEvent[],
@@ -186,7 +182,7 @@ export const projectGame = (
         ? null
         : {
             id: snapshot.interaction.selectedNpcId,
-            label: actorLabels[snapshot.interaction.selectedNpcId],
+            label: characterDisplayNames[snapshot.interaction.selectedNpcId],
           },
     actionOptions: snapshot.interaction.availableActionOptionIds.map(
       (optionId) => ({

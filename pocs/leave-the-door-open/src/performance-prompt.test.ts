@@ -25,6 +25,15 @@ describe("Leave the Door Open Performance Director prompt", () => {
     );
   });
 
+  it("LDO-CHAR-001 ADR 0022 uses the player-safe name without exposing role labels", async () => {
+    const prompt = (await readPerformancePrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain("PLAYER_SAFE_ACTOR");
+    expect(prompt).toContain(
+      "Never expose internal actor IDs or role labels such as husband or wife",
+    );
+  });
+
   it("LDO-LOCAL-012 ADR 0010 leaves closure, Evidence, and durable state to the engine", async () => {
     const prompt = (await readPerformancePrompt()).replace(/\s+/g, " ");
 

@@ -54,6 +54,7 @@ describe("bounded Performance Director orchestration", () => {
     expect(requests).toMatchObject([
       {
         actorId: "husband",
+        actorDisplayName: "Martin",
         semanticBehavior: {
           kind: "routine",
           behaviorId: "husband_route_turns_before_closed_door",
@@ -354,7 +355,7 @@ describe("bounded Performance Director orchestration", () => {
         hintBrief: {
           hintId: "slow_clock_is_repeatedly_noticed",
           safeFact:
-            "Most mornings the husband notices that the living-room clock is three minutes slow and keeps walking; today he stops beneath it.",
+            "Most mornings Martin notices that the living-room clock is three minutes slow and keeps walking; today he stops beneath it.",
           required: true,
           forbiddenInterpretations: expect.arrayContaining([
             "Do not describe today's stopping as his repeated morning habit.",

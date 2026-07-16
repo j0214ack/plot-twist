@@ -1059,3 +1059,39 @@ Run a new uninformed Agent from the spoiler-free tutorial through the Chapter 1
 window ending. Record whether it chooses observation, conversation, or both and
 whether the multi-routine day establishes the intended rhythm without making
 the clock success feel optional.
+
+---
+
+## 2026-07-16 — Keep generated performance on the named projection boundary
+
+### Objective and scope
+
+Close the name/role leak found in fresh12's first generated routine performance.
+
+### Authorization
+
+- ADR 0022 LDO-CHAR-001;
+- ADR 0010's player-safe Performance Director packet.
+
+### Black-box evidence
+
+- The authored opening correctly introduced only Martin, but the generated
+  clock beats said `the husband`. The Director had copied that wording from the
+  HintBrief even though the renderer and conversation projection were named.
+- The run was interrupted immediately and is diagnostic only; it cannot serve
+  as the fresh completion witness.
+
+### Red, Green, and evidence
+
+- Routine, performance-request, structured-director, and prompt tests first
+  failed on the leaked role label and missing safe actor identity.
+- A shared semantic-ID-to-display-name projection now supplies Martin/Elise to
+  UI and Performance requests. The clock HintBrief and Action scene facts use
+  names, while the Director prompt requires the supplied display name or an
+  unambiguous pronoun and forbids exposing role labels or internal actor IDs.
+- Internal `husband`/`wife` IDs and behavior ownership remain unchanged.
+
+### Next boundary
+
+Start fresh13 from a new session and reject the run if any generated player
+beat again exposes an internal role label before or after the Chapter 1 reveal.

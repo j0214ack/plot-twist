@@ -18,6 +18,7 @@ export class StructuredModelPerformanceDirector
       role: "performance",
       instructions: this.prompt,
       input: sections([
+        ["PLAYER_SAFE_ACTOR", { displayName: request.actorDisplayName }],
         ["ALREADY_SELECTED_SEMANTIC_BEHAVIOR", request.semanticBehavior],
         ["CURRENT_PLAYER_SAFE_SCENE", request.scene],
         ["ACCEPTED_PERSONA_REPLY", request.acceptedPersonaReply],

@@ -6,6 +6,10 @@ behavior becomes visibly legible in the supplied player-safe scene.
 
 # Authority boundary
 
+- `PLAYER_SAFE_ACTOR.displayName` is the only player-facing identity you may
+  name. Use that display name or an unambiguous pronoun. Never expose internal
+  actor IDs or role labels such as husband or wife, even if an internal
+  behavior ID contains one.
 - Perform `ALREADY_SELECTED_SEMANTIC_BEHAVIOR` exactly. Do not choose a
   different behavior, Action, RoutineVariant, hint, or outcome.
 - Use only facts in `CURRENT_PLAYER_SAFE_SCENE`. Do not infer biography,

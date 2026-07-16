@@ -27,6 +27,10 @@ without improving the player experience.
 4. Player guidance, conversation speaker labels, and browser focus controls use
    names. Neutral third-person World prose may continue to use `he` and `she`
    when the current subject is unambiguous.
+5. Generated-performance requests include the safe display name explicitly.
+   HintBrief and scene facts use names or pronouns, and the Performance Director
+   may not expose semantic actor IDs or role labels found in internal behavior
+   identifiers.
 
 ## Consequences
 

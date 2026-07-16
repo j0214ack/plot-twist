@@ -40,6 +40,7 @@ import {
   getChapter1CausalRoutineVariant,
   isChapter1CausalRoutineId,
 } from "./chapter1-routines";
+import { characterDisplayName } from "./character-display";
 
 export type { ActionOptionId } from "./narrative-actions";
 
@@ -556,6 +557,7 @@ export class VerticalSliceGameController {
       }
       return {
         actorId: event.actorId,
+        actorDisplayName: characterDisplayName(event.actorId),
         at: event.at,
         semanticBehavior: {
           kind: "routine",
@@ -584,6 +586,7 @@ export class VerticalSliceGameController {
       }
       return {
         actorId: event.actorId,
+        actorDisplayName: characterDisplayName(event.actorId),
         at: event.at,
         semanticBehavior: {
           kind: "routine",
@@ -610,6 +613,7 @@ export class VerticalSliceGameController {
       );
       return {
         actorId: event.actorId,
+        actorDisplayName: characterDisplayName(event.actorId),
         at: event.at,
         semanticBehavior: {
           kind: "routine",
@@ -635,6 +639,7 @@ export class VerticalSliceGameController {
         action.variants[0]!.variantId;
       return {
         actorId: event.actorId,
+        actorDisplayName: characterDisplayName(event.actorId),
         at: event.at,
         semanticBehavior: {
           kind: "narrative_action",
@@ -668,19 +673,19 @@ export class VerticalSliceGameController {
         ];
       case "open_door_a_crack":
         return [
-          "At the start of the performance, the hallway door is fully closed and the husband's hand is on its handle.",
+          "At the start of the performance, the hallway door is fully closed and Martin's hand is on its handle.",
         ];
       case "remain_at_threshold":
         return [
-          "At the start of the performance, the wife is immediately outside the open room threshold.",
+          "At the start of the performance, Elise is immediately outside the open room threshold.",
         ];
       case "step_inside_room":
         return [
-          "At the start of the performance, the wife is at the room threshold; the room remains untouched.",
+          "At the start of the performance, Elise is at the room threshold; the room remains untouched.",
         ];
       case "open_room_window":
         return [
-          "At the start of the performance, the wife is inside the revealed room and its window is fully closed.",
+          "At the start of the performance, Elise is inside the revealed room and its window is fully closed.",
         ];
     }
   }

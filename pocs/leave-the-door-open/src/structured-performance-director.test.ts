@@ -21,6 +21,7 @@ describe("structured Performance Director", () => {
     );
     const request: PerformanceRequest = {
       actorId: "husband",
+      actorDisplayName: "Martin",
       at: 7 * 60 + 57,
       semanticBehavior: {
         kind: "routine",
@@ -40,7 +41,7 @@ describe("structured Performance Director", () => {
       hintBrief: {
         hintId: "slow_clock_is_repeatedly_noticed",
         safeFact:
-          "The husband notices that the living-room clock is three minutes slow every morning.",
+          "Martin notices that the living-room clock is three minutes slow every morning.",
         clarity: "clear",
         required: true,
         forbiddenInterpretations: ["Do not explain why."],
@@ -67,6 +68,8 @@ describe("structured Performance Director", () => {
     expect(model.calls[0]!.input).toContain(
       "restore_valid_starting_state",
     );
+    expect(model.calls[0]!.input).toContain("PLAYER_SAFE_ACTOR");
+    expect(model.calls[0]!.input).toContain('"displayName": "Martin"');
     expect(model.calls[0]!.input).not.toMatch(
       /currentBarrier|acceptedReframes|HARD_ELIGIBLE_AUTHORED_ACTIONS|child|grief/i,
     );

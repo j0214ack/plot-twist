@@ -24,7 +24,7 @@ describe("authored RoutineBehavior variants", () => {
       hintBrief: {
         hintId: "slow_clock_is_repeatedly_noticed",
         safeFact:
-          "Most mornings the husband notices that the living-room clock is three minutes slow and keeps walking; today he stops beneath it.",
+          "Most mornings Martin notices that the living-room clock is three minutes slow and keeps walking; today he stops beneath it.",
         clarity: "clear",
         required: true,
         forbiddenInterpretations: expect.arrayContaining([
@@ -37,7 +37,7 @@ describe("authored RoutineBehavior variants", () => {
     expect(faint.hintBrief).toEqual(latent.hintBrief);
     expect(surfaced.hintBrief).toEqual(latent.hintBrief);
     expect(latent.hintBrief.safeFact).not.toMatch(
-      /grief|relationship|child|mystery|fix the clock/i,
+      /\bhusband\b|\bwife\b|grief|relationship|child|mystery|fix the clock/i,
     );
   });
 });
