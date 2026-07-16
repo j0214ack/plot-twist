@@ -127,7 +127,14 @@ export default defineConfig(({ command, isPreview, mode }) => {
     plugins: [
       leaveDoorOpenPageRoutePlugin(),
       ...(command === "serve"
-        ? [demoAccessPlugin(resolveDemoAccessOptions(env, { isPreview: Boolean(isPreview) }))]
+        ? [
+            demoAccessPlugin(
+              resolveDemoAccessOptions(env, {
+                isPreview: Boolean(isPreview),
+                mode,
+              }),
+            ),
+          ]
         : []),
       spellApiPlugin(compiler),
       transcriptionApiPlugin(transcription),

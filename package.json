@@ -15,7 +15,7 @@
     "eval:ldo-replay": "tsx pocs/leave-the-door-open/src/run-saved-state-replay.ts",
     "play:ldo": "npm run play:ldo:text",
     "play:ldo:text": "tsx pocs/leave-the-door-open/src/run-terminal-playtest.ts",
-    "play:ldo:web": "vite --mode ldo-local-codex --open /leave-the-door-open/"
+    "play:ldo:web": "vite --mode ldo-local-codex --open /leave-the-door-open/ --port 5173 --strictPort"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

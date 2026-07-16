@@ -874,3 +874,50 @@ from silently opening The Unwritten Spell instead of Leave the Door Open.
 
 Push the fix to the teammate branch, then deploy only after the same canonical
 route is verified from the clean production image.
+
+---
+
+## 2026-07-16 — Keep local HTML play anonymous and on one origin
+
+### Objective and scope
+
+Remove the public access-code experience from explicit local-Codex play while
+retaining the anonymous same-origin session that protects the local API.
+
+### Authorization
+
+- ADR 0019 Decisions 2 and 7;
+- ADR 0018 LDO-WEB-006.
+
+### Red, Green, and evidence
+
+- The local page was shown to contain an access-code panel by default even
+  while its anonymous session request was still pending. Vite could also move
+  from port 5173 to another port, which no longer matched the configured local
+  origin.
+- Configuration, static page, and package-script regressions first failed on
+  those three observable behaviors.
+- The explicit `ldo-local-codex` composition now ignores a public
+  `DEMO_ACCESS_CODE`, while production preview and normal development preserve
+  their existing policy. The HTML panel and form start hidden; the existing
+  tested `DemoSessionController` reveals them only after a server 401.
+- `play:ldo:web` fixes and strictly reserves port 5173, opens the canonical LDO
+  path, and reports a port conflict instead of silently selecting a rejected
+  origin.
+- A real local HTTP probe with a dummy access code in the environment returned
+  `308` for the route alias, two initially hidden access elements, and
+  `200 {"mode":"anonymous"}` from the session endpoint.
+
+### Friction and reusable lesson
+
+- Anonymous server policy alone does not prevent a gate from flashing when the
+  static HTML renders it before bootstrap. Security state and its initial
+  projection both need explicit acceptance evidence.
+- Automatic dev-port fallback is incompatible with a fixed same-origin allow
+  boundary unless the origin is recomputed; for this bounded play command, a
+  strict port gives the clearer failure mode.
+
+### Next boundary
+
+Finish the uninformed full-chapter run, then verify the same gated behavior in
+the clean Fly preview before sharing the remote URL.

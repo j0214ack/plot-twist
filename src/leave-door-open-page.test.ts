@@ -21,4 +21,16 @@ describe("Leave the Door Open friend-playtest page", () => {
       /pocs\/leave-the-door-open\/src\/(world|controller|narrative-actions)/,
     );
   });
+
+  // Spec: ADR 0019 Decision 7; anonymous bootstrap must not flash a code prompt.
+  it("keeps the access panel and form hidden until the server explicitly requires a code", () => {
+    const html = readFileSync("leave-the-door-open/index.html", "utf8");
+    const accessPanel = html.match(
+      /<section[^>]*id="ldo-access-panel"[^>]*>/,
+    )?.[0];
+    const accessForm = html.match(/<form[^>]*id="ldo-access-form"[^>]*>/)?.[0];
+
+    expect(accessPanel).toContain("hidden");
+    expect(accessForm).toContain("hidden");
+  });
 });

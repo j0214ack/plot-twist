@@ -1,5 +1,9 @@
 import "./leave-door-open.css";
-import { DemoSessionClient } from "./demo-session";
+import {
+  DemoSessionClient,
+  DemoSessionController,
+  type DemoSessionView,
+} from "./demo-session";
 import {
   HttpLeaveDoorOpenTransport,
   LeaveDoorOpenBrowserController,
@@ -102,48 +106,44 @@ newGame.addEventListener("click", () => void controller.start());
 
 const enterPlaytest = async (): Promise<void> => {
   accessPanel.hidden = true;
+  accessForm.hidden = true;
   playPanel.hidden = false;
   await controller.start();
   thoughtInput.focus();
 };
 
-const demoSession = new DemoSessionClient();
-const bootstrapAccess = async (): Promise<void> => {
-  accessError.textContent = "正在確認試玩權限……";
-  try {
-    const result = await demoSession.open();
-    if (result.status === "ready") {
-      await enterPlaytest();
-      return;
-    }
-    accessError.textContent = "";
-    accessInput.focus();
-  } catch (cause) {
-    accessError.textContent =
-      cause instanceof Error ? cause.message : "目前無法確認試玩權限。";
+class DomDemoSessionView implements DemoSessionView {
+  showAccessGate(): void {
+    accessPanel.hidden = false;
+    accessForm.hidden = false;
+    requestAnimationFrame(() => accessInput.focus());
   }
-};
+
+  showAccessError(message: string): void {
+    accessError.textContent = message;
+    accessInput.select();
+  }
+
+  dismissAccessGate(): void {
+    accessPanel.hidden = true;
+    accessForm.hidden = true;
+    accessInput.value = "";
+    accessError.textContent = "";
+    void enterPlaytest();
+  }
+}
+
+const demoSession = new DemoSessionController(
+  new DemoSessionClient(),
+  new DomDemoSessionView(),
+);
 
 accessForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const code = accessInput.value;
   if (!code) return;
   accessError.textContent = "正在確認……";
-  void demoSession
-    .open(code)
-    .then(async (result) => {
-      if (result.status === "access-code-required") {
-        accessError.textContent = "Access code 不正確，請再試一次。";
-        accessInput.select();
-        return;
-      }
-      accessInput.value = "";
-      await enterPlaytest();
-    })
-    .catch((cause) => {
-      accessError.textContent =
-        cause instanceof Error ? cause.message : "目前無法確認試玩權限。";
-    });
+  void demoSession.unlock(code);
 });
 
-void bootstrapAccess();
+void demoSession.start();

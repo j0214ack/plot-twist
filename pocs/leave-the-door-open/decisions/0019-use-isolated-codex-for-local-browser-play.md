@@ -44,8 +44,10 @@ own machine. Repository sharing never shares credentials or plan usage.
    a backward-compatible alias for the text surface.
 2. `play:ldo:web` starts the existing Vite development server in an explicit
    local-Codex mode, opens `/leave-the-door-open/` as its initial browser page,
-   and serves that canonical route. The command must not lead a player to the
-   root Unwritten Spell page.
+   and serves that canonical route on the fixed local origin. It fails clearly
+   if that port is already occupied instead of moving to an origin that the
+   anonymous-session boundary will reject. The command must not lead a player
+   to the root Unwritten Spell page.
 3. In that mode only, the Vite server injects
    `CodexExecStructuredRoleModel(LocalCodexExecClient)` into the existing web
    session factory. Every role retains ADR 0006's ephemeral, tool-disabled,
@@ -59,6 +61,12 @@ own machine. Repository sharing never shares credentials or plan usage.
 6. A missing or signed-out Codex CLI becomes the existing legible server error.
    The application does not inspect, copy, persist, or transmit Codex login
    files.
+7. The explicit `ldo-local-codex` mode does not require or prompt for the
+   public demo access code, even when a root `.env.local` defines one for Fly or
+   production-style preview. It retains anonymous same-origin session handling;
+   the browser keeps the code form hidden while that anonymous session is being
+   established and reveals it only if the server explicitly requires a code.
+   Normal development, preview, and Fly access policy are unchanged.
 
 ## Consequences
 

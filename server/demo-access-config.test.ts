@@ -47,6 +47,31 @@ describe("resolveDemoAccessOptions", () => {
     expect(resolved.secureCookies).toBe(false);
   });
 
+  // Spec: ADR 0019 Decision 7; only explicit local-Codex browser play ignores a root code.
+  it("forces anonymous access only for the ldo-local-codex server context", () => {
+    const environment = { DEMO_ACCESS_CODE: "production-demo-code" };
+
+    expect(
+      resolveDemoAccessOptions(environment, {
+        isPreview: false,
+        mode: "ldo-local-codex",
+      }).accessCode,
+    ).toBeUndefined();
+    expect(
+      resolveDemoAccessOptions(environment, { isPreview: false }).accessCode,
+    ).toBe("production-demo-code");
+    expect(
+      resolveDemoAccessOptions(
+        {
+          ...environment,
+          ALLOWED_ORIGIN: "https://unwritten-spell.fly.dev",
+          DEMO_SESSION_SECRET: "deployment-session-secret",
+        },
+        { isPreview: true, mode: "ldo-local-codex" },
+      ).accessCode,
+    ).toBe("production-demo-code");
+  });
+
   // Spec: Decision 0005 defines ALLOWED_ORIGIN as an origin, not a URL-prefix allowlist.
   it("rejects allowed origins containing paths, query strings, or credentials", () => {
     for (const value of [

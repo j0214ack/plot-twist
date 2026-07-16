@@ -32,6 +32,9 @@ This mode needs no repository `OPENAI_API_KEY`. The Vite server—not browser
 JavaScript—uses the same isolated, ephemeral, tool-disabled `codex exec` role
 adapter as the terminal playtest. Each teammate therefore uses their own local
 Codex login and plan allowance; repository sharing never shares credentials.
+The explicit local-Codex mode also bypasses the public demo access-code prompt,
+even if the repository's root `.env.local` contains `DEMO_ACCESS_CODE` for a
+production-style run.
 
 For a production-style local preview of the Fly composition instead, build and
 run the preview server with the existing server environment:
