@@ -205,9 +205,8 @@ const actionFeedbackMessage = (
 ): string | null => {
   if (feedback === null || actorId === null) return null;
   const pronoun = actorId === "husband" ? "He" : "She";
-  const lowerPronoun = pronoun.toLowerCase();
   return feedback === "not_ready"
-    ? `${pronoun} can picture doing this, but ${lowerPronoun} is not ready to act on it. Keep talking.`
+    ? `${pronoun} can consider this, but has not chosen to do it now. Ask what still separates considering it from choosing it today.`
     : `${pronoun} refuses this step for now. Try another approach.`;
 };
 

@@ -921,3 +921,67 @@ retaining the anonymous same-origin session that protects the local API.
 
 Finish the uninformed full-chapter run, then verify the same gated behavior in
 the clean Fly preview before sharing the remote URL.
+
+---
+
+## 2026-07-16 — Preserve visible progress after a valid willingness defer
+
+### Objective and scope
+
+Turn fresh10's Day 5–6 qualitative loop into a legibility fix without lowering
+the willingness gate, exposing the Action catalog to Persona, or adding
+free-form Actions.
+
+### Authorization
+
+- Chapter 1 LDO-CH1-005, LDO-CH1-012, and LDO-CH1-016;
+- ADR 0010 progress-sensitive causal routines;
+- ADR 0017 finite authored MindState;
+- ADR 0020.
+
+### Black-box evidence
+
+- The fresh uninformed Agent completed the clock, opened the first door gap,
+  passed an explicit cross-Persona knowledge challenge, and completed
+  `remain_at_threshold` without a visible contradiction.
+- It surfaced and selected the next fixed Possibility. The willingness Judge
+  correctly deferred because the Persona called the bounded crossing only a
+  considered idea, not a present decision.
+- The Agent then explored bounded entry, first-mover pressure, and spoken
+  clarification. Persona could accept a sentence that was not a fixed world
+  Action, while the UI gave no catalog-boundary explanation. A later awareness
+  reply also overwrote `surfaced` with `faintly_imagined`, so Day 5 and Day 6
+  both rendered the same toe-at-the-line routine.
+- After 51 player inputs and 103 isolated model calls, the Agent stopped under
+  the predeclared three-path qualitative-loop condition. It did not stop for a
+  single refusal or single uneventful day.
+
+### Red, Green, and evidence
+
+- World and routine tests first reproduced the awareness regression and the
+  identical faint/surfaced retry variant. Terminal tests first reproduced the
+  ambiguous no-action continuation and generic defer feedback.
+- Render-facing `actionProgress` now preserves its highest validated stage.
+  Current reply option availability remains separate and may still become
+  faint; MindState remains the authoritative finite state.
+- `wife_returns_to_boundary` now has a surfaced-only reversible weight-shift
+  variant. It ends with the same exact foot-beside-line postcondition and cannot
+  cross, create Evidence, or execute the Action.
+- Player-safe defer feedback asks about the gap between considering and choosing
+  now. Help and no-intention continuation explain that conversational ideas may
+  exceed the currently available fixed world Actions, while only numbered
+  Possibilities are selectable.
+
+### Friction and reusable lesson
+
+- A correct Judge defer can still create a game loop failure if the renderer
+  erases the highest attained progress or gives no vocabulary for the
+  difference between psychological discussion and selectable World behavior.
+- Keeping Persona catalog-blind means it may naturally discuss unmodeled acts.
+  The right repair is an honest UI boundary, not catalog leakage or a mock
+  natural-language action compiler.
+
+### Next boundary
+
+Run a new uninformed Agent from the tutorial through the window ending. Fresh10
+remains diagnostic evidence, not a completion witness.

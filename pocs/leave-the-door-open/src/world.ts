@@ -170,6 +170,13 @@ type GameState = Omit<WorldSnapshot, "actionProgress" | "ambientChance"> & {
 
 const START_TIME = 7 * 60 + 56;
 const MINUTES_PER_DAY = 24 * 60;
+const psychologicalStageOrder: PsychologicalStage[] = [
+  "latent",
+  "faintly_imagined",
+  "surfaced",
+  "intended",
+  "completed",
+];
 
 export class VerticalSliceWorld {
   readonly #ambientChoice: AmbientRoutineChoicePort;
@@ -258,7 +265,14 @@ export class VerticalSliceWorld {
     stage: PsychologicalStage,
   ): void {
     const actorProgress = (this.#actionProgress[actorId] ??= {});
-    actorProgress[actionId] = stage;
+    const current = actorProgress[actionId];
+    if (
+      current === undefined ||
+      psychologicalStageOrder.indexOf(stage) >
+        psychologicalStageOrder.indexOf(current)
+    ) {
+      actorProgress[actionId] = stage;
+    }
   }
 
   eligibleNarrativeActions(actorId: NPCId): NarrativeActionId[] {

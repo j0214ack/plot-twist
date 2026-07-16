@@ -269,6 +269,23 @@ const progressedRetryRoutines: Partial<
   },
 };
 
+const surfacedRetryRoutines: Partial<
+  Record<Chapter1CausalRoutineId, Chapter1CausalRoutineDefinition>
+> = {
+  wife_returns_to_boundary: {
+    ...progressedRetryRoutines.wife_returns_to_boundary!,
+    variantId: "forward_weight_settles_beside_line",
+    performanceDirective:
+      "Stage her surfaced later return to the same boundary: show a reversible forward weight shift toward the room, then settle with one foot beside the line without crossing it.",
+    hintBrief: {
+      ...progressedRetryRoutines.wife_returns_to_boundary!.hintBrief,
+      hintId: "wife_shifts_weight_toward_boundary",
+      safeFact:
+        "On a later return she shifts her weight toward the room, then settles with one foot beside, not across, the boundary.",
+    },
+  },
+};
+
 export const getChapter1CausalRoutineDefinition = (
   routineId: Chapter1CausalRoutineId,
 ): Chapter1CausalRoutineDefinition =>
@@ -278,6 +295,10 @@ export const selectChapter1CausalRoutineDefinition = (
   routineId: Chapter1CausalRoutineId,
   stage: PsychologicalStage,
 ): Chapter1CausalRoutineDefinition => {
+  const surfaced = surfacedRetryRoutines[routineId];
+  if (surfaced !== undefined && stage === "surfaced") {
+    return structuredClone(surfaced);
+  }
   const progressed = progressedRetryRoutines[routineId];
   if (
     progressed !== undefined &&
@@ -294,12 +315,15 @@ export const getChapter1CausalRoutineVariant = (
 ): Chapter1CausalRoutineDefinition => {
   const base = chapter1CausalRoutines[routineId];
   const progressed = progressedRetryRoutines[routineId];
+  const surfaced = surfacedRetryRoutines[routineId];
   const match =
     base.variantId === variantId
       ? base
       : progressed?.variantId === variantId
         ? progressed
-        : null;
+        : surfaced?.variantId === variantId
+          ? surfaced
+          : null;
   if (match === null) {
     throw new Error(
       `Unknown Chapter 1 causal RoutineVariant: ${routineId}/${variantId}`,

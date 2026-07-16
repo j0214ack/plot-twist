@@ -250,7 +250,7 @@ describe("Leave the Door Open terminal play session", () => {
     expect(outputs.at(-1)).toContain("Focus: Wife");
   });
 
-  it("LDO-CH1-005 LDO-CH1-008 resumes without an intention into a changed Day 2 routine cue", async () => {
+  it("LDO-CH1-005 LDO-CH1-008 LDO-CH1-016 resumes without an intention with the fixed-Possibility boundary", async () => {
     const outputs: string[] = [];
     const controller = createVerticalSliceGameController();
     const session = new TerminalPlaySession(controller, (screen) => {
@@ -284,22 +284,40 @@ describe("Leave the Door Open terminal play session", () => {
       "08:10 — Hallway — This time he does not turn back. He reaches the closed door and rests his hand on the handle without moving it.",
     );
     expect(outputs.at(-1)).toContain(
-      "No Possibility was chosen, so no action was scheduled.",
+      "No world intention formed, so no action was scheduled.",
     );
     expect(outputs.at(-1)).toContain(
       "Anything established in conversation remains.",
     );
     expect(outputs.at(-1)).toContain(
+      "A character may discuss an idea even when it is not an available world action at this pause.",
+    );
+    expect(outputs.at(-1)).toContain(
+      "Only numbered Possibilities can be selected as world actions; other conversation can still change how the character thinks.",
+    );
+    expect(outputs.at(-1)).toContain(
       "Choose whose inner thoughts to enter: /focus husband or /focus wife.",
+    );
+    expect(outputs.at(-1)).not.toMatch(
+      /open_door_a_crack|remain_at_threshold|step_inside_room|open_room_window|\bJudge\b|\bsurfaced\b|\bdefer\b/i,
     );
 
     await session.handleInput("/help");
     expect(outputs.at(-1)).toContain(
       "Current thread: Watch what each person does when their route reaches the hall.",
     );
+    expect(outputs.at(-1)).toContain(
+      "A character may discuss an idea even when it is not an available world action at this pause.",
+    );
+    expect(outputs.at(-1)).toContain(
+      "Only numbered Possibilities can be selected as world actions; other conversation can still change how the character thinks.",
+    );
     expect(outputs.at(-1)).toContain("/focus husband or /focus wife");
     expect(outputs.at(-1)).not.toContain(
       "What made those three minutes worth stopping for today?",
+    );
+    expect(outputs.at(-1)).not.toMatch(
+      /open_door_a_crack|remain_at_threshold|step_inside_room|open_room_window|\bJudge\b|\bsurfaced\b|\bdefer\b/i,
     );
   });
 
@@ -405,13 +423,13 @@ describe("Leave the Door Open terminal play session", () => {
     {
       decision: "defer" as const,
       expected:
-        "He can picture doing this, but he is not ready to act on it. Keep talking.",
+        "He can consider this, but has not chosen to do it now. Ask what still separates considering it from choosing it today.",
     },
     {
       decision: "refuse" as const,
       expected: "He refuses this step for now. Try another approach.",
     },
-  ])("LDO-LOCAL-009 explains a $decision result instead of looking like an ignored input", async ({
+  ])("LDO-LOCAL-009 LDO-CH1-016 explains a $decision result instead of looking like an ignored input", async ({
     decision,
     expected,
   }) => {

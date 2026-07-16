@@ -649,7 +649,7 @@ describe("VerticalSliceWorld", () => {
     expect(world.events()).toContainEqual(
       expect.objectContaining({
         at: 7 * day + 8 * 60 + 20,
-        routineVariantId: "toe_aligns_with_line",
+        routineVariantId: "forward_weight_settles_beside_line",
       }),
     );
     world.pause();
@@ -788,6 +788,27 @@ describe("VerticalSliceWorld", () => {
       intentions: [],
       completedActions: [],
       evidence: {},
+    });
+  });
+
+  // Spec: LDO-CH1-016; ADR 0020 Decision 1.
+  it("LDO-CH1-016 preserves the highest validated awareness for an unresolved Action when a later judgment regresses", () => {
+    const world = createVerticalSliceWorld();
+
+    world.setActionProgress("wife", "step_inside_room", "surfaced");
+    world.setActionProgress("wife", "step_inside_room", "latent");
+    world.setActionProgress(
+      "wife",
+      "step_inside_room",
+      "faintly_imagined",
+    );
+
+    expect(world.snapshot()).toMatchObject({
+      actionProgress: {
+        wife: { step_inside_room: "surfaced" },
+      },
+      intentions: [],
+      completedActions: [],
     });
   });
 

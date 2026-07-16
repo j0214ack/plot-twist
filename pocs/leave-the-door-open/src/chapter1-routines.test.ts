@@ -153,7 +153,6 @@ describe("Chapter 1 causal routine catalog", () => {
     const retryableRoutines = [
       "husband_reaches_handle_without_turning",
       "wife_stops_one_step_short",
-      "wife_returns_to_boundary",
       "wife_notices_closed_window",
     ] as const;
 
@@ -188,5 +187,48 @@ describe("Chapter 1 causal routine catalog", () => {
         latent.hintBrief.safeFact,
       );
     }
+  });
+
+  // Spec: LDO-CH1-016; ADR 0020 Decisions 1-2. The surfaced retry may
+  // acknowledge forward weight, but cannot cross or carry Action/Evidence.
+  it("gives wife_returns_to_boundary a distinct surfaced retry with the same exact non-crossing postcondition", () => {
+    const latent = selectChapter1CausalRoutineDefinition(
+      "wife_returns_to_boundary",
+      "latent",
+    );
+    const imagined = selectChapter1CausalRoutineDefinition(
+      "wife_returns_to_boundary",
+      "faintly_imagined",
+    );
+    const surfaced = selectChapter1CausalRoutineDefinition(
+      "wife_returns_to_boundary",
+      "surfaced",
+    );
+
+    expect(surfaced.variantId).not.toBe(latent.variantId);
+    expect(surfaced.variantId).not.toBe(imagined.variantId);
+    expect(surfaced.performanceDirective).toMatch(/weight shift/i);
+    expect(surfaced.performanceDirective).toMatch(/without crossing/i);
+    expect(surfaced).toMatchObject({
+      routineId: "wife_returns_to_boundary",
+      actorId: "wife",
+      locationId: "room_threshold",
+      visibleActivityId: "returning_to_boundary",
+      performanceEnvelope: {
+        targetObjectIds: ["room_threshold"],
+        closurePolicy: {
+          kind: "authored_routine_postcondition",
+          postconditionId: "wife_foot_beside_boundary",
+        },
+      },
+      hintBrief: {
+        required: true,
+        clarity: "clear",
+      },
+    });
+    expect(surfaced.performanceEnvelope).toEqual(latent.performanceEnvelope);
+    expect(surfaced).not.toHaveProperty("actionId");
+    expect(surfaced).not.toHaveProperty("evidence");
+    expect(JSON.stringify(surfaced)).not.toContain("step_inside_room");
   });
 });

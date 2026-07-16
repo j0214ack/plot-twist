@@ -385,6 +385,13 @@ Husband has observed the window.
   Action awareness and willingness consume only the validated result. The
   Controller reveals later authored atoms only when their causal World phase
   is reached, while preserving all earlier statuses. See ADR 0017.
+- **LDO-CH1-016 — Legible deferred progress:** A deferred fixed Action does not
+  become easier or execute automatically. Its highest validated render-facing
+  awareness persists for progress-sensitive routine staging, and a surfaced
+  retry may use a distinct authored variant with the same exact postcondition.
+  Player guidance distinguishes conversational ideas from numbered fixed
+  Possibilities without revealing catalog contents or Judge state. See ADR
+  0020.
 - **LDO-CH1-008 — Multi-day door provenance:** Door remains fully closed until
   the Husband's accepted Action executes no earlier than Chapter Day 2; the
   Wife observes the resulting Evidence only in a later routine. Player

@@ -75,19 +75,26 @@ const CHAPTER_ONE_OPENING_GUIDE = [
   "Choose whose inner thoughts to enter: /focus husband or /focus wife.",
 ].join("\n");
 
+const CONVERSATION_ACTION_BOUNDARY_GUIDE = [
+  "A character may discuss an idea even when it is not an available world action at this pause.",
+  "Only numbered Possibilities can be selected as world actions; other conversation can still change how the character thinks.",
+];
+
 const CHAPTER_ONE_HELP_GUIDE = [
   PLAYER_MENTAL_MODEL,
   "",
   "Watch the household's routines. When the world pauses, choose whose thoughts to enter with /focus husband or /focus wife.",
   "Speak by typing normally. The character may agree, resist, or change gradually; no exact phrase is required.",
+  ...CONVERSATION_ACTION_BOUNDARY_GUIDE,
   "Enter a Possibility number when one appears, or use /resume to let time continue without one.",
   "Current thread: Watch what each person does when their route reaches the hall.",
   "Use /quit to stop.",
 ].join("\n");
 
 const NO_ACTION_CONTINUATION_GUIDE = [
-  "No Possibility was chosen, so no action was scheduled.",
+  "No world intention formed, so no action was scheduled.",
   "Anything established in conversation remains.",
+  ...CONVERSATION_ACTION_BOUNDARY_GUIDE,
   "Time moved to a new routine moment.",
   "Choose whose inner thoughts to enter: /focus husband or /focus wife.",
 ].join("\n");
