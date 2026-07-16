@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#171712" />
+    <meta
+      name="description"
+      content="Leave the Door Open — a text-first narrative playtest."
+    />
+    <title>Leave the Door Open — Friend Playtest</title>
+  </head>
+  <body>
+    <main class="ldo-shell">
+      <header class="ldo-title">
+        <p class="ldo-kicker">A TEXT-FIRST PLAYTEST</p>
+        <h1>Leave the Door Open</h1>
+        <p class="ldo-subtitle">讓門開著</p>
+      </header>
+
+      <section class="ldo-access" id="ldo-access-panel" aria-labelledby="ldo-access-title">
+        <p class="ldo-section-label">PRIVATE PLAYTEST</p>
+        <h2 id="ldo-access-title">先輸入朋友給你的 access code</h2>
+        <p>代碼只會送回這個網站；模型憑證不會進入瀏覽器。</p>
+        <form id="ldo-access-form">
+          <label for="ldo-access-code">Access code</label>
+          <div class="ldo-inline-form">
+            <input
+              id="ldo-access-code"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+            <button type="submit">進入</button>
+          </div>
+          <p id="ldo-access-error" class="ldo-error" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="ldo-play" id="ldo-play-panel" hidden>
+        <div class="ldo-controls" aria-label="Play controls">
+          <button type="button" data-play-control data-command="/focus husband">進入先生的想法</button>
+          <button type="button" data-play-control data-command="/focus wife">進入妻子的想法</button>
+          <button type="button" data-play-control data-command="/resume">讓時間繼續</button>
+          <button type="button" data-play-control data-command="/help">玩法說明</button>
+        </div>
+
+        <pre id="ldo-screen" class="ldo-screen" tabindex="0" aria-live="polite"></pre>
+
+        <section class="ldo-possibility-panel" aria-labelledby="ldo-possibility-title">
+          <p id="ldo-possibility-title" class="ldo-section-label">POSSIBILITIES</p>
+          <div id="ldo-possibilities" class="ldo-possibilities"></div>
+        </section>
+
+        <form id="ldo-thought-form" class="ldo-thought-form">
+          <label for="ldo-thought">對目前聚焦的角色說一句話</label>
+          <div class="ldo-inline-form">
+            <textarea
+              id="ldo-thought"
+              rows="3"
+              maxlength="500"
+              placeholder="不需要猜關鍵字。問一個問題，或提出一個他可能願意接受的角度。"
+              required
+            ></textarea>
+            <button type="submit" data-play-control>送出</button>
+          </div>
+        </form>
+
+        <div class="ldo-status-row">
+          <p id="ldo-status" role="status" aria-live="polite"></p>
+          <p id="ldo-error" class="ldo-error" aria-live="assertive"></p>
+        </div>
+        <button id="ldo-new-game" class="ldo-new-game" type="button" hidden>重新開始</button>
+      </section>
+
+      <footer>
+        這是短期朋友試玩版。伺服器重啟或閒置太久時，這一局可能需要重新開始。
+      </footer>
+    </main>
+    <script type="module" src="/src/leave-door-open-main.ts"></script>
+  </body>
+</html>

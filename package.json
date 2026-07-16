@@ -10,7 +10,12 @@
     "start": "vite preview --host 0.0.0.0 --port 8080 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval:live": "tsx evals/run-live.ts"
+    "eval:live": "tsx evals/run-live.ts",
+    "eval:ldo-live": "tsx pocs/leave-the-door-open/src/run-live-validation.ts",
+    "eval:ldo-replay": "tsx pocs/leave-the-door-open/src/run-saved-state-replay.ts",
+    "play:ldo": "npm run play:ldo:text",
+    "play:ldo:text": "tsx pocs/leave-the-door-open/src/run-terminal-playtest.ts",
+    "play:ldo:web": "vite --mode ldo-local-codex"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

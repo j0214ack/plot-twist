@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-16T05:31:02.288Z",
+  "scope": "LDO v3 first trace-mediated loop smoke test",
+  "model": "gpt-5.6-luna",
+  "reasoningEffort": "low",
+  "repetitions": 1,
+  "fixtureIds": [
+    "h-reversible-v1"
+  ],
+  "summary": {
+    "runCount": 1,
+    "passed": 0,
+    "failed": 1,
+    "passRate": 0,
+    "totalCalls": 0,
+    "totalLatencyMs": 0,
+    "averageCallLatencyMs": 0,
+    "usage": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "reasoningTokens": 0
+    },
+    "failedFixtures": [
+      {
+        "fixtureId": "h-reversible-v1",
+        "repetition": 1,
+        "protocolFailures": [],
+        "evaluatorReasons": [],
+        "error": "400 Invalid schema for response_format 'ldo_evaluator_v3': In context=('properties', 'scores'), 'propertyNames' is not permitted."
+      }
+    ]
+  },
+  "runs": [
+    {
+      "fixtureId": "h-reversible-v1",
+      "repetition": 1,
+      "error": "400 Invalid schema for response_format 'ldo_evaluator_v3': In context=('properties', 'scores'), 'propertyNames' is not permitted."
+    }
+  ]
+}

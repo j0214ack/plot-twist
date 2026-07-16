@@ -32,6 +32,7 @@ type DemoAccessHandler = (
 
 const SESSION_PATH = "/api/demo-session";
 const PROTECTED_PATHS = new Set(["/api/spells", "/api/transcriptions"]);
+const PROTECTED_PREFIXES = ["/api/leave-the-door-open/"];
 const MAX_SESSION_REQUEST_BYTES = 2_048;
 const DEFAULT_SESSION_TTL_MS = 30 * 60 * 1000;
 
@@ -41,6 +42,10 @@ const header = (request: DemoRequest, name: string): string => {
 };
 
 const requestPath = (request: DemoRequest): string => request.url?.split("?", 1)[0] ?? "";
+
+const isProtectedPath = (path: string): boolean =>
+  PROTECTED_PATHS.has(path) ||
+  PROTECTED_PREFIXES.some((prefix) => path.startsWith(prefix));
 
 const writeJson = (
   response: DemoResponse,
@@ -176,7 +181,7 @@ export const createDemoAccessMiddleware = (options: DemoAccessOptions) => {
       await issueSession(request, response, options);
       return;
     }
-    if (!PROTECTED_PATHS.has(path)) {
+    if (!isProtectedPath(path)) {
       next();
       return;
     }

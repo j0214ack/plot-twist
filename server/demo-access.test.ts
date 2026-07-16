@@ -167,6 +167,27 @@ describe("public demo access middleware", () => {
     }
   });
 
+  // Spec: ADR 0018 LDO-WEB-006; every dynamic play-session route spends server model capacity.
+  it("protects the Leave the Door Open session API prefix with the same demo session", async () => {
+    const middleware = createDemoAccessMiddleware(options());
+    const cookie = await unlock();
+
+    for (const url of [
+      "/api/leave-the-door-open/sessions",
+      "/api/leave-the-door-open/sessions/session-a/input",
+    ]) {
+      const allowed = await run(
+        middleware,
+        request({ url, headers: { cookie } }),
+      );
+      expect(allowed.next).toHaveBeenCalledOnce();
+
+      const blocked = await run(middleware, request({ url }));
+      expect(blocked.next).not.toHaveBeenCalled();
+      expect(blocked.res.statusCode).toBe(401);
+    }
+  });
+
   // Spec: Decision 0005 PUB-6; session integrity and expiry are server-owned.
   it("rejects tampered and expired sessions before protected handlers", async () => {
     const validCookie = await unlock();
