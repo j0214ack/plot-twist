@@ -3,6 +3,69 @@ import type { StructuredRoleModel } from "../pocs/leave-the-door-open/src/live-p
 import { createLeaveDoorOpenWebSessionFactory } from "./leave-door-open-runtime";
 
 describe("Leave the Door Open server runtime", () => {
+  // Spec: ADR 0035 LDO-LAT-008.
+  it("returns the Persona screen before starting the post-Persona Judge continuation", async () => {
+    const calls: string[] = [];
+    const model: StructuredRoleModel = {
+      async call(request) {
+        calls.push(request.role);
+        return {
+          parsed:
+            request.role === "persona"
+              ? {
+                  reply: "I noticed the clock before I knew what to do.",
+                  should_end_conversation: false,
+                  grounding: [],
+                }
+              : {
+                  phase: "post_persona",
+                  transitions: [],
+                  unmodeled_shift_note: null,
+                  judgments: [
+                    {
+                      action_id: "interact_with_living_room_clock",
+                      awareness: "latent",
+                      reason: "Not yet owned as an action.",
+                      supporting_persona_source_ids: ["persona.turn.1"],
+                      willingness: null,
+                    },
+                  ],
+                },
+          raw: {},
+          latencyMs: 1,
+          usage: { inputTokens: 1, outputTokens: 1, reasoningTokens: 0 },
+        };
+      },
+    };
+    const session = await createLeaveDoorOpenWebSessionFactory({
+      model,
+      prompts: {
+        inputFirewall: "input firewall",
+        persona: "persona",
+        memorySelector: "memory selector",
+        actionJudge: "judge",
+      },
+      generatedPerformance: false,
+      appendLogLine: () => undefined,
+    })("web-phased-a");
+    await session.start();
+
+    const personaPhase = await session.handleInput("What did you notice?");
+
+    expect(calls).toEqual(["persona"]);
+    expect(personaPhase).toMatchObject({
+      dialogueResolutionPending: true,
+      screen: expect.stringContaining(
+        "Martin: I noticed the clock before I knew what to do.",
+      ),
+    });
+
+    const resolved = await session.resolveDialogue();
+
+    expect(calls).toEqual(["persona", "post_persona_judge"]);
+    expect(resolved.dialogueResolutionPending).toBe(false);
+  });
+
   // Spec: ADR 0029 LDO-WEB-014 and LDO-PERF-003.
   it("adapts web resume into one real Controller tick per request", async () => {
     const unusedModel: StructuredRoleModel = {

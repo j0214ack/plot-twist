@@ -14,6 +14,8 @@ import type {
   MindState,
   PersonaConversationMessage,
   PersonaOwnedState,
+  PostPersonaJudgeResult,
+  WillingnessResult,
 } from "./conversation";
 import {
   applyValidatedMindStateTransitions,
@@ -26,6 +28,7 @@ import {
   getNarrativeActionDefinition,
   narrativeActionIdForOption,
   type ActionOptionId,
+  type NarrativeActionDefinition,
 } from "./narrative-actions";
 import type {
   PerformanceRecord,
@@ -119,6 +122,16 @@ const initialMindStateByNpc = (): Record<NPCId, MindState> => ({
 type SurfacedAction = {
   actionId: NarrativeActionId;
   awareness: AwarenessResult["judgments"][number];
+  willingness?: WillingnessResult;
+};
+
+type PendingDialogueResolution = {
+  actorId: NPCId;
+  worldChapter: WorldSnapshot["chapter"];
+  moment: PersonaOwnedState["moment"];
+  observedEvidence: PersonaOwnedState["observedEvidence"];
+  personaReply: PersonaOwnedState["reply"];
+  personaShouldEndConversation: boolean;
 };
 
 export type TimeAdvancePolicy = {
@@ -162,6 +175,7 @@ export class VerticalSliceGameController {
   #errorMessage: string | null = null;
   #actionFeedback: ActionFeedback | null = null;
   #surfacedActions: SurfacedAction[] = [];
+  #pendingDialogueResolution: PendingDialogueResolution | null = null;
   #chapterOnePsychologyInitialized = false;
 
   constructor(
@@ -402,6 +416,13 @@ export class VerticalSliceGameController {
   }
 
   async #submitDialogue(text: string): Promise<void> {
+    await this.beginDialogue(text);
+    if (this.#pendingDialogueResolution !== null) {
+      await this.resolvePendingDialogue();
+    }
+  }
+
+  async beginDialogue(text: string): Promise<void> {
     const actorId = this.#selectedNpcId;
     if (
       this.#conversationPorts === null ||
@@ -487,7 +508,6 @@ export class VerticalSliceGameController {
         moment,
         observedEvidence,
         conversation: structuredClone(this.#personaMessages[actorId]),
-        memorySelector: this.#conversationPorts.memorySelector,
       });
       const persona = await this.#conversationPorts.persona.takeTurn({
         outputLocale: this.#locale,
@@ -510,81 +530,162 @@ export class VerticalSliceGameController {
         sourceId: `persona.turn.${this.#personaReplyCount(actorId)}`,
         text: persona.reply,
       };
-      const actionJudge = this.#conversationPorts.actionJudge;
-      const transitionJudge = actionJudge.judgeMindStateTransition;
-      if (transitionJudge === undefined) {
-        throw new Error("MindState transition Judge is required");
-      }
-      const transitionResult = await actionJudge.judgeMindStateTransition({
-        actorId,
-        mindState: structuredClone(this.#mindStates[actorId]),
-        personaReply: structuredClone(personaReply),
-        moment,
-        observedEvidence: structuredClone(observedEvidence),
-        conversation: structuredClone(this.#personaMessages[actorId]),
-      });
-      this.#mindStates[actorId] = applyValidatedMindStateTransitions({
-        state: this.#mindStates[actorId],
-        transitions: transitionResult.transitions,
-        personaSourceId: personaReply.sourceId,
-      });
-      const mindState = this.#mindStates[actorId];
-      const personaState: PersonaOwnedState = {
-        reply: personaReply,
-        mindState: structuredClone(mindState),
-        moment,
-        observedEvidence: structuredClone(observedEvidence),
-        conversation: structuredClone(this.#personaMessages[actorId]),
-      };
-      this.#lastPersonaStates[actorId] = personaState;
-
       this.#conversationStatus = "awaiting_awareness";
+      this.#pendingDialogueResolution = {
+        actorId,
+        worldChapter: world.chapter,
+        moment: structuredClone(moment),
+        observedEvidence: structuredClone(observedEvidence),
+        personaReply: structuredClone(personaReply),
+        personaShouldEndConversation: persona.shouldEndConversation,
+      };
+    } catch (error) {
+      this.#pendingDialogueResolution = null;
+      this.#conversationStatus = "error";
+      this.#errorMessage = localize(
+        this.#locale,
+        "controller.conversationError",
+      );
+      throw error;
+    }
+  }
+
+  async resolvePendingDialogue(): Promise<void> {
+    const pending = this.#pendingDialogueResolution;
+    if (
+      this.#conversationPorts === null ||
+      pending === null ||
+      this.#conversationStatus !== "awaiting_awareness"
+    ) {
+      throw new Error("No dialogue resolution is pending");
+    }
+    this.#pendingDialogueResolution = null;
+    const {
+      actorId,
+      worldChapter,
+      moment,
+      observedEvidence,
+      personaReply,
+      personaShouldEndConversation,
+    } = pending;
+
+    try {
+      const actionJudge = this.#conversationPorts.actionJudge;
       const actions = this.#world
         .eligibleNarrativeActions(actorId)
-        .map((actionId) => {
-          const { description } = getNarrativeActionDefinition(actionId);
-          return { actionId, description };
+        .map((actionId) => getNarrativeActionDefinition(actionId));
+
+      if (actionJudge.judgePostPersona !== undefined) {
+        const result = await actionJudge.judgePostPersona({
+          actorId,
+          mindState: structuredClone(this.#mindStates[actorId]),
+          personaReply: structuredClone(personaReply),
+          moment,
+          observedEvidence: structuredClone(observedEvidence),
+          conversation: structuredClone(this.#personaMessages[actorId]),
+          actions: structuredClone(actions),
         });
-      const awareness =
-        await this.#conversationPorts.actionJudge.judgeAwareness({
+        this.#validatePostPersonaActionJudgments(actions, result.judgments);
+        this.#mindStates[actorId] = applyValidatedMindStateTransitions({
+          state: this.#mindStates[actorId],
+          transitions: result.transitions,
+          personaSourceId: personaReply.sourceId,
+        });
+        const personaState = this.#rememberPersonaState({
+          actorId,
+          personaReply,
+          moment,
+          observedEvidence,
+        });
+        result.judgments.forEach((judgment) => {
+          const actionId = judgment.actionId as NarrativeActionId;
+          this.#world.setActionProgress(
+            actorId,
+            actionId,
+            judgment.awareness,
+          );
+        });
+        this.#surfacedActions = result.judgments.flatMap((judgment) =>
+          judgment.awareness === "surfaced"
+            ? [
+                {
+                  actionId: judgment.actionId as NarrativeActionId,
+                  awareness: {
+                    actionId: judgment.actionId,
+                    awareness: judgment.awareness,
+                  },
+                  willingness: structuredClone(judgment.willingness!),
+                },
+              ]
+            : [],
+        );
+        this.#lastPersonaStates[actorId] = personaState;
+      } else {
+        if (typeof actionJudge.judgeMindStateTransition !== "function") {
+          throw new Error("MindState transition Judge is required");
+        }
+        const transitionResult = await actionJudge.judgeMindStateTransition({
+          actorId,
+          mindState: structuredClone(this.#mindStates[actorId]),
+          personaReply: structuredClone(personaReply),
+          moment,
+          observedEvidence: structuredClone(observedEvidence),
+          conversation: structuredClone(this.#personaMessages[actorId]),
+        });
+        this.#mindStates[actorId] = applyValidatedMindStateTransitions({
+          state: this.#mindStates[actorId],
+          transitions: transitionResult.transitions,
+          personaSourceId: personaReply.sourceId,
+        });
+        const personaState = this.#rememberPersonaState({
+          actorId,
+          personaReply,
+          moment,
+          observedEvidence,
+        });
+        const awareness = await actionJudge.judgeAwareness({
           actorId,
           personaState: structuredClone(personaState),
-          actions,
+          actions: actions.map(({ actionId, description }) => ({
+            actionId,
+            description,
+          })),
         });
-      const suppliedActionIds = new Set(
-        actions.map(({ actionId }) => actionId),
-      );
-      if (
-        awareness.judgments.length !== actions.length ||
-        awareness.judgments.some(
-          ({ actionId }) =>
-            !suppliedActionIds.has(actionId as NarrativeActionId),
-        )
-      ) {
-        throw new Error("Awareness returned an invalid Action set");
-      }
-      awareness.judgments.forEach((judgment) => {
-        this.#world.setActionProgress(
-          actorId,
-          judgment.actionId as NarrativeActionId,
-          judgment.awareness,
+        const suppliedActionIds = new Set(
+          actions.map(({ actionId }) => actionId),
         );
-      });
-      this.#surfacedActions = awareness.judgments.flatMap((judgment) =>
-        judgment.awareness === "surfaced"
-          ? [
-              {
-                actionId: judgment.actionId as NarrativeActionId,
-                awareness: structuredClone(judgment),
-              },
-            ]
-          : [],
-      );
-      if (world.chapter === 1) {
+        if (
+          awareness.judgments.length !== actions.length ||
+          awareness.judgments.some(
+            ({ actionId }) =>
+              !suppliedActionIds.has(actionId as NarrativeActionId),
+          )
+        ) {
+          throw new Error("Awareness returned an invalid Action set");
+        }
+        awareness.judgments.forEach((judgment) => {
+          this.#world.setActionProgress(
+            actorId,
+            judgment.actionId as NarrativeActionId,
+            judgment.awareness,
+          );
+        });
+        this.#surfacedActions = awareness.judgments.flatMap((judgment) =>
+          judgment.awareness === "surfaced"
+            ? [
+                {
+                  actionId: judgment.actionId as NarrativeActionId,
+                  awareness: structuredClone(judgment),
+                },
+              ]
+            : [],
+        );
+      }
+      if (worldChapter === 1) {
         this.#dailyPersonaReplyCounts[actorId] += 1;
         if (
           this.#dailyPersonaReplyCounts[actorId] >= 5 ||
-          persona.shouldEndConversation
+          personaShouldEndConversation
         ) {
           this.#conversationClosedForDay[actorId] = true;
         }
@@ -624,25 +725,17 @@ export class VerticalSliceGameController {
     try {
       const action = getNarrativeActionDefinition(actionId);
       const willingness =
-        await this.#conversationPorts.actionJudge.judgeWillingness({
+        surfacedAction.willingness ??
+        (await this.#conversationPorts.actionJudge.judgeWillingness({
           actorId,
           personaState: structuredClone(personaState),
           action,
           awareness: structuredClone(surfacedAction.awareness),
-        });
+        }));
+      this.#validateWillingness(action, willingness);
       const progresses =
         willingness.decision === "accept" ||
         willingness.decision === "smaller_step";
-      const selectedVariantIsAuthored = action.variants.some(
-        ({ variantId }) => variantId === willingness.selectedVariantId,
-      );
-      if (
-        willingness.actionId !== actionId ||
-        (progresses && !selectedVariantIsAuthored) ||
-        (!progresses && willingness.selectedVariantId !== null)
-      ) {
-        throw new Error("Willingness returned an invalid Action result");
-      }
       if (progresses) {
         const relationshipOutcomeId =
           actionId === "say_one_honest_thing_to_elise"
@@ -671,6 +764,80 @@ export class VerticalSliceGameController {
       this.#conversationStatus = "error";
       this.#errorMessage = localize(this.#locale, "controller.actionError");
       throw error;
+    }
+  }
+
+  #rememberPersonaState({
+    actorId,
+    personaReply,
+    moment,
+    observedEvidence,
+  }: {
+    actorId: NPCId;
+    personaReply: PersonaOwnedState["reply"];
+    moment: PersonaOwnedState["moment"];
+    observedEvidence: PersonaOwnedState["observedEvidence"];
+  }): PersonaOwnedState {
+    const personaState: PersonaOwnedState = {
+      reply: structuredClone(personaReply),
+      mindState: structuredClone(this.#mindStates[actorId]),
+      moment: structuredClone(moment),
+      observedEvidence: structuredClone(observedEvidence),
+      conversation: structuredClone(this.#personaMessages[actorId]),
+    };
+    this.#lastPersonaStates[actorId] = personaState;
+    return personaState;
+  }
+
+  #validatePostPersonaActionJudgments(
+    actions: NarrativeActionDefinition[],
+    judgments: PostPersonaJudgeResult["judgments"],
+  ): void {
+    const suppliedActionIds = new Set(actions.map(({ actionId }) => actionId));
+    const returnedActionIds = new Set(judgments.map(({ actionId }) => actionId));
+    if (
+      judgments.length !== actions.length ||
+      returnedActionIds.size !== suppliedActionIds.size ||
+      judgments.some(({ actionId }) =>
+        !suppliedActionIds.has(actionId as NarrativeActionId),
+      )
+    ) {
+      throw new Error("Post-Persona Judge returned an invalid Action set");
+    }
+    judgments.forEach((judgment) => {
+      const action = actions.find(
+        ({ actionId }) => actionId === judgment.actionId,
+      )!;
+      if (
+        (judgment.awareness === "surfaced") !==
+        (judgment.willingness !== null)
+      ) {
+        throw new Error(
+          "Post-Persona Judge returned invalid cached willingness",
+        );
+      }
+      if (judgment.willingness !== null) {
+        this.#validateWillingness(action, judgment.willingness);
+      }
+    });
+  }
+
+  #validateWillingness(
+    action: NarrativeActionDefinition,
+    willingness: WillingnessResult,
+  ): void {
+    const progresses =
+      willingness.decision === "accept" ||
+      willingness.decision === "smaller_step";
+    const selectedVariantIsAuthored = action.variants.some(
+      ({ variantId }) => variantId === willingness.selectedVariantId,
+    );
+    if (
+      willingness.actionId !== action.actionId ||
+      (progresses && !selectedVariantIsAuthored) ||
+      (!progresses && willingness.selectedVariantId !== null)
+    ) {
+      throw new Error("Willingness returned an invalid Action result");
     }
   }
 

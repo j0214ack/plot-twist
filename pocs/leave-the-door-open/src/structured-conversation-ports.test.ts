@@ -17,6 +17,7 @@ import {
   createTutorialMindState,
   revealMindStateAtomsForMoment,
 } from "./mind-state";
+import { getNarrativeActionDefinition } from "./narrative-actions";
 
 const mindState: MindState = createChapterOneMindState("husband");
 
@@ -62,9 +63,8 @@ describe("structured model conversation ports", () => {
     expect(model.calls).toEqual([]);
   });
 
-  // Spec: ADR 0023 Consequences — the narrow Firewall model configuration may
-  // remain independent from Persona reasoning effort.
-  it("can route only Input Firewall classification through a narrow independent model", async () => {
+  // Spec: ADR 0035 LDO-LAT-001 and LDO-LAT-002.
+  it("fast-passes clearly ordinary dialogue without spending a Firewall model call", async () => {
     const mainModel = new QueuedRoleModel([
       {
         reply: "Three minutes is small enough to notice.",
@@ -72,12 +72,7 @@ describe("structured model conversation ports", () => {
         grounding: [],
       },
     ]);
-    const firewallModel = new QueuedRoleModel([
-      {
-        disposition: "pass",
-        reason: "An ordinary conversational offer.",
-      },
-    ]);
+    const firewallModel = new QueuedRoleModel([]);
     const ports = new StructuredModelConversationPorts(
       mainModel,
       {
@@ -96,9 +91,7 @@ describe("structured model conversation ports", () => {
     });
     await ports.takeTurn(personaRequest);
 
-    expect(firewallModel.calls.map(({ role }) => role)).toEqual([
-      "input_firewall",
-    ]);
+    expect(firewallModel.calls).toEqual([]);
     expect(mainModel.calls.map(({ role }) => role)).toEqual(["persona"]);
   });
 
@@ -790,6 +783,102 @@ describe("structured model conversation ports", () => {
       schemaName: "ldo_willingness_v3",
     });
     expect(model.calls[1]!.input).toContain("open_narrow_gap");
+  });
+
+  // Spec: ADR 0035 LDO-LAT-005 through LDO-LAT-007.
+  it("judges transitions, awareness, and cached willingness in one post-Persona model call", async () => {
+    const model = new QueuedRoleModel([
+      {
+        phase: "post_persona",
+        transitions: [
+          {
+            atom_id: "husband.clock.deliberate_change_effort",
+            from_status: "active",
+            to_status: "resolved",
+            reason: "The reply owns one bounded adjustment.",
+            supporting_persona_source_ids: ["persona.turn.1"],
+          },
+        ],
+        unmodeled_shift_note: null,
+        judgments: [
+          {
+            action_id: "interact_with_living_room_clock",
+            awareness: "surfaced",
+            reason: "The reply expresses the concrete clock interaction.",
+            supporting_persona_source_ids: ["persona.turn.1"],
+            willingness: {
+              decision: "accept",
+              selected_variant_id: "accepted_clock_interaction",
+              reason: "The bounded variant matches the present choice.",
+              supporting_persona_source_ids: ["persona.turn.1"],
+            },
+          },
+        ],
+      },
+    ]);
+    const ports = new StructuredModelConversationPorts(model, {
+      persona: "Persona prompt",
+      actionJudge: "Combined Judge prompt",
+    });
+
+    const result = await ports.judgePostPersona({
+      actorId: "husband",
+      mindState: createTutorialMindState("husband"),
+      personaReply: {
+        sourceId: "persona.turn.1",
+        text: "I can set the clock right and stop there.",
+      },
+      moment: {
+        time: 7 * 60 + 57,
+        locationId: "living_room",
+        visibleActivityId: "noticing_slow_clock",
+      },
+      observedEvidence: [],
+      conversation: [
+        { speaker: "player", text: "Could it be one bounded task?" },
+        {
+          speaker: "persona",
+          text: "I can set the clock right and stop there.",
+        },
+      ],
+      actions: [getNarrativeActionDefinition("interact_with_living_room_clock")],
+    });
+
+    expect(model.calls).toHaveLength(1);
+    expect(model.calls[0]).toMatchObject({
+      role: "post_persona_judge",
+      instructions: "Combined Judge prompt",
+      schemaName: "ldo_post_persona_judge_v1",
+    });
+    expect(model.calls[0]!.input).toContain(
+      "husband.clock.deliberate_change_effort",
+    );
+    expect(model.calls[0]!.input).toContain(
+      "interact_with_living_room_clock",
+    );
+    expect(model.calls[0]!.input).toContain("accepted_clock_interaction");
+    expect(result).toEqual({
+      transitions: [
+        {
+          atomId: "husband.clock.deliberate_change_effort",
+          fromStatus: "active",
+          toStatus: "resolved",
+          supportingPersonaSourceIds: ["persona.turn.1"],
+        },
+      ],
+      unmodeledShiftNote: null,
+      judgments: [
+        {
+          actionId: "interact_with_living_room_clock",
+          awareness: "surfaced",
+          willingness: {
+            actionId: "interact_with_living_room_clock",
+            decision: "accept",
+            selectedVariantId: "accepted_clock_interaction",
+          },
+        },
+      ],
+    });
   });
 });
 

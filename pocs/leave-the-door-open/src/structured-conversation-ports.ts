@@ -8,6 +8,8 @@ import type {
   PersonaPort,
   PersonaTurnRequest,
   PersonaTurnResult,
+  PostPersonaJudgeRequest,
+  PostPersonaJudgeResult,
   MemorySelectionRequest,
   MemorySelectionResult,
   MemorySelectorPort,
@@ -22,6 +24,7 @@ import {
   InputFirewallOutputSchema,
   MemorySelectorOutputSchema,
   MindStateTransitionOutputSchema,
+  PostPersonaJudgeOutputSchema,
   PersonaOutputV9Schema,
   WillingnessOutputSchema,
   type StructuredRoleModel,
@@ -309,7 +312,10 @@ export class StructuredModelConversationPorts
   async classify(
     request: InputFirewallRequest,
   ): Promise<InputFirewallResult> {
-    if (isHumanConversationalGesture(request.submittedText)) {
+    if (
+      isHumanConversationalGesture(request.submittedText) ||
+      isClearlyOrdinaryConversation(request.submittedText)
+    ) {
       return { disposition: "pass" };
     }
     if (this.prompts.inputFirewall === undefined) {
@@ -415,6 +421,76 @@ export class StructuredModelConversationPorts
     return {
       reply: persona.reply,
       shouldEndConversation: persona.should_end_conversation,
+    };
+  }
+
+  async judgePostPersona(
+    request: PostPersonaJudgeRequest,
+  ): Promise<PostPersonaJudgeResult> {
+    const result = await this.model.call({
+      role: "post_persona_judge",
+      instructions: this.prompts.actionJudge,
+      input: sections([
+        ["PHASE", "post_persona"],
+        ["CURRENT_AUTHORED_MIND_STATE", request.mindState],
+        ["MOMENT", request.moment],
+        ["OBSERVED_EVIDENCE", request.observedEvidence],
+        ["CONVERSATION", request.conversation],
+        ["PERSONA_REPLY", request.personaReply],
+        [
+          "HARD_ELIGIBLE_AUTHORED_ACTIONS",
+          request.actions.map((action) => ({
+            action_id: action.actionId,
+            description: action.description,
+            variants: action.variants.map((variant) => ({
+              variant_id: variant.variantId,
+              description: variant.description,
+            })),
+          })),
+        ],
+      ]),
+      schemaName: "ldo_post_persona_judge_v1",
+      schema: PostPersonaJudgeOutputSchema,
+    });
+    const output = PostPersonaJudgeOutputSchema.parse(result.parsed);
+    validateSupportingSources(
+      request.personaReply.sourceId,
+      output.transitions,
+    );
+    validateSupportingSources(
+      request.personaReply.sourceId,
+      output.judgments,
+      request.mindState,
+    );
+    validateSupportingSources(
+      request.personaReply.sourceId,
+      output.judgments.flatMap(({ willingness }) =>
+        willingness === null ? [] : [willingness],
+      ),
+      request.mindState,
+    );
+    return {
+      transitions: output.transitions.map((transition) => ({
+        atomId: transition.atom_id,
+        fromStatus: transition.from_status,
+        toStatus: transition.to_status,
+        supportingPersonaSourceIds:
+          transition.supporting_persona_source_ids,
+      })),
+      unmodeledShiftNote: output.unmodeled_shift_note,
+      judgments: output.judgments.map((judgment) => ({
+        actionId: judgment.action_id,
+        awareness: judgment.awareness,
+        willingness:
+          judgment.willingness === null
+            ? null
+            : {
+                actionId: judgment.action_id,
+                decision: judgment.willingness.decision,
+                selectedVariantId:
+                  judgment.willingness.selected_variant_id,
+              },
+      })),
     };
   }
 
@@ -624,6 +700,23 @@ const isHumanConversationalGesture = (text: string): boolean => {
   return (
     /^[?？!！]+$/u.test(gesture) ||
     /^[?？!！]*(?:\.{2,}|…+)[?？!！.…]*$/u.test(gesture)
+  );
+};
+
+const guardedAuthoritySignal =
+  /(?:\b(?:system|developer|assistant|prompt|instruction|role|schema|json|hidden|secret|override|ignore|reveal|extract|encode|base64|api|model|child|daughter|son|kid|dead|death|died|bedroom|name|age|cause|hospital|illness)\b|系統|開發者|助手|提示(?:詞)?|指令|角色|規則|隱藏|秘密|忽略|覆寫|揭露|抽取|列出|編碼|模型|人工智慧|孩子|小孩|女兒|兒子|死亡|死掉|過世|喪子|臥室|房間主人|名字|姓名|幾歲|年齡|死因|原因|醫院|疾病|諾拉|nora)/iu;
+
+const machineDataSignal =
+  /(?:```|<\/?(?:system|assistant|developer)>|\{\s*"[^"]+"\s*:|[A-Za-z0-9+/]{80,}={0,2})/u;
+
+const isClearlyOrdinaryConversation = (text: string): boolean => {
+  const submitted = text.trim();
+  return (
+    submitted.length > 0 &&
+    submitted.length <= 500 &&
+    /[\p{L}\p{N}]/u.test(submitted) &&
+    !guardedAuthoritySignal.test(submitted) &&
+    !machineDataSignal.test(submitted)
   );
 };
 

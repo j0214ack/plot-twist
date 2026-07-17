@@ -10,6 +10,68 @@ import {
 import { TerminalPlaySession } from "./terminal-play-session";
 
 describe("recording terminal play session", () => {
+  // Spec: ADR 0035 LDO-LAT-008; the second HTTP continuation is not a second
+  // player utterance in the observer journal.
+  it("records one player input across the Persona and Judge phases", async () => {
+    const lines: string[] = [];
+    const recorder = new PlaytestSessionRecorder({
+      sessionId: "session-phased-dialogue",
+      appendLine: (line) => lines.push(line),
+    });
+    const controller = createConversationalVerticalSliceGameController({
+      persona: {
+        async takeTurn() {
+          return { reply: "I noticed the clock.", shouldEndConversation: false };
+        },
+      },
+      actionJudge: {
+        async judgePostPersona() {
+          return {
+            transitions: [],
+            unmodeledShiftNote: null,
+            judgments: [
+              {
+                actionId: "interact_with_living_room_clock",
+                awareness: "latent" as const,
+                willingness: null,
+              },
+            ],
+          };
+        },
+        async judgeMindStateTransition() {
+          throw new Error("Not exercised");
+        },
+        async judgeAwareness() {
+          throw new Error("Not exercised");
+        },
+        async judgeWillingness() {
+          throw new Error("Not exercised");
+        },
+      },
+    });
+    const session = new RecordingTerminalPlaySession(
+      new TerminalPlaySession(
+        controller,
+        createRecordingTerminalOutput(recorder, () => undefined),
+      ),
+      controller,
+      recorder,
+    );
+    await session.start();
+
+    await session.beginInput("Why today?");
+    await session.resolveDialogue();
+
+    const records = lines.map((line) => JSON.parse(line));
+    expect(
+      records.filter(({ type }) => type === "player_input"),
+    ).toHaveLength(1);
+    expect(records.map(({ type }) => type)).toContain("input_phase_handled");
+    expect(records.map(({ type }) => type)).toContain(
+      "dialogue_resolution_handled",
+    );
+  });
+
   // Spec: ADR 0029 LDO-WEB-014; automatic ticks are logged without pretending
   // that each one is a new player input.
   it("records one resume input and separate observer records for later automatic ticks", async () => {

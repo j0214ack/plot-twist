@@ -15,7 +15,8 @@
     "eval:ldo-replay": "tsx pocs/leave-the-door-open/src/run-saved-state-replay.ts",
     "play:ldo": "npm run play:ldo:text",
     "play:ldo:text": "tsx pocs/leave-the-door-open/src/run-terminal-playtest.ts",
-    "play:ldo:web": "vite --mode ldo-local-codex --open /leave-the-door-open/ --port 5173 --strictPort"
+    "play:ldo:web": "LDO_WEB_MODEL_BACKEND=openai LDO_PLAY_MODEL=gpt-5.6-luna LDO_PLAY_EFFORT=low vite --mode ldo-local-openai --open /leave-the-door-open/ --port 5173 --strictPort",
+    "play:ldo:web:codex": "LDO_WEB_MODEL_BACKEND=codex vite --mode ldo-local-codex --open /leave-the-door-open/ --port 5173 --strictPort"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

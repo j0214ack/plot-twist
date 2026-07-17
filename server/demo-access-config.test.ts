@@ -47,14 +47,20 @@ describe("resolveDemoAccessOptions", () => {
     expect(resolved.secureCookies).toBe(false);
   });
 
-  // Spec: ADR 0019 Decision 7; only explicit local-Codex browser play ignores a root code.
-  it("forces anonymous access only for the ldo-local-codex server context", () => {
+  // Spec: ADR 0019 Decision 7; ADR 0035 LDO-LAT-010.
+  it("forces anonymous access for both explicit LDO local browser modes", () => {
     const environment = { DEMO_ACCESS_CODE: "production-demo-code" };
 
     expect(
       resolveDemoAccessOptions(environment, {
         isPreview: false,
         mode: "ldo-local-codex",
+      }).accessCode,
+    ).toBeUndefined();
+    expect(
+      resolveDemoAccessOptions(environment, {
+        isPreview: false,
+        mode: "ldo-local-openai",
       }).accessCode,
     ).toBeUndefined();
     expect(

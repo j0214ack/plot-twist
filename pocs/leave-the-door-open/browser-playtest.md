@@ -13,12 +13,10 @@ Possibility numbers, resume, and help input to that session.
 
 ## Local preview
 
-For ordinary local play, install and authenticate Codex CLI on this machine,
-then start the HTML surface with the explicit local-Codex command:
+For the current latency playtest, put a valid `OPENAI_API_KEY` in the
+repository-root `.env.local`, then start the HTML surface:
 
 ```bash
-codex login
-codex login status
 npm run play:ldo:web
 ```
 
@@ -28,13 +26,22 @@ Then open:
 http://127.0.0.1:5173/leave-the-door-open/
 ```
 
-This mode needs no repository `OPENAI_API_KEY`. The Vite server—not browser
-JavaScript—uses the same isolated, ephemeral, tool-disabled `codex exec` role
-adapter as the terminal playtest. Each teammate therefore uses their own local
-Codex login and plan allowance; repository sharing never shares credentials.
-The explicit local-Codex mode also bypasses the public demo access-code prompt,
-even if the repository's root `.env.local` contains `DEMO_ACCESS_CODE` for a
-production-style run.
+The Vite server—not browser JavaScript—uses the key to call
+`gpt-5.6-luna` with `low` reasoning. This local mode bypasses the public demo
+access-code prompt even when root `.env.local` contains `DEMO_ACCESS_CODE`.
+The key remains server-only.
+
+To use the previous isolated Codex backend instead, authenticate Codex CLI and
+run its explicit alternate command:
+
+```bash
+codex login
+codex login status
+npm run play:ldo:web:codex
+```
+
+That alternate path uses the teammate's local Codex login and plan allowance
+and does not require `OPENAI_API_KEY`.
 
 For a production-style local preview of the Fly composition instead, build and
 run the preview server with the existing server environment:
@@ -48,7 +55,8 @@ Then open `http://localhost:8080/leave-the-door-open/`. This production-style
 path expects `OPENAI_API_KEY`, `DEMO_SESSION_SECRET`, and the same
 `ALLOWED_ORIGIN`/optional `DEMO_ACCESS_CODE` contract as the root demo.
 
-Both local model backends retain the terminal model settings:
+The direct local HTML command pins these settings; explicit environment
+overrides remain available for diagnostic runs:
 
 ```text
 LDO_PLAY_MODEL=gpt-5.6-luna
@@ -65,6 +73,5 @@ LDO_PLAY_DISABLE_GENERATED_PERFORMANCE=1  # optional authored fallback
   server.
 - Friend-playtest events and model calls are written as structured JSON lines
   to the Fly application log; durable remote playtest storage is not included.
-- Local-Codex HTML play is development-only and incurs the same per-role
-  subprocess latency as terminal play. Fly never falls back to a local Codex
-  installation.
+- Both local HTML profiles are development-only. Fly never falls back to a
+  local Codex installation.

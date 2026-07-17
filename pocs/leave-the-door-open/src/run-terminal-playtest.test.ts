@@ -56,7 +56,7 @@ describe("local terminal playtest executable", () => {
           inputFirewallPrompt: "input-firewall-v1.md",
           personaPrompt: "persona-v9.md",
           memorySelectorPrompt: "memory-selector-v1.md",
-          actionJudgePrompt: "action-judge-v4.md",
+          actionJudgePrompt: "action-judge-v5.md",
           performanceDirectorPrompt: "performance-director-v1.md",
           generatedPerformance: false,
           locale: "zh-TW",

@@ -7,6 +7,67 @@ import type { ConversationPorts } from "./conversation";
 import { TerminalPlaySession } from "./terminal-play-session";
 
 describe("Leave the Door Open terminal play session", () => {
+  // Spec: ADR 0035 LDO-LAT-008.
+  it("returns the rendered Persona phase before explicitly resolving the post-Persona Judge phase", async () => {
+    const outputs: string[] = [];
+    let judgeCalls = 0;
+    const session = new TerminalPlaySession(
+      createConversationalVerticalSliceGameController({
+        persona: {
+          async takeTurn() {
+            return {
+              reply: "I noticed the clock before I knew what to do.",
+              shouldEndConversation: false,
+            };
+          },
+        },
+        actionJudge: {
+          async judgePostPersona() {
+            judgeCalls += 1;
+            return {
+              transitions: [],
+              unmodeledShiftNote: null,
+              judgments: [
+                {
+                  actionId: "interact_with_living_room_clock",
+                  awareness: "latent" as const,
+                  willingness: null,
+                },
+              ],
+            };
+          },
+          async judgeMindStateTransition() {
+            throw new Error("Legacy transition Judge must not run");
+          },
+          async judgeAwareness() {
+            throw new Error("Legacy awareness Judge must not run");
+          },
+          async judgeWillingness() {
+            throw new Error("Willingness should not run");
+          },
+        },
+      }),
+      (screen) => outputs.push(screen),
+    );
+    await session.start();
+
+    const personaPhase = await session.beginInput("What did you notice?");
+
+    expect(personaPhase).toEqual({
+      ended: false,
+      dialogueResolutionPending: true,
+    });
+    expect(judgeCalls).toBe(0);
+    expect(outputs.at(-1)).toContain(
+      "Martin: I noticed the clock before I knew what to do.",
+    );
+
+    const resolved = await session.resolveDialogue();
+
+    expect(resolved).toEqual({ ended: false });
+    expect(judgeCalls).toBe(1);
+  });
+
   // Spec: ADR 0033 LDO-LOC-003, LDO-LOC-006, and LDO-LOC-007.
   it("renders authored tutorial guidance in the session's zh-TW locale", async () => {
     const outputs: string[] = [];

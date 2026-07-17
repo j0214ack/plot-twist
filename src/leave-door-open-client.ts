@@ -7,6 +7,7 @@ export type LeaveDoorOpenClientResult = {
   sessionId: string;
   ended: boolean;
   advancePending: boolean;
+  dialogueResolutionPending: boolean;
   screen: string;
 };
 
@@ -16,6 +17,7 @@ export interface LeaveDoorOpenTransport {
     sessionId: string,
     input: string,
   ): Promise<LeaveDoorOpenClientResult>;
+  resolveDialogue(sessionId: string): Promise<LeaveDoorOpenClientResult>;
   advanceTurn(sessionId: string): Promise<LeaveDoorOpenClientResult>;
 }
 
@@ -58,6 +60,13 @@ export class HttpLeaveDoorOpenTransport implements LeaveDoorOpenTransport {
     );
   }
 
+  resolveDialogue(sessionId: string): Promise<LeaveDoorOpenClientResult> {
+    return this.#post(
+      `/api/leave-the-door-open/sessions/${encodeURIComponent(sessionId)}/resolve-dialogue`,
+      {},
+    );
+  }
+
   async #post(path: string, body: unknown): Promise<LeaveDoorOpenClientResult> {
     const response = await this.fetcher.call(globalThis, path, {
       method: "POST",
@@ -69,6 +78,7 @@ export class HttpLeaveDoorOpenTransport implements LeaveDoorOpenTransport {
       sessionId?: unknown;
       ended?: unknown;
       advancePending?: unknown;
+      dialogueResolutionPending?: unknown;
       screen?: unknown;
       error?: unknown;
     };
@@ -84,6 +94,7 @@ export class HttpLeaveDoorOpenTransport implements LeaveDoorOpenTransport {
       typeof payload.sessionId !== "string" ||
       typeof payload.ended !== "boolean" ||
       typeof payload.advancePending !== "boolean" ||
+      typeof payload.dialogueResolutionPending !== "boolean" ||
       typeof payload.screen !== "string"
     ) {
       throw new Error("Playtest response is incomplete");
@@ -92,6 +103,7 @@ export class HttpLeaveDoorOpenTransport implements LeaveDoorOpenTransport {
       sessionId: payload.sessionId,
       ended: payload.ended,
       advancePending: payload.advancePending,
+      dialogueResolutionPending: payload.dialogueResolutionPending,
       screen: payload.screen,
     };
   }
@@ -237,6 +249,10 @@ export class LeaveDoorOpenBrowserController {
       async () => {
         let result = await this.transport.submitInput(sessionId, input);
         let presented = await this.#present(result);
+        while (result.dialogueResolutionPending && !result.ended) {
+          result = await this.transport.resolveDialogue(sessionId);
+          presented = await this.#present(result);
+        }
         while (result.advancePending && !result.ended) {
           if (presented) await this.options.waitBetweenTurns();
           result = await this.transport.advanceTurn(sessionId);

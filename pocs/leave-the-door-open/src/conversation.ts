@@ -152,7 +152,22 @@ export type WillingnessResult = {
   selectedVariantId: string | null;
 };
 
+export type PostPersonaJudgeRequest = MindStateTransitionRequest & {
+  actions: NarrativeActionDefinition[];
+};
+
+export type PostPersonaJudgeResult = MindStateTransitionResult & {
+  judgments: Array<{
+    actionId: string;
+    awareness: AwarenessResult["judgments"][number]["awareness"];
+    willingness: WillingnessResult | null;
+  }>;
+};
+
 export interface ActionJudgePort {
+  judgePostPersona?(
+    request: PostPersonaJudgeRequest,
+  ): Promise<PostPersonaJudgeResult>;
   judgeMindStateTransition(
     request: MindStateTransitionRequest,
   ): Promise<MindStateTransitionResult>;

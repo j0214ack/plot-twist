@@ -5,13 +5,13 @@ import {
 } from "./leave-door-open-config";
 
 describe("Leave the Door Open web runtime configuration", () => {
-  // Spec: ADR 0017 Decision 3; ADR 0018 LDO-WEB-004.
-  it("uses the Judge-owned MindState protocol prompts in browser sessions", () => {
+  // Spec: ADR 0035 LDO-LAT-005 and LDO-LAT-006; ADR 0018 LDO-WEB-004.
+  it("uses the combined post-Persona Judge prompt in browser sessions", () => {
     expect(LEAVE_DOOR_OPEN_PROMPT_FILES).toEqual({
       inputFirewall: "input-firewall-v1.md",
       persona: "persona-v9.md",
       memorySelector: "memory-selector-v1.md",
-      actionJudge: "action-judge-v4.md",
+      actionJudge: "action-judge-v5.md",
       performanceDirector: "performance-director-v1.md",
     });
   });

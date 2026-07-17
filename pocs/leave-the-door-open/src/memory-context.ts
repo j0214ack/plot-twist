@@ -7,6 +7,7 @@ import type {
 import {
   getEligibleMemoryCards,
   getMemoryCard,
+  selectLocallyRelevantMemoryCard,
   type DisclosureTier,
 } from "./memory";
 import type { NPCId } from "./world";
@@ -35,7 +36,17 @@ export const selectRelevantMemoryForPersona = async ({
     relationshipConversation,
   });
   if (eligibleMemories.length === 0 || memorySelector === undefined) {
-    return null;
+    const latestPlayerText = [...conversation]
+      .reverse()
+      .find(({ speaker }) => speaker === "player")?.text;
+    if (latestPlayerText === undefined) return null;
+    const selected = selectLocallyRelevantMemoryCard({
+      eligibleMemories,
+      text: latestPlayerText,
+    });
+    return selected === null
+      ? null
+      : { memoryId: selected.memoryId, content: selected.content };
   }
 
   const { memoryId } = await memorySelector.selectMemory({

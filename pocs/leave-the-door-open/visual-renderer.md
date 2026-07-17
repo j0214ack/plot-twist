@@ -230,6 +230,7 @@ Names may vary, but the authority and payload must be equivalent:
 interface GameHostPort {
   startSession(options: { locale: "en" | "zh-TW" }): Promise<SessionStarted>;
   submitCommand(command: PlayerCommand): Promise<CommandResult>;
+  resolveDialogue(): Promise<CommandResult>; // only when marked pending
   advanceTurn(): Promise<TurnResult>; // no target, duration, event, or Action
 }
 
@@ -242,6 +243,7 @@ type TurnResult = {
   fromTime: number;
   toTime: number;
   advancePending: boolean;
+  dialogueResolutionPending: boolean;
   steps: PresentationStep[];
   worldAfter: WorldViewFrame;
   uiAfter: UIView;
@@ -250,6 +252,13 @@ type TurnResult = {
 
 `toTime` is the simulation result of Controller policy, not a request made by
 the renderer. An empty tick may have `steps: []` while still changing `toTime`.
+
+For dialogue, `submitCommand` returns after the Persona reply is safe to show.
+When `dialogueResolutionPending` is true, the Renderer must first present that
+reply, then call `resolveDialogue()` exactly once while semantic input stays
+locked. The continuation runs the combined finite Judge and may add
+Possibilities or mechanical feedback; it must not repeat or delay the Persona
+line. Time advancement and dialogue resolution are separate continuations.
 
 The current `/api/leave-the-door-open/.../advance` route already obeys the
 target-free call shape but returns the text screen. Before visual integration,

@@ -46,7 +46,9 @@ export const resolveDemoAccessOptions = (
     allowedOrigin,
     sessionSecret,
     accessCode:
-      !context.isPreview && context.mode === "ldo-local-codex"
+      !context.isPreview &&
+      (context.mode === "ldo-local-codex" ||
+        context.mode === "ldo-local-openai")
         ? undefined
         : environment.DEMO_ACCESS_CODE || undefined,
     secureCookies: context.isPreview || allowedOrigin.startsWith("https://"),

@@ -46,6 +46,180 @@ const noMindStateTransitions = async () => ({
 });
 
 describe("conversational Controller request state", () => {
+  // Spec: ADR 0035 LDO-LAT-003 through LDO-LAT-007.
+  it("uses one post-Persona Judge call and reuses its cached willingness when the surfaced Action is selected", async () => {
+    const callOrder: string[] = [];
+    const memorySelector = vi.fn(async () => {
+      throw new Error("Runtime memory selection must stay local");
+    });
+    const legacyTransition = vi.fn(async () => {
+      throw new Error("Legacy transition Judge must not run");
+    });
+    const legacyAwareness = vi.fn(async () => {
+      throw new Error("Legacy awareness Judge must not run");
+    });
+    const legacyWillingness = vi.fn(async () => {
+      throw new Error("Legacy willingness Judge must not run");
+    });
+    const postPersonaJudge = vi.fn(async (request) => {
+      callOrder.push("post_persona_judge");
+      return {
+        transitions: [],
+        unmodeledShiftNote: null,
+        judgments: request.actions.map(({ actionId }) => ({
+          actionId,
+          awareness: "surfaced" as const,
+          willingness: {
+            actionId,
+            decision: "accept" as const,
+            selectedVariantId: "accepted_clock_interaction",
+          },
+        })),
+      };
+    });
+    const ports: ConversationPorts = {
+      inputFirewall: {
+        async classify() {
+          return { disposition: "pass" as const };
+        },
+      },
+      memorySelector: { selectMemory: memorySelector },
+      persona: {
+        async takeTurn() {
+          callOrder.push("persona");
+          return {
+            reply: "I could touch the clock and put it back afterward.",
+            shouldEndConversation: false,
+          };
+        },
+      },
+      actionJudge: {
+        judgePostPersona: postPersonaJudge,
+        judgeMindStateTransition: legacyTransition,
+        judgeAwareness: legacyAwareness,
+        judgeWillingness: legacyWillingness,
+      },
+    };
+    const controller = createConversationalVerticalSliceGameController(ports);
+    controller.advanceTo(7 * 60 + 57);
+    controller.dispatch({ type: "pause_world" });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+
+    await controller.dispatch({
+      type: "submit_dialogue",
+      text: "Could I move the clock for a moment?",
+    });
+
+    expect(callOrder).toEqual(["persona", "post_persona_judge"]);
+    expect(memorySelector).not.toHaveBeenCalled();
+    expect(legacyTransition).not.toHaveBeenCalled();
+    expect(legacyAwareness).not.toHaveBeenCalled();
+    expect(postPersonaJudge).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "husband",
+        actions: [
+          expect.objectContaining({
+            actionId: "interact_with_living_room_clock",
+          }),
+        ],
+      }),
+    );
+    expect(controller.snapshot().interaction.availableActionOptionIds).toEqual(
+      ["spend-time-with-clock"],
+    );
+
+    await controller.dispatch({
+      type: "select_action_option",
+      optionId: "spend-time-with-clock",
+    });
+
+    expect(legacyWillingness).not.toHaveBeenCalled();
+    expect(controller.snapshot()).toMatchObject({
+      world: {
+        intentions: [
+          {
+            actorId: "husband",
+            actionId: "interact_with_living_room_clock",
+          },
+        ],
+      },
+      interaction: {
+        selectedNpcId: null,
+        availableActionOptionIds: [],
+        conversationStatus: "idle",
+      },
+    });
+  });
+
+  // Spec: ADR 0035 LDO-LAT-008.
+  it("exposes the Persona reply before the post-Persona Judge continuation resolves", async () => {
+    const judgeMayFinish = deferred<{
+      transitions: MindStateTransition[];
+      unmodeledShiftNote: null;
+      judgments: Array<{
+        actionId: string;
+        awareness: "latent";
+        willingness: null;
+      }>;
+    }>();
+    const controller = createConversationalVerticalSliceGameController({
+      persona: {
+        async takeTurn() {
+          return {
+            reply: "I noticed the clock before I knew what to do with it.",
+            shouldEndConversation: false,
+          };
+        },
+      },
+      actionJudge: {
+        async judgePostPersona() {
+          return judgeMayFinish.promise;
+        },
+        judgeMindStateTransition: noMindStateTransitions,
+        async judgeAwareness() {
+          return { judgments: [] };
+        },
+        async judgeWillingness() {
+          throw new Error("Willingness should not run");
+        },
+      },
+    });
+    controller.advanceTo(7 * 60 + 57);
+    controller.dispatch({ type: "pause_world" });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+
+    await controller.beginDialogue("What did you notice?");
+
+    expect(controller.snapshot().interaction).toMatchObject({
+      conversationStatus: "awaiting_awareness",
+      messages: [
+        { speaker: "player", text: "What did you notice?" },
+        {
+          speaker: "persona",
+          text: "I noticed the clock before I knew what to do with it.",
+        },
+      ],
+    });
+
+    const resolution = controller.resolvePendingDialogue();
+    expect(controller.snapshot().interaction.conversationStatus).toBe(
+      "awaiting_awareness",
+    );
+    judgeMayFinish.resolve({
+      transitions: [],
+      unmodeledShiftNote: null,
+      judgments: [
+        {
+          actionId: "interact_with_living_room_clock",
+          awareness: "latent",
+          willingness: null,
+        },
+      ],
+    });
+    await resolution;
+    expect(controller.snapshot().interaction.conversationStatus).toBe("idle");
+  });
+
   // Spec: ADR 0023 LDO-FW-001 and LDO-FW-002; ADR 0034 LDO-PSY-001.
   it("routes an exact pass-through thought through the existing Persona and Judge loop", async () => {
     const firewallRequests: unknown[] = [];
@@ -400,7 +574,8 @@ describe("conversational Controller request state", () => {
 
 
 
-  // Spec: ADR 0013 and ADR 0024 LDO-CHAR-M2E2-001 through 004.
+  // Spec: ADR 0013, ADR 0024 LDO-CHAR-M2E2-001 through 004, and
+  // ADR 0035 LDO-LAT-003.
   it("LDO-CH1-007 supplies the selected M2E2 Character Cores separately from scene MindState", async () => {
     const requests: PersonaTurnRequest[] = [];
     const selectMemory = vi.fn(async () => ({ memoryId: null }));
@@ -487,7 +662,7 @@ describe("conversational Controller request state", () => {
       null,
       null,
     ]);
-    expect(selectMemory).toHaveBeenCalledTimes(2);
+    expect(selectMemory).not.toHaveBeenCalled();
     expect(requests[0]!.mindState.atoms).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -501,8 +676,8 @@ describe("conversational Controller request state", () => {
     );
   });
 
-  // Spec: ADR 0031 LDO-CALENDAR-001, 005 and Decision 5.
-  it("retrieves ordinary work memory only through the Controller and gives Persona the current weekday", async () => {
+  // Spec: ADR 0031 LDO-CALENDAR-001, 005 and Decision 5; ADR 0035 LDO-LAT-003.
+  it("retrieves ordinary work memory locally through the Controller and gives Persona the current weekday", async () => {
     const selectMemory = vi.fn<NonNullable<ConversationPorts["memorySelector"]>["selectMemory"]>(
       async (request) => {
         expect(request.moment).toMatchObject({
@@ -561,7 +736,7 @@ describe("conversational Controller request state", () => {
       text: "Do I need to go to work today, and what is my job?",
     });
 
-    expect(selectMemory).toHaveBeenCalledOnce();
+    expect(selectMemory).not.toHaveBeenCalled();
     expect(takeTurn).toHaveBeenCalledOnce();
   });
 

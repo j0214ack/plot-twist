@@ -131,12 +131,12 @@ artifacts; ADR 0012 and `chapter-1.md` supersede its schedule and ending.
   `open_door_a_crack` Action may create the first narrow gap and activate its
   neutral Evidence; routines and performance cannot manufacture that change.
 - **LDO-LOCAL-015 — Bounded memory context:** The Controller deterministically
-  filters authored memory cards by actor and disclosure tier before any model
-  sees them. A secret-blind selector receives only eligible phase-safe cues and
-  may choose zero or one ID. The Controller validates that ID, then and only
-  then loads the actor-specific content into Persona `RELEVANT_MEMORY`. No
-  eligible card means no selector call. Tutorial and Chapter 1 remain at
-  `unnamed_loss`, so protected yellow-bowl content cannot enter either role.
+  filters authored memory cards by actor and disclosure tier, then chooses at
+  most one through authored bilingual relevance terms. It never sends the
+  unreleased catalog or player claims to a selection model. The older
+  secret-blind model selector remains an eval artifact. Tutorial and Chapter 1
+  remain at `unnamed_loss`, so protected yellow-bowl content cannot enter
+  Persona or Judge.
 
 ## Launch contract
 
@@ -146,14 +146,21 @@ From the repository root:
 npm run play:ldo:text
 ```
 
-`npm run play:ldo` remains an alias for the text surface. To use the same game
-session and isolated Codex roles through the thin HTML renderer instead:
+`npm run play:ldo` remains an alias for the text surface. The HTML renderer
+currently uses the repository-root `OPENAI_API_KEY` with direct
+`gpt-5.6-luna` low-reasoning calls:
 
 ```bash
 npm run play:ldo:web
 ```
 
 Open `http://127.0.0.1:5173/leave-the-door-open/`.
+
+The older Codex-backed HTML profile remains available explicitly:
+
+```bash
+npm run play:ldo:web:codex
+```
 
 The browser starts a new Traditional Chinese session by default. English is
 explicitly selectable in the page header or at
@@ -175,10 +182,12 @@ Chinese Persona/Performance output:
 LDO_PLAY_LOCALE=zh-TW npm run play:ldo:text
 ```
 
-`LDO_PLAY_EFFORT` applies to Persona, memory selection, Judge, and generated
-performance. The secret-blind Input Firewall uses the same selected model at
-fixed `low` reasoning because it performs only narrow form/authority
-classification; its calls are still recorded in the session journal.
+`LDO_PLAY_EFFORT` applies to Persona, the combined post-Persona Judge, and
+generated performance. Memory selection is local. Clearly ordinary dialogue
+also passes the Firewall locally; suspicious or ambiguous input escalates to
+the secret-blind Firewall model at fixed `low` reasoning. Model calls are
+still recorded in the session journal.
+
 `LDO_PLAY_LOCALE` accepts only `en` or `zh-TW`, and the selected value is
 recorded in the append-only session journal.
 
@@ -186,8 +195,7 @@ recorded in the append-only session journal.
 
 - production-grade deployment, durable sessions, or accounts;
 - a visual 2D or 3D interface; ADR 0018 permits the thin browser text adapter;
-- direct Responses API billing during the default local play command;
-- provider reliability, latency, or comparative model evaluation;
+- provider reliability, latency, cost, or comparative model evaluation;
 - hiding the PoC's source files from the human developer;
 - ideal turn limits, difficulty, Judge strictness, or fun thresholds;
 - production pacing for multi-day psychological progression; this tutorial

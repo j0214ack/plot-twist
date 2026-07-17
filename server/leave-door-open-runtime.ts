@@ -107,9 +107,12 @@ export const createLeaveDoorOpenWebSessionFactory = (
       async handleInput(input) {
         const result =
           input.trim() === "/resume"
-            ? await terminal.beginTimeAdvance()
+            ? {
+                ...(await terminal.beginTimeAdvance()),
+                dialogueResolutionPending: false,
+              }
             : {
-                ...(await terminal.handleInput(input)),
+                ...(await terminal.beginInput(input)),
                 advancePending: false,
               };
         if (result.ended) {
@@ -121,6 +124,22 @@ export const createLeaveDoorOpenWebSessionFactory = (
         }
         return { ...result, screen: latestScreen };
       },
+      async resolveDialogue() {
+        const result = await terminal.resolveDialogue();
+        if (result.ended) {
+          recorder.record({
+            visibility: "observer",
+            type: "session_ended",
+            data: { surface: "web", controllerSnapshot: controller.snapshot() },
+          });
+        }
+        return {
+          ...result,
+          advancePending: false,
+          dialogueResolutionPending: false,
+          screen: latestScreen,
+        };
+      },
       async advanceTurn() {
         const result = await terminal.advanceTurn();
         if (result.ended) {
@@ -130,7 +149,11 @@ export const createLeaveDoorOpenWebSessionFactory = (
             data: { surface: "web", controllerSnapshot: controller.snapshot() },
           });
         }
-        return { ...result, screen: latestScreen };
+        return {
+          ...result,
+          dialogueResolutionPending: false,
+          screen: latestScreen,
+        };
       },
     };
   };

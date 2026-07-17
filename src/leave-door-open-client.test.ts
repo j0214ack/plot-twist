@@ -33,6 +33,7 @@ describe("Leave the Door Open browser adapter", () => {
           sessionId: "paced-a",
           ended: false,
           advancePending: false,
+          dialogueResolutionPending: false,
           screen: "opening",
         };
       },
@@ -42,8 +43,12 @@ describe("Leave the Door Open browser adapter", () => {
           sessionId: "paced-a",
           ended: false,
           advancePending: true,
+          dialogueResolutionPending: false,
           screen: "07:59 — the clock changes",
         };
+      },
+      async resolveDialogue() {
+        throw new Error("Not exercised");
       },
       async advanceTurn() {
         const turn = trace.filter((entry) => entry === "advance").length + 1;
@@ -52,6 +57,7 @@ describe("Leave the Door Open browser adapter", () => {
           sessionId: "paced-a",
           ended: false,
           advancePending: turn < 2,
+          dialogueResolutionPending: false,
           screen: turn < 2 ? "08:00 — the household moves" : "08:15 — quiet",
         };
       },
@@ -102,6 +108,7 @@ describe("Leave the Door Open browser adapter", () => {
           sessionId: "paced-empty-a",
           ended: false,
           advancePending: false,
+          dialogueResolutionPending: false,
           screen: "opening",
         };
       },
@@ -110,8 +117,12 @@ describe("Leave the Door Open browser adapter", () => {
           sessionId: "paced-empty-a",
           ended: false,
           advancePending: true,
+          dialogueResolutionPending: false,
           screen: "08:00 — visible routine",
         };
+      },
+      async resolveDialogue() {
+        throw new Error("Not exercised");
       },
       async advanceTurn() {
         turn += 1;
@@ -120,6 +131,7 @@ describe("Leave the Door Open browser adapter", () => {
           sessionId: "paced-empty-a",
           ended: false,
           advancePending: turn < 2,
+          dialogueResolutionPending: false,
           screen:
             turn === 1
               ? "08:00 — visible routine"
@@ -214,12 +226,14 @@ Time moved to a new routine moment.`),
       sessionId: string;
       ended: boolean;
       advancePending: boolean;
+      dialogueResolutionPending: boolean;
       screen: string;
     }) => void;
     const turn = new Promise<{
       sessionId: string;
       ended: boolean;
       advancePending: boolean;
+      dialogueResolutionPending: boolean;
       screen: string;
     }>((resolve) => {
       resolveTurn = resolve;
@@ -230,10 +244,14 @@ Time moved to a new routine moment.`),
           sessionId: "optimistic-a",
           ended: false,
           advancePending: false,
+          dialogueResolutionPending: false,
           screen: "opening",
         };
       },
       submitInput: vi.fn(() => turn),
+      async resolveDialogue() {
+        throw new Error("Not exercised");
+      },
       async advanceTurn() {
         throw new Error("Not exercised");
       },
@@ -259,6 +277,7 @@ Time moved to a new routine moment.`),
       sessionId: "optimistic-a",
       ended: false,
       advancePending: false,
+      dialogueResolutionPending: false,
       screen: "You: What made you stop here?\nMartin: I noticed the clock.",
     });
     await pending;
@@ -269,6 +288,65 @@ Time moved to a new routine moment.`),
     expect(view.showPlayerInput).toHaveBeenCalledTimes(1);
   });
 
+  // Spec: ADR 0035 LDO-LAT-008.
+  it("presents the Persona screen before requesting the post-Persona Judge continuation", async () => {
+    const trace: string[] = [];
+    const transport = {
+      async startSession() {
+        return {
+          sessionId: "phased-browser-a",
+          ended: false,
+          advancePending: false,
+          dialogueResolutionPending: false,
+          screen: "opening",
+        };
+      },
+      async submitInput() {
+        trace.push("submit");
+        return {
+          sessionId: "phased-browser-a",
+          ended: false,
+          advancePending: false,
+          dialogueResolutionPending: true,
+          screen: "Martin: I noticed the clock.",
+        };
+      },
+      async resolveDialogue() {
+        trace.push("resolve");
+        return {
+          sessionId: "phased-browser-a",
+          ended: false,
+          advancePending: false,
+          dialogueResolutionPending: false,
+          screen: "Martin: I noticed the clock.\nPossibilities:\n1. Touch it.",
+        };
+      },
+      async advanceTurn() {
+        throw new Error("Not exercised");
+      },
+    };
+    const controller = new LeaveDoorOpenBrowserController(transport, {
+      setBusy: vi.fn(),
+      showScreen: vi.fn((screen) => {
+        trace.push(`screen:${screen}`);
+      }),
+      showPlayerInput: vi.fn(),
+      showError: vi.fn(),
+      setEnded: vi.fn(),
+    });
+    await controller.start();
+    trace.length = 0;
+
+    await controller.submit("Why today?");
+
+    expect(trace).toEqual([
+      "submit",
+      "screen:Martin: I noticed the clock.",
+      "resolve",
+      "screen:Martin: I noticed the clock.\nPossibilities:\n1. Touch it.",
+    ]);
+  });
+
   // Spec: ADR 0018 LDO-WEB-002 and LDO-WEB-003.
   it("renders server screens and forwards later input to the same server session", async () => {
     const transport: LeaveDoorOpenTransport = {
@@ -276,14 +354,19 @@ Time moved to a new routine moment.`),
         sessionId: "server-session-a",
         ended: false,
         advancePending: false,
+        dialogueResolutionPending: false,
         screen: "07:57 — The world pauses.\nMartin notices the slow clock.",
       })),
       submitInput: vi.fn(async (sessionId, input) => ({
         sessionId,
         ended: false,
         advancePending: false,
+        dialogueResolutionPending: false,
         screen: `Martin: ${input}`,
       })),
+      async resolveDialogue() {
+        throw new Error("Not exercised");
+      },
       async advanceTurn() {
         throw new Error("Not exercised");
       },
@@ -328,6 +411,7 @@ Time moved to a new routine moment.`),
             sessionId: "server-session-b",
             ended: false,
             advancePending: false,
+            dialogueResolutionPending: false,
             screen: "opening",
           }),
           { status: 201, headers: { "content-type": "application/json" } },
@@ -339,6 +423,7 @@ Time moved to a new routine moment.`),
             sessionId: "server-session-b",
             ended: false,
             advancePending: false,
+            dialogueResolutionPending: false,
             screen: "help",
           }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -432,11 +517,15 @@ Continue talking or choose a Possibility.
           sessionId: "expired-a",
           ended: false,
           advancePending: false,
+          dialogueResolutionPending: false,
           screen: "opening",
         };
       },
       async submitInput() {
         throw new LeaveDoorOpenTransportError("Start a new game.", 404);
+      },
+      async resolveDialogue() {
+        throw new Error("Not exercised");
       },
       async advanceTurn() {
         throw new Error("Not exercised");

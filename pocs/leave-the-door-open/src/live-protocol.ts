@@ -103,6 +103,34 @@ export const WillingnessOutputSchema = z
   })
   .strict();
 
+const PostPersonaWillingnessOutputSchema = z
+  .object({
+    decision: z.enum(["accept", "smaller_step", "defer", "refuse"]),
+    selected_variant_id: z.string().nullable(),
+    reason: z.string(),
+    supporting_persona_source_ids: z.array(z.string()),
+  })
+  .strict();
+
+export const PostPersonaJudgeOutputSchema = z
+  .object({
+    phase: z.literal("post_persona"),
+    transitions: MindStateTransitionOutputSchema.shape.transitions,
+    unmodeled_shift_note: z.string().nullable(),
+    judgments: z.array(
+      z
+        .object({
+          action_id: z.string(),
+          awareness: z.enum(["latent", "faintly_imagined", "surfaced"]),
+          reason: z.string(),
+          supporting_persona_source_ids: z.array(z.string()),
+          willingness: PostPersonaWillingnessOutputSchema.nullable(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 export const PerformanceOutputSchema = z
   .object({
     beats: z.array(z.string().min(1)).min(1).max(6),
@@ -168,6 +196,9 @@ export type MindStateTransitionOutput = z.infer<
   typeof MindStateTransitionOutputSchema
 >;
 export type WillingnessOutput = z.infer<typeof WillingnessOutputSchema>;
+export type PostPersonaJudgeOutput = z.infer<
+  typeof PostPersonaJudgeOutputSchema
+>;
 export type PerformanceOutput = z.infer<typeof PerformanceOutputSchema>;
 export type EvaluatorOutput = z.infer<typeof EvaluatorOutputSchema>;
 
@@ -178,6 +209,7 @@ export type StructuredRole =
   | "mind_state_transition"
   | "awareness"
   | "willingness"
+  | "post_persona_judge"
   | "performance"
   | "evaluator";
 

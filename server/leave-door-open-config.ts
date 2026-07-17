@@ -14,7 +14,7 @@ export const LEAVE_DOOR_OPEN_PROMPT_FILES = {
   inputFirewall: "input-firewall-v1.md",
   persona: "persona-v9.md",
   memorySelector: "memory-selector-v1.md",
-  actionJudge: "action-judge-v4.md",
+  actionJudge: "action-judge-v5.md",
   performanceDirector: "performance-director-v1.md",
 } as const;
 

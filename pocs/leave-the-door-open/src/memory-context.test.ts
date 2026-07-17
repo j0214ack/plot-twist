@@ -9,6 +9,24 @@ const moment = {
 };
 
 describe("Controller-owned Persona memory context", () => {
+  // Spec: ADR 0035 LDO-LAT-003.
+  it("selects an eligible authored work memory locally for a direct Chinese question", async () => {
+    await expect(
+      selectRelevantMemoryForPersona({
+        actorId: "wife",
+        disclosureTier: "unnamed_loss",
+        moment,
+        observedEvidence: [],
+        conversation: [
+          { speaker: "player", text: "我今天幾點上班？工作是做什麼的？" },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      memoryId: "wife.work.ordinary_schedule",
+      content: expect.stringContaining("payroll administrator"),
+    });
+  });
+
   // Spec: ADR 0031 LDO-CALENDAR-005; ADR 0023 Decision 2.
   it("offers only a safe work cue at the earliest tier and loads nothing when the selector declines it", async () => {
     const selectMemory = vi.fn<MemorySelectorPort["selectMemory"]>(

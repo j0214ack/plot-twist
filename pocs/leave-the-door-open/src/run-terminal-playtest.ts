@@ -59,7 +59,7 @@ const [
   readFile(resolve(promptRoot, "input-firewall-v1.md"), "utf8"),
   readFile(resolve(promptRoot, "persona-v9.md"), "utf8"),
   readFile(resolve(promptRoot, "memory-selector-v1.md"), "utf8"),
-  readFile(resolve(promptRoot, "action-judge-v4.md"), "utf8"),
+  readFile(resolve(promptRoot, "action-judge-v5.md"), "utf8"),
   readFile(resolve(promptRoot, "performance-director-v1.md"), "utf8"),
 ]);
 const modelName = process.env.LDO_PLAY_MODEL ?? "gpt-5.6-luna";
@@ -90,7 +90,7 @@ journal.recorder.record({
     inputFirewallPrompt: "input-firewall-v1.md",
     personaPrompt: "persona-v9.md",
     memorySelectorPrompt: "memory-selector-v1.md",
-    actionJudgePrompt: "action-judge-v4.md",
+    actionJudgePrompt: "action-judge-v5.md",
     performanceDirectorPrompt: "performance-director-v1.md",
     generatedPerformance,
     locale,

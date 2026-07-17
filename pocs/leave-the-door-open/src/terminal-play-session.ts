@@ -14,6 +14,10 @@ export type TerminalPlayResult = {
   ended: boolean;
 };
 
+export type TerminalDialogueBeginResult = TerminalPlayResult & {
+  dialogueResolutionPending: boolean;
+};
+
 export type TerminalAdvanceResult = TerminalPlayResult & {
   advancePending: boolean;
 };
@@ -106,6 +110,52 @@ export class TerminalPlaySession {
     }
 
     await this.#dispatchAsync({ type: "submit_dialogue", text: input });
+    return { ended: false };
+  }
+
+  async beginInput(rawInput: string): Promise<TerminalDialogueBeginResult> {
+    const input = rawInput.trim();
+    if (!isDialogueInput(input)) {
+      return {
+        ...(await this.handleInput(rawInput)),
+        dialogueResolutionPending: false,
+      };
+    }
+    if (!this.#started) {
+      throw new Error("Terminal play session has not started");
+    }
+    if (this.#ended) {
+      return { ended: true, dialogueResolutionPending: false };
+    }
+
+    try {
+      await this.controller.beginDialogue(input);
+      this.#render();
+      return {
+        ended: false,
+        dialogueResolutionPending:
+          this.controller.snapshot().interaction.conversationStatus ===
+          "awaiting_awareness",
+      };
+    } catch (error) {
+      this.observeError(error);
+      this.#render();
+      return { ended: false, dialogueResolutionPending: false };
+    }
+  }
+
+  async resolveDialogue(): Promise<TerminalPlayResult> {
+    if (!this.#started) {
+      throw new Error("Terminal play session has not started");
+    }
+    if (this.#ended) return { ended: true };
+    try {
+      await this.controller.resolvePendingDialogue();
+      this.#render();
+    } catch (error) {
+      this.observeError(error);
+      this.#render();
+    }
     return { ended: false };
   }
 
@@ -422,6 +472,9 @@ const parseOptionNumber = (input: string): number | null => {
   const parsed = Number(input);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 };
+
+const isDialogueInput = (input: string): boolean =>
+  input.length > 0 && !input.startsWith("/") && !/^\d+$/.test(input);
 
 const hasWorldIntention = (
   snapshot: ReturnType<VerticalSliceGameController["snapshot"]>,

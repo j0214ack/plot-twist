@@ -1711,3 +1711,74 @@ TurnResult projector and generated complete PresentationNodeCatalog before a
 - `npm run build`: TypeScript and Vite build passed. The existing unrelated
   large-chunk warning remains non-blocking.
 - `git diff --check`: passed.
+
+## 2026-07-17 — Collapse ordinary dialogue latency to Persona plus one Judge
+
+### Decision and protocol
+
+- ADR 0035 records the measured five-call serial bottleneck and accepts a
+  two-call ordinary path: catalog-blind Persona followed by one bounded
+  post-Persona Judge. Suspicious input may still add the secret-blind Firewall.
+- The combined Judge sees only finite authored psychological atoms and
+  hard-eligible fixed Actions. Controller validation still owns atom direction,
+  source grounding, exact Action coverage, awareness, willingness decisions,
+  authored variant membership, and World commits.
+- This intentionally relaxes ADR 0017's Action-blind transition inference. The
+  acting Persona remains catalog-blind, and the accepted bias tradeoff is now
+  explicit instead of emerging as silent implementation drift.
+
+### TDD: remove three runtime model round trips
+
+- Red first proved that clearly ordinary bilingual dialogue still called the
+  Firewall model. Green added a pass-only deterministic fast path; protected,
+  machine-shaped, or uncertain input still escalates and deterministic code
+  cannot author a guarded classification.
+- Red then proved work-memory retrieval depended on the model selector. Green
+  added authored bilingual relevance terms and local selection over only
+  disclosure-eligible cards. The older selector remains available to isolated
+  eval probes but the Controller no longer calls it at runtime.
+- A combined structured-port regression failed until one
+  `post_persona_judge` call returned finite transitions, awareness for every
+  supplied Action, and cacheable willingness for surfaced Actions.
+- Controller regressions failed until production composition chose that one
+  combined call, validated the whole result before mutation, and reused cached
+  willingness when the player selected a Possibility. Legacy three-phase test
+  doubles remain as a compatibility fallback; production does not use them.
+
+### TDD: Persona-first Web continuation
+
+- Controller and terminal regressions first failed until dialogue could pause
+  after Persona with `awaiting_awareness`, render the reply, and resolve the
+  pending Judge through a separate public continuation.
+- Session logging records one player input plus separate
+  `input_phase_handled` and `dialogue_resolution_handled` observer records; the
+  continuation never masquerades as another utterance.
+- API, runtime, transport, and browser tests failed before
+  `dialogueResolutionPending` and the dedicated `/resolve-dialogue` endpoint
+  existed. The browser now presents the Persona screen before requesting that
+  continuation while keeping semantic input serialized.
+- `visual-renderer.md` carries the same continuation contract so a future 2D
+  renderer can show the reply before resolving mechanics without gaining World
+  or Judge authority.
+
+### Local direct-API profile and live smoke
+
+- `npm run play:ldo:web` now explicitly uses the server-held
+  `OPENAI_API_KEY`, `gpt-5.6-luna`, and low reasoning in
+  `ldo-local-openai` mode. `npm run play:ldo:web:codex` preserves the previous
+  explicit Codex backend. Both local modes bypass the public access-code gate;
+  the browser never receives credentials.
+- A paid localhost Chinese smoke showed exactly `persona` then
+  `post_persona_judge`, with no Firewall or memory call and no extra
+  willingness call. Persona became visible after 3.93 seconds; the independent
+  Judge continuation completed in 3.29 seconds. The prior representative
+  serial path was roughly 33 seconds before a settled response.
+- The same smoke used 2,470 Persona input tokens and 1,665 Judge input tokens,
+  substantially below the earlier per-role local Codex process context.
+
+### Verification
+
+- `npm test`: 90 test files / 393 tests passed.
+- `npm run build`: TypeScript and Vite build passed. The existing unrelated
+  large-chunk warning remains non-blocking.
+- `git diff --check`: passed.

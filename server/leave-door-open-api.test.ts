@@ -53,6 +53,59 @@ const realTerminalSession = (): LeaveDoorOpenWebSession => {
 };
 
 describe("Leave the Door Open web session service", () => {
+  // Spec: ADR 0035 LDO-LAT-008.
+  it("exposes a dedicated continuation endpoint for a pending post-Persona Judge phase", async () => {
+    let resolveCalls = 0;
+    const session = {
+      async start() {
+        return "opening";
+      },
+      async handleInput() {
+        return {
+          ended: false,
+          advancePending: false,
+          dialogueResolutionPending: true,
+          screen: "Martin: I noticed the clock.",
+        };
+      },
+      async resolveDialogue() {
+        resolveCalls += 1;
+        return {
+          ended: false,
+          advancePending: false,
+          dialogueResolutionPending: false,
+          screen: "Martin: I noticed the clock.\nPossibilities:\n1. Touch it.",
+        };
+      },
+      async advanceTurn() {
+        throw new Error("Not exercised");
+      },
+    };
+    const service = new LeaveDoorOpenSessionService(() => session, {
+      createSessionId: () => "phased-api-a",
+    });
+    const middleware = createLeaveDoorOpenApiMiddleware(service);
+    await service.startSession();
+    const first = await service.submitInput("phased-api-a", "Why today?");
+
+    const resolved = await invoke(middleware, {
+      method: "POST",
+      url: "/api/leave-the-door-open/sessions/phased-api-a/resolve-dialogue",
+      body: "{}",
+    });
+
+    expect(first).toMatchObject({ dialogueResolutionPending: true });
+    expect(resolved).toMatchObject({
+      statusCode: 200,
+      json: {
+        sessionId: "phased-api-a",
+        dialogueResolutionPending: false,
+        screen: expect.stringContaining("Possibilities"),
+      },
+    });
+    expect(resolveCalls).toBe(1);
+  });
+
   // Spec: ADR 0033 LDO-LOC-001, LDO-LOC-006, and LDO-LOC-008.
   it("validates and freezes the requested locale when creating a session", async () => {
     const created: Array<{ sessionId: string; locale: string }> = [];

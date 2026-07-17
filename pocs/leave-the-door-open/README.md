@@ -344,6 +344,7 @@ rationale.
   - [`decisions/0032-bound-interpersonal-actions-with-authored-closure.md`](decisions/0032-bound-interpersonal-actions-with-authored-closure.md)
   - [`decisions/0033-author-bilingual-player-facing-content.md`](decisions/0033-author-bilingual-player-facing-content.md)
   - [`decisions/0034-preserve-guarded-reaction-continuity-without-leaking-guarded-input.md`](decisions/0034-preserve-guarded-reaction-continuity-without-leaking-guarded-input.md)
+  - [`decisions/0035-collapse-runtime-dialogue-to-persona-and-one-post-persona-judge.md`](decisions/0035-collapse-runtime-dialogue-to-persona-and-one-post-persona-judge.md)
 
 ## Verification and paid commands
 
@@ -354,11 +355,19 @@ npm test
 npm run build
 ```
 
-Launch the local text playtest with saved ChatGPT Codex authentication:
+Launch the local text playtest with saved ChatGPT Codex authentication, or the
+HTML playtest with the root `.env.local` `OPENAI_API_KEY`:
 
 ```bash
 npm run play:ldo:text
 npm run play:ldo:web
+```
+
+The HTML command currently pins direct `gpt-5.6-luna` at low reasoning for
+latency testing. Its explicit Codex-backed alternative is:
+
+```bash
+npm run play:ldo:web:codex
 ```
 
 The Web page defaults to Traditional Chinese. Use
@@ -366,9 +375,9 @@ The Web page defaults to Traditional Chinese. Use
 preserves its English default; use
 `LDO_PLAY_LOCALE=zh-TW npm run play:ldo:text` for Traditional Chinese.
 
-These local-Codex commands do not need `OPENAI_API_KEY` and have no gameplay
-hard call budget. They consume the signed-in developer's Codex plan usage and
-remain subject to that account's rate limits.
+The text and `play:ldo:web:codex` commands use the signed-in developer's Codex
+plan. The default HTML command uses direct API billing; the browser never
+receives the key. None of the play commands has a gameplay hard call budget.
 
 `npm run eval:ldo-replay` is a paid live command. It reads the repository-root
 `.env.local`, defaults to Luna low, enforces at most two calls, and should be run

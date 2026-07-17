@@ -23,11 +23,19 @@ export interface LeaveDoorOpenWebSession {
   handleInput(input: string): Promise<{
     ended: boolean;
     advancePending: boolean;
+    dialogueResolutionPending: boolean;
+    screen: string;
+  }>;
+  resolveDialogue(): Promise<{
+    ended: boolean;
+    advancePending: boolean;
+    dialogueResolutionPending: boolean;
     screen: string;
   }>;
   advanceTurn(): Promise<{
     ended: boolean;
     advancePending: boolean;
+    dialogueResolutionPending: boolean;
     screen: string;
   }>;
 }
@@ -44,6 +52,7 @@ export type LeaveDoorOpenWebResult = {
   locale: GameLocale;
   ended: boolean;
   advancePending: boolean;
+  dialogueResolutionPending: boolean;
   screen: string;
 };
 
@@ -88,7 +97,14 @@ export class LeaveDoorOpenSessionService {
       touchedAt: this.#now(),
       tail: Promise.resolve(),
     });
-    return { sessionId, locale, ended: false, advancePending: false, screen };
+    return {
+      sessionId,
+      locale,
+      ended: false,
+      advancePending: false,
+      dialogueResolutionPending: false,
+      screen,
+    };
   }
 
   async submitInput(
@@ -130,6 +146,28 @@ export class LeaveDoorOpenSessionService {
     return { sessionId, locale: stored.locale, ...result };
   }
 
+  async resolveDialogue(
+    sessionId: string,
+  ): Promise<LeaveDoorOpenWebResult> {
+    this.#pruneExpired();
+    const stored = this.#sessions.get(sessionId);
+    if (stored === undefined) {
+      throw new LeaveDoorOpenSessionNotFoundError();
+    }
+    stored.touchedAt = this.#now();
+    const resultPromise = stored.tail.then(() =>
+      stored.session.resolveDialogue(),
+    );
+    stored.tail = resultPromise.then(
+      () => undefined,
+      () => undefined,
+    );
+    const result = await resultPromise;
+    stored.touchedAt = this.#now();
+    if (result.ended) this.#sessions.delete(sessionId);
+    return { sessionId, locale: stored.locale, ...result };
+  }
+
   #pruneExpired(): void {
     const now = this.#now();
     for (const [sessionId, stored] of this.#sessions) {
@@ -152,6 +190,8 @@ const INPUT_PATH =
   /^\/api\/leave-the-door-open\/sessions\/([A-Za-z0-9._-]{1,100})\/input$/;
 const ADVANCE_PATH =
   /^\/api\/leave-the-door-open\/sessions\/([A-Za-z0-9._-]{1,100})\/advance$/;
+const RESOLVE_DIALOGUE_PATH =
+  /^\/api\/leave-the-door-open\/sessions\/([A-Za-z0-9._-]{1,100})\/resolve-dialogue$/;
 const MAX_REQUEST_BYTES = 4_096;
 const MAX_INPUT_CHARACTERS = 500;
 
@@ -223,7 +263,13 @@ export const createLeaveDoorOpenApiMiddleware = (
     const path = request.url?.split("?", 1)[0] ?? "";
     const inputMatch = INPUT_PATH.exec(path);
     const advanceMatch = ADVANCE_PATH.exec(path);
-    if (path !== START_PATH && inputMatch === null && advanceMatch === null) {
+    const resolveDialogueMatch = RESOLVE_DIALOGUE_PATH.exec(path);
+    if (
+      path !== START_PATH &&
+      inputMatch === null &&
+      advanceMatch === null &&
+      resolveDialogueMatch === null
+    ) {
       next();
       return;
     }
@@ -238,8 +284,13 @@ export const createLeaveDoorOpenApiMiddleware = (
         writeJson(response, 201, await service.startSession(parseLocale(payload)));
         return;
       }
-      const sessionId = inputMatch?.[1] ?? advanceMatch?.[1];
+      const sessionId =
+        inputMatch?.[1] ?? advanceMatch?.[1] ?? resolveDialogueMatch?.[1];
       if (sessionId === undefined) throw new LeaveDoorOpenSessionNotFoundError();
+      if (resolveDialogueMatch !== null) {
+        writeJson(response, 200, await service.resolveDialogue(sessionId));
+        return;
+      }
       if (advanceMatch !== null) {
         writeJson(response, 200, await service.advanceTurn(sessionId));
         return;
