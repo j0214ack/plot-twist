@@ -129,7 +129,7 @@ Psychological description:
   intermediate interaction may be a direct adjustment or a reversible motif
   the Persona accepted.
 Player label:
-  Spend a moment with the clock.
+  Set the clock to the correct time. / 把時鐘調準。
 Variant:
   Follow the Persona's accepted clock-interaction motif, then leave the clock
   showing the current time.
@@ -141,6 +141,11 @@ player/Persona motif such as taking the clock down, spinning its hands,
 removing and replacing the battery, or trying several deliberately incorrect
 times. These are transient performance beats rather than separate durable
 Actions because they all close on the same authored World state.
+
+The player-facing label names that shared concrete outcome, not the optional
+staging motif. Performance may still honor an earlier player/Persona idea such
+as spinning the hands or removing the battery, but the choice itself must not
+metaphorize this as accompanying or spending time with the clock.
 
 The authored PerformanceEnvelope is:
 
@@ -266,6 +271,10 @@ Elise are introduced only when the corrected-clock observation opens Chapter
 - Keep the tutorial resistance shallow: ordinary inertia and effort, not grief,
   relationship repair, fear of irreversible consequences, or a Persona packet
   that announces the sufficient answer.
+- In `zh-TW`, require ordinary complete Taiwan Mandarin self-talk. Do not turn
+  shallow effort into a vague dramatic fragment with a missing concrete
+  referent; if Martin accepts or resists adjusting the clock, the line should
+  make that acceptance or resistance intelligible on its own.
 - Allow unrelated, fragmentary, or testing thoughts to receive ordinary
   character reactions. Persona does not have to redirect every turn toward the
   clock; the routine clue and onboarding already make the tutorial subject

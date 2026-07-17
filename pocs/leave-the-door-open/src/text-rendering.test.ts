@@ -79,7 +79,8 @@ describe("layered text rendering", () => {
     expect(view).toEqual(before);
   });
 
-  // Spec: ADR 0033 LDO-LOC-001 through LDO-LOC-006.
+  // Spec: ADR 0033 LDO-LOC-001 through LDO-LOC-006;
+  // tutorial-prologue.md §4 fixed Action player label.
   it("renders the same semantic tutorial view with authored zh-TW presentation copy", () => {
     const world = createVerticalSliceWorld();
     world.advanceTo(7 * 60 + 57);
@@ -108,7 +109,7 @@ describe("layered text rendering", () => {
         "[已暫停]",
         "焦點：馬丁",
         "可能的行動：",
-        "1. 陪這座時鐘一下。",
+        "1. 把時鐘調準。",
       ].join("\n"),
     );
   });

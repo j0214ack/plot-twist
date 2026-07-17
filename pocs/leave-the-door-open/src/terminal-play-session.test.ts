@@ -248,7 +248,7 @@ describe("Leave the Door Open terminal play session", () => {
       "You can let time continue now to observe, or wait until an intention forms to change the world.",
     );
     expect(outputs.at(-1)).not.toContain("Leave the door as it is.");
-    expect(outputs.at(-1)).not.toContain("Spend a moment with the clock.");
+    expect(outputs.at(-1)).not.toContain("Set the clock to the correct time.");
     expect(outputs.at(-1)).not.toContain(
       "Remain at the threshold for one breath.",
     );
@@ -354,7 +354,9 @@ describe("Leave the Door Open terminal play session", () => {
     expect(outputs.at(-1)).toContain(
       "Martin: I could spend less time fixing it than I have spent noticing it.",
     );
-    expect(outputs.at(-1)).toContain("1. Spend a moment with the clock.");
+    expect(outputs.at(-1)).toContain(
+      "1. Set the clock to the correct time.",
+    );
 
     await session.handleInput("1");
     expect(controller.snapshot().world.intentions).toEqual([

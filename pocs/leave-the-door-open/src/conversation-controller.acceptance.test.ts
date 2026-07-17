@@ -309,7 +309,7 @@ describe("Leave the Door Open conversational Controller", () => {
       "husband.clock.bounded_adjustment",
     );
     expect(JSON.stringify(personaRequests[0])).not.toMatch(
-      /interact_with_living_room_clock|accepted_clock_interaction|Spend a moment with the clock/,
+      /interact_with_living_room_clock|accepted_clock_interaction|Set the clock to the correct time/,
     );
     expect(awarenessRequests[0]?.actions).toEqual([
       {

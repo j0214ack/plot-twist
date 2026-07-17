@@ -111,7 +111,7 @@ const englishPlayerCopy = {
   "cue.room_window_noticed": "Room — The open window is noticed.",
   "character.husband.name": "Martin",
   "character.wife.name": "Elise",
-  "action.spend-time-with-clock.label": "Spend a moment with the clock.",
+  "action.spend-time-with-clock.label": "Set the clock to the correct time.",
   "action.open-door-a-crack.label": "Open the door just a little.",
   "action.wait-at-threshold.label":
     "Remain at the threshold for one breath.",
@@ -410,7 +410,7 @@ const traditionalChinesePlayerCopy: Record<PlayerCopyKey, string> = {
   "cue.room_window_noticed": "房間——有人注意到那扇開著的窗戶。",
   "character.husband.name": "馬丁",
   "character.wife.name": "伊莉絲",
-  "action.spend-time-with-clock.label": "陪這座時鐘一下。",
+  "action.spend-time-with-clock.label": "把時鐘調準。",
   "action.open-door-a-crack.label": "把門稍微打開一點。",
   "action.wait-at-threshold.label": "在門檻前停留一口呼吸的時間。",
   "action.step-inside-room.label": "跨過門檻，再退回來。",

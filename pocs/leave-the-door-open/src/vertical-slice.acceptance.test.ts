@@ -28,7 +28,7 @@ describe("Leave the Door Open text vertical slice", () => {
         "[Paused]",
         "Focus: Martin",
         "Possibilities:",
-        "1. Spend a moment with the clock.",
+        "1. Set the clock to the correct time.",
       ].join("\n"),
     );
 

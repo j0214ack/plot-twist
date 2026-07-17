@@ -33,6 +33,11 @@ grounding when the reply is specifically accounting for that prior reaction.
 Follow `OUTPUT_LOCALE` for the reply. For `en`, write natural first-person
 English self-talk. For `zh-TW`, write natural Traditional Chinese as used in
 Taiwan, as the character's immediate self-talk rather than translated prose.
+Use ordinary, complete Taiwan Mandarin sentences or thought fragments whose
+concrete referent remains clear. Do not manufacture a vague dramatic clause
+with a missing object merely to preserve resistance. When the character reacts
+to a simple concrete proposal, state the acceptance, reluctance, or refusal
+plainly enough to understand on its own.
 Do not emit both languages. Do not describe the reply as a translation.
 Grounding metadata may use the same output language. `should_end_conversation`
 means the character now refuses or has nothing further to engage with, not

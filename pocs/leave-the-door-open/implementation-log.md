@@ -1846,3 +1846,35 @@ TurnResult projector and generated complete PresentationNodeCatalog before a
 - `npm run build`: TypeScript and Vite build passed. The existing unrelated
   large-chunk warning remains non-blocking.
 - `git diff --check`: passed.
+
+## 2026-07-17 — Name the clock action plainly and reject elliptical zh-TW Persona prose
+
+### Human-play regression
+
+- On the third tutorial morning, the player asked `把時鐘時間調正？`. Martin
+  replied `調正就調正……才三分鐘，偏偏要先開始。`; the Judge reasonably
+  interpreted this as reluctant ownership, but the final clause had no clear
+  referent and did not read as natural Taiwan Mandarin.
+- The surfaced authored Possibility was `陪這座時鐘一下。`. That label exposed
+  optional Performance flavor instead of the Action's concrete shared outcome,
+  making an obvious clock adjustment sound needlessly metaphorical.
+
+### TDD and correction
+
+- `tutorial-prologue.md` now requires the player-facing choice to name the
+  shared durable result while leaving reversible clock play to Performance.
+- Red projection tests required `把時鐘調準。` /
+  `Set the clock to the correct time.` before the authored locale catalog was
+  changed. Action ID, eligibility, willingness, performance freedom, and World
+  postcondition remain unchanged.
+- A Persona prompt regression first failed until `zh-TW` output was required to
+  retain a clear concrete referent and express acceptance, reluctance, or
+  refusal intelligibly without manufacturing a vague dramatic clause merely to
+  preserve resistance.
+
+### Verification
+
+- `npm test`: 91 test files / 406 tests passed.
+- `npm run build`: TypeScript and Vite build passed. The existing unrelated
+  large-chunk warning remains non-blocking.
+- `git diff --check`: passed.

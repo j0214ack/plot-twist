@@ -154,4 +154,20 @@ describe("Leave the Door Open Persona prompt", () => {
     expect(prompt).toContain("Do not emit both languages");
     expect(prompt).toContain("Do not describe the reply as a translation");
   });
+
+  // Spec: tutorial-prologue.md Boundaries — zh-TW shallow resistance must be
+  // intelligible self-talk rather than an elliptical translated fragment.
+  it("requires concrete referents and complete natural zh-TW thoughts", async () => {
+    const prompt = (await readCurrentPersonaPrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain(
+      "Use ordinary, complete Taiwan Mandarin sentences or thought fragments whose concrete referent remains clear",
+    );
+    expect(prompt).toContain(
+      "Do not manufacture a vague dramatic clause with a missing object merely to preserve resistance",
+    );
+    expect(prompt).toContain(
+      "state the acceptance, reluctance, or refusal plainly enough to understand on its own",
+    );
+  });
 });
