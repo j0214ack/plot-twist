@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "case_assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "case_id": { "type": "string" },
+          "natural_self_talk": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "self_proving": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "exposition": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "unsupported_authority": { "type": "boolean" },
+          "notes": { "type": "string" }
+        },
+        "required": ["case_id", "natural_self_talk", "self_proving", "exposition", "unsupported_authority", "notes"],
+        "additionalProperties": false
+      }
+    },
+    "hallway_ranking": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "selector_assessment": { "type": "string" },
+    "verdict": { "type": "string" },
+    "recommended_packet_policy": { "type": "string" }
+  },
+  "required": ["case_assessments", "hallway_ranking", "selector_assessment", "verdict", "recommended_packet_policy"],
+  "additionalProperties": false
+}

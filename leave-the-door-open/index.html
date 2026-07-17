@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#171712" />
+    <meta
+      name="description"
+      content="Leave the Door Open — a text-first narrative playtest."
+    />
+    <title>Leave the Door Open — Friend Playtest</title>
+  </head>
+  <body>
+    <main class="ldo-shell">
+      <header class="ldo-title">
+        <nav
+          id="ldo-locale-switch"
+          class="ldo-locale-switch"
+          aria-label="語言"
+          data-copy-aria-label="browser.localeLabel"
+        >
+          <a href="?locale=zh-TW" data-locale="zh-TW">中文</a>
+          <a href="?locale=en" data-locale="en">English</a>
+        </nav>
+        <p class="ldo-kicker" data-copy-key="browser.kicker">文字敘事試玩</p>
+        <h1>Leave the Door Open</h1>
+        <p class="ldo-subtitle" data-copy-key="browser.subtitle">一個停在日常縫隙裡的家</p>
+      </header>
+
+      <section class="ldo-access" id="ldo-access-panel" aria-labelledby="ldo-access-title" hidden>
+        <p class="ldo-section-label" data-copy-key="browser.accessLabel">私人試玩</p>
+        <h2 id="ldo-access-title" data-copy-key="browser.accessTitle">輸入朋友給你的 access code</h2>
+        <p data-copy-key="browser.accessDescription">代碼只會送回這個網站；模型憑證不會進入瀏覽器。</p>
+        <form id="ldo-access-form" hidden>
+          <label for="ldo-access-code" data-copy-key="browser.accessCodeLabel">Access code</label>
+          <div class="ldo-inline-form">
+            <input
+              id="ldo-access-code"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+            <button type="submit" data-copy-key="browser.enter">進入</button>
+          </div>
+          <p id="ldo-access-error" class="ldo-error" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="ldo-play" id="ldo-play-panel" hidden>
+        <pre id="ldo-screen" class="ldo-screen" tabindex="0" aria-live="polite"></pre>
+
+        <section class="ldo-possibility-panel" aria-labelledby="ldo-possibility-title">
+          <p id="ldo-possibility-title" class="ldo-section-label" data-copy-key="browser.possibilityLabel">可能的行動</p>
+          <div
+            id="ldo-possibilities"
+            class="ldo-possibilities"
+            data-empty-label="還沒有浮現可選的行動。你可以繼續談，或讓時間前進。"
+          ></div>
+        </section>
+
+        <form id="ldo-thought-form" class="ldo-thought-form">
+          <label for="ldo-thought" data-copy-key="browser.thoughtLabel">對你現在聽見的內在聲音說一句話</label>
+          <div class="ldo-inline-form">
+            <textarea
+              id="ldo-thought"
+              rows="3"
+              maxlength="500"
+              placeholder="不需要猜關鍵字。問一個問題，或提出一個他可能願意接受的角度。"
+              data-copy-placeholder="browser.thoughtPlaceholder"
+              required
+            ></textarea>
+            <button type="submit" data-play-control data-copy-key="browser.submit">送出</button>
+          </div>
+        </form>
+
+        <div id="ldo-focus-controls" class="ldo-focus-controls" aria-label="內在聲音控制" data-copy-aria-label="browser.focusControlsLabel" hidden>
+          <button type="button" data-play-control data-command="/focus martin" data-copy-key="browser.focusMartin">進入 Martin 的想法</button>
+          <button type="button" data-play-control data-command="/focus elise" data-copy-key="browser.focusElise">進入 Elise 的想法</button>
+        </div>
+        <div class="ldo-controls" aria-label="遊戲控制" data-copy-aria-label="browser.playControlsLabel">
+          <button type="button" data-play-control data-command="/resume" data-copy-key="browser.continue">讓時間繼續</button>
+          <button type="button" data-play-control data-command="/help" data-copy-key="browser.help">玩法說明</button>
+        </div>
+
+        <div class="ldo-status-row">
+          <p id="ldo-status" role="status" aria-live="polite"></p>
+          <p id="ldo-error" class="ldo-error" aria-live="assertive"></p>
+        </div>
+        <button id="ldo-new-game" class="ldo-new-game" type="button" data-copy-key="browser.newGame" hidden>重新開始</button>
+      </section>
+
+      <footer data-copy-key="browser.footer">
+        這是短期朋友試玩版。伺服器重啟或閒置太久時，這一局可能需要重新開始。
+      </footer>
+    </main>
+    <script type="module" src="/src/leave-door-open-main.ts"></script>
+  </body>
+</html>

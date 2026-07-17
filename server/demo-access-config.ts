@@ -25,7 +25,7 @@ export const resolvePreviewAllowedHosts = (
 
 export const resolveDemoAccessOptions = (
   environment: DemoAccessEnvironment,
-  context: { isPreview: boolean },
+  context: { isPreview: boolean; mode?: string },
 ): DemoAccessOptions => {
   const allowedOrigin =
     environment.ALLOWED_ORIGIN ||
@@ -45,7 +45,17 @@ export const resolveDemoAccessOptions = (
   return {
     allowedOrigin,
     sessionSecret,
-    accessCode: environment.DEMO_ACCESS_CODE || undefined,
+    playerIdentitySecret:
+      environment.LDO_PLAYER_IDENTITY_SECRET ||
+      (context.isPreview
+        ? sessionSecret
+        : "leave-door-open-local-player-identity-v1"),
+    accessCode:
+      !context.isPreview &&
+      (context.mode === "ldo-local-codex" ||
+        context.mode === "ldo-local-openai")
+        ? undefined
+        : environment.DEMO_ACCESS_CODE || undefined,
     secureCookies: context.isPreview || allowedOrigin.startsWith("https://"),
   };
 };

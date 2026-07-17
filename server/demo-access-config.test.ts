@@ -18,7 +18,7 @@ describe("resolveDemoAccessOptions", () => {
     ).toThrow("DEMO_SESSION_SECRET");
   });
 
-  // Spec: Decision 0005 PUB-4, PUB-6 and PUB-7.
+  // Spec: Decision 0005 PUB-4, PUB-6 and PUB-7; ADR 0036 LDO-SAVE-001.
   it("maps public deployment secrets without exposing them to Vite client env", () => {
     expect(
       resolveDemoAccessOptions(
@@ -32,19 +32,59 @@ describe("resolveDemoAccessOptions", () => {
     ).toEqual({
       allowedOrigin: "https://unwritten-spell.fly.dev",
       sessionSecret: "deployment-session-secret",
+      playerIdentitySecret: "deployment-session-secret",
       accessCode: "shared-quill-code",
       secureCookies: true,
     });
   });
 
-  // Spec: Decision 0005 PUB-5; local development needs no secret setup or access prompt.
+  // Spec: Decision 0005 PUB-5; ADR 0036 LDO-SAVE-001. Local development
+  // needs no secret setup, but its player identity must survive a Vite restart.
   it("uses a localhost-only anonymous session in the development server", () => {
     const resolved = resolveDemoAccessOptions({}, { isPreview: false });
+    const afterRestart = resolveDemoAccessOptions({}, { isPreview: false });
 
     expect(resolved.allowedOrigin).toBe("http://127.0.0.1:5173");
     expect(resolved.sessionSecret).toBeTruthy();
     expect(resolved.accessCode).toBeUndefined();
     expect(resolved.secureCookies).toBe(false);
+    expect(resolved.playerIdentitySecret).toBe(
+      afterRestart.playerIdentitySecret,
+    );
+    expect(resolved.playerIdentitySecret).toBe(
+      "leave-door-open-local-player-identity-v1",
+    );
+  });
+
+  // Spec: ADR 0019 Decision 7; ADR 0035 LDO-LAT-010.
+  it("forces anonymous access for both explicit LDO local browser modes", () => {
+    const environment = { DEMO_ACCESS_CODE: "production-demo-code" };
+
+    expect(
+      resolveDemoAccessOptions(environment, {
+        isPreview: false,
+        mode: "ldo-local-codex",
+      }).accessCode,
+    ).toBeUndefined();
+    expect(
+      resolveDemoAccessOptions(environment, {
+        isPreview: false,
+        mode: "ldo-local-openai",
+      }).accessCode,
+    ).toBeUndefined();
+    expect(
+      resolveDemoAccessOptions(environment, { isPreview: false }).accessCode,
+    ).toBe("production-demo-code");
+    expect(
+      resolveDemoAccessOptions(
+        {
+          ...environment,
+          ALLOWED_ORIGIN: "https://unwritten-spell.fly.dev",
+          DEMO_SESSION_SECRET: "deployment-session-secret",
+        },
+        { isPreview: true, mode: "ldo-local-codex" },
+      ).accessCode,
+    ).toBe("production-demo-code");
   });
 
   // Spec: Decision 0005 defines ALLOWED_ORIGIN as an origin, not a URL-prefix allowlist.

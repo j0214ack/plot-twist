@@ -1,0 +1,169 @@
+:root {
+  color: #302f29;
+  background: #171712;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  padding: clamp(18px, 4vw, 52px) 16px;
+  background:
+    radial-gradient(circle at 48% 0%, rgba(230, 220, 177, 0.08), transparent 35rem),
+    #171712;
+}
+
+button,
+input,
+textarea { font: inherit; }
+
+button {
+  min-height: 42px;
+  border: 1px solid #777263;
+  border-radius: 3px;
+  color: #343129;
+  background: #f2ecdc;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) { background: #fff9e9; }
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+.ldo-screen:focus-visible { outline: 3px solid #a46942; outline-offset: 2px; }
+button:disabled { cursor: wait; opacity: 0.5; }
+
+.ldo-shell {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 58px);
+  border: 1px solid rgba(232, 223, 191, 0.2);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.35);
+  background: #e9e1ce;
+}
+
+.ldo-title { margin-bottom: 34px; }
+.ldo-locale-switch {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: 12px;
+}
+.ldo-locale-switch a { color: #655f52; text-underline-offset: 3px; }
+.ldo-locale-switch a[aria-current="page"] {
+  color: #27251f;
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+}
+.ldo-title h1 {
+  margin: 0;
+  color: #22211c;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(34px, 8vw, 68px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+.ldo-kicker,
+.ldo-section-label {
+  margin: 0 0 9px;
+  color: #746e5f;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+.ldo-subtitle { margin: 12px 0 0; color: #77705f; letter-spacing: 0.26em; }
+.ldo-access,
+.ldo-play { border-top: 1px solid #aaa28f; padding-top: 24px; }
+.ldo-access h2 { margin: 0 0 8px; font-family: Georgia, serif; font-weight: 400; }
+.ldo-access > p:not(.ldo-section-label) { color: #625e53; }
+
+.ldo-inline-form {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.ldo-inline-form input,
+.ldo-inline-form textarea {
+  width: 100%;
+  border: 1px solid #8f8878;
+  border-radius: 3px;
+  padding: 12px 13px;
+  color: #27251f;
+  background: rgba(255, 253, 245, 0.72);
+  resize: vertical;
+}
+
+.ldo-inline-form button { flex: 0 0 auto; padding: 0 20px; }
+label { display: block; margin: 0 0 8px; color: #554f44; font-size: 13px; }
+
+.ldo-controls,
+.ldo-focus-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ldo-focus-controls { margin-top: 18px; }
+
+.ldo-controls button,
+.ldo-focus-controls button { padding: 8px; font-size: 13px; }
+.ldo-screen {
+  min-height: 420px;
+  max-height: 62vh;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid #99917e;
+  padding: clamp(16px, 3vw, 28px);
+  color: #292821;
+  background: rgba(250, 247, 235, 0.66);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: clamp(12px, 1.8vw, 14px);
+  line-height: 1.68;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ldo-possibility-panel { margin: 20px 0; }
+.ldo-possibilities { display: grid; gap: 8px; }
+.ldo-possibilities:empty::after {
+  color: #777061;
+  content: attr(data-empty-label);
+  font-size: 13px;
+}
+.ldo-possibilities button { padding: 10px 13px; text-align: left; }
+.ldo-thought-form { margin-top: 22px; }
+.ldo-status-row { min-height: 42px; margin-top: 10px; }
+.ldo-status-row p { margin: 4px 0; font-size: 13px; }
+.ldo-error { min-height: 1.2em; color: #8f2f27; }
+.ldo-new-game { padding: 0 18px; }
+
+footer {
+  margin-top: 32px;
+  border-top: 1px solid #aaa28f;
+  padding-top: 14px;
+  color: #777061;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+[hidden] { display: none !important; }
+
+@media (max-width: 720px) {
+  body { padding: 0; }
+  .ldo-shell { min-height: 100vh; border: 0; padding: 24px 15px 34px; }
+  .ldo-controls,
+  .ldo-focus-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ldo-screen { min-height: 380px; max-height: 56vh; }
+  .ldo-inline-form { flex-direction: column; }
+  .ldo-inline-form button { min-height: 46px; }
+}
