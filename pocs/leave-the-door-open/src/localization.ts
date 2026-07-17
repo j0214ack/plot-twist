@@ -296,7 +296,7 @@ const englishPlayerCopy = {
   "browser.ended": "This playtest segment has ended.",
   "browser.newGame": "Start over",
   "browser.footer":
-    "This is a short-term friend playtest. If the server restarts or the session is idle too long, you may need to start over.",
+    "Progress is saved for this browser and language. Clearing site data or using another browser starts a separate game.",
   "browser.checking": "Checking…",
   "browser.emptyPossibilities":
     "No possible action has appeared yet. You can keep talking, or let time continue.",
@@ -584,7 +584,7 @@ const traditionalChinesePlayerCopy: Record<PlayerCopyKey, string> = {
   "browser.ended": "這一段試玩已結束。",
   "browser.newGame": "重新開始",
   "browser.footer":
-    "這是短期朋友試玩版。伺服器重啟或閒置太久時，這一局可能需要重新開始。",
+    "進度會依這個瀏覽器與語言保存。清除網站資料或改用其他瀏覽器，會開始另一局。",
   "browser.checking": "正在確認……",
   "browser.emptyPossibilities":
     "還沒有浮現可選的行動。你可以繼續談，或讓時間前進。",

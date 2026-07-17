@@ -1782,3 +1782,67 @@ TurnResult projector and generated complete PresentationNodeCatalog before a
 - `npm run build`: TypeScript and Vite build passed. The existing unrelated
   large-chunk warning remains non-blocking.
 - `git diff --check`: passed.
+
+## 2026-07-17 — Persist browser-scoped play and durable observer evidence
+
+### Diagnosis and decision
+
+- A local fast-forward printed complete cumulative Controller snapshots on
+  every tick. One ordinary continuation produced hundreds of terminal lines,
+  burying the Persona/Judge boundary that the observer actually needed.
+- Browser progress existed only in the Vite/Fly process. Refresh created a new
+  game, and a restart, deployment, scale-to-zero, or inactive-session eviction
+  discarded the runtime handle.
+- ADR 0036 supersedes the ephemeral-save part of ADR 0018: one browser profile
+  now owns one server checkpoint per immutable locale through a long-lived
+  signed HttpOnly identity cookie. The shared access code remains separate
+  authorization and is not a player or recovery identifier.
+
+### TDD: checkpoint authority and restore
+
+- Red tests first required deterministic World restore, including event history
+  and seeded ambient-choice state; Controller restore, including MindState,
+  conversations, accepted variants, cached Action willingness, and Firewall
+  presentation state; and terminal restore without replaying the opening.
+- A Web checkpoint now versions and combines those three authorities with the
+  latest safe screen. Checkpointing fails closed while Persona/Judge resolution
+  or time advancement is in progress, so persistence retains the previous
+  complete operation instead of committing half a transition.
+- File-store tests required per-player/per-locale isolation, atomic temporary
+  write plus rename, exact append-only JSONL, and corruption/version rejection.
+  Session-service tests then simulated a new server instance and proved that
+  the same player restored the saved screen while another player could neither
+  read nor mutate that opaque runtime session.
+
+### TDD: browser identity, resume, reset, and stale handles
+
+- Successful demo access now issues or preserves a separate `ldo_player` /
+  `__Host-ldo_player` cookie. Every LDO input, dialogue continuation, and time
+  tick verifies that identity against the in-memory session owner.
+- Normal page start resumes; only the New Game control sends `reset: true`.
+  A stale runtime ID now transparently reacquires the durable save rather than
+  telling the player their progress was lost. The client also settles any
+  already-pending dialogue or time continuation returned on page start.
+- Local identity signing is stable across Vite restarts without requiring a
+  developer secret. Public preview reuses the deployment secret unless an
+  explicit `LDO_PLAYER_IDENTITY_SECRET` is supplied.
+
+### Evidence and deployment composition
+
+- Vite now writes checkpoints and per-runtime-session journals under
+  `pocs/leave-the-door-open/playtest-data/web/` locally or `LDO_DATA_DIR` in
+  deployment. The local directory is ignored by Git.
+- Console output is one compact event summary. Full screens, inputs, model
+  requests/results, latency, usage, and safe failures remain in JSONL.
+- Automatic tick records contain bounded state plus new event/performance
+  slices instead of cumulative history, and identical rendered screens are not
+  journaled twice.
+- Fly configuration declares one `ldo_data` Volume at `/data`, preserving the
+  intentionally single-machine PoC topology.
+
+### Verification
+
+- `npm test`: 91 test files / 405 tests passed.
+- `npm run build`: TypeScript and Vite build passed. The existing unrelated
+  large-chunk warning remains non-blocking.
+- `git diff --check`: passed.

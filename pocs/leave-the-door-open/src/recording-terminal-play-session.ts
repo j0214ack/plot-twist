@@ -14,15 +14,20 @@ import type {
 export const createRecordingTerminalOutput = (
   recorder: PlaytestSessionRecorder,
   output: TerminalOutput,
-): TerminalOutput =>
-  (screen) => {
-    recorder.record({
-      visibility: "player",
-      type: "screen_rendered",
-      data: { screen },
-    });
+): TerminalOutput => {
+  let lastRecordedScreen: string | null = null;
+  return (screen) => {
+    if (screen !== lastRecordedScreen) {
+      recorder.record({
+        visibility: "player",
+        type: "screen_rendered",
+        data: { screen },
+      });
+      lastRecordedScreen = screen;
+    }
     output(screen);
   };
+};
 
 export const createRecordingTerminalErrorObserver = (
   recorder: PlaytestSessionRecorder,
@@ -143,13 +148,43 @@ export class RecordingTerminalPlaySession {
   }
 
   async advanceTurn(): Promise<TerminalAdvanceResult> {
+    const before = this.controller.snapshot();
     const result = await this.delegate.advanceTurn();
+    const after = this.controller.snapshot();
     this.recorder.record({
       visibility: "observer",
       type: "time_advance_tick_handled",
       data: {
         result,
-        controllerSnapshot: this.controller.snapshot(),
+        stateDelta: {
+          fromTime: before.world.time,
+          toTime: after.world.time,
+          world: {
+            weekdayId: after.world.weekdayId,
+            chapter: after.world.chapter,
+            chapterDay: after.world.chapterDay,
+            paused: after.world.paused,
+            npcs: after.world.npcs,
+            worldFacts: after.world.worldFacts,
+            intentions: after.world.intentions,
+            completedActions: after.world.completedActions,
+            actionProgress: after.world.actionProgress,
+            evidence: after.world.evidence,
+          },
+          interaction: {
+            mode: after.interaction.mode,
+            selectedNpcId: after.interaction.selectedNpcId,
+            availableActionOptionIds:
+              after.interaction.availableActionOptionIds,
+            conversationStatus: after.interaction.conversationStatus,
+            errorMessage: after.interaction.errorMessage,
+            actionFeedback: after.interaction.actionFeedback,
+          },
+          newEvents: after.events.slice(before.events.length),
+          newPerformances: after.performances.slice(
+            before.performances.length,
+          ),
+        },
       },
     });
     return result;

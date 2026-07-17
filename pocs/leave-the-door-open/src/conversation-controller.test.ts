@@ -46,6 +46,77 @@ const noMindStateTransitions = async () => ({
 });
 
 describe("conversational Controller request state", () => {
+  // Spec: ADR 0036 LDO-SAVE-003, LDO-SAVE-004, and LDO-SAVE-009.
+  it("restores quiescent conversational state with the same surfaced Action and cached willingness", async () => {
+    const ports: ConversationPorts = {
+      inputFirewall: {
+        async classify() {
+          return { disposition: "pass" as const };
+        },
+      },
+      persona: {
+        async takeTurn() {
+          return {
+            reply: "I could set the clock right and let that be all.",
+            shouldEndConversation: false,
+          };
+        },
+      },
+      actionJudge: {
+        async judgePostPersona(request) {
+          return {
+            transitions: [],
+            unmodeledShiftNote: null,
+            judgments: request.actions.map(({ actionId }) => ({
+              actionId,
+              awareness: "surfaced" as const,
+              willingness: {
+                actionId,
+                decision: "accept" as const,
+                selectedVariantId: "accepted_clock_interaction",
+              },
+            })),
+          };
+        },
+        judgeMindStateTransition: noMindStateTransitions,
+        async judgeAwareness() {
+          throw new Error("Legacy awareness must not run");
+        },
+        async judgeWillingness() {
+          throw new Error("Cached willingness must survive restore");
+        },
+      },
+    };
+    const original = createConversationalVerticalSliceGameController(ports, {
+      locale: "zh-TW",
+    });
+    original.advanceTo(7 * 60 + 57);
+    original.dispatch({ type: "pause_world" });
+    original.dispatch({ type: "select_npc", npcId: "husband" });
+    await original.dispatch({
+      type: "submit_dialogue",
+      text: "就只把鐘調準，可以嗎？",
+    });
+
+    const checkpoint = original.checkpoint();
+    const restored = createConversationalVerticalSliceGameController(ports, {
+      locale: "zh-TW",
+      checkpoint,
+    });
+
+    expect(checkpoint.schemaVersion).toBe(1);
+    expect(restored.snapshot()).toEqual(original.snapshot());
+
+    await restored.dispatch({
+      type: "select_action_option",
+      optionId: "spend-time-with-clock",
+    });
+
+    expect(restored.snapshot().world.intentions).toEqual([
+      { actorId: "husband", actionId: "interact_with_living_room_clock" },
+    ]);
+  });
+
   // Spec: ADR 0035 LDO-LAT-003 through LDO-LAT-007.
   it("uses one post-Persona Judge call and reuses its cached willingness when the surfaced Action is selected", async () => {
     const callOrder: string[] = [];

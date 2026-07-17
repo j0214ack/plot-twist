@@ -12,7 +12,10 @@ export type LeaveDoorOpenClientResult = {
 };
 
 export interface LeaveDoorOpenTransport {
-  startSession(locale: GameLocale): Promise<LeaveDoorOpenClientResult>;
+  startSession(
+    locale: GameLocale,
+    reset?: boolean,
+  ): Promise<LeaveDoorOpenClientResult>;
   submitInput(
     sessionId: string,
     input: string,
@@ -39,8 +42,14 @@ export class LeaveDoorOpenTransportError extends Error {
 export class HttpLeaveDoorOpenTransport implements LeaveDoorOpenTransport {
   constructor(private readonly fetcher: Fetcher = fetch) {}
 
-  startSession(locale: GameLocale): Promise<LeaveDoorOpenClientResult> {
-    return this.#post("/api/leave-the-door-open/sessions", { locale });
+  startSession(
+    locale: GameLocale,
+    reset = false,
+  ): Promise<LeaveDoorOpenClientResult> {
+    return this.#post("/api/leave-the-door-open/sessions", {
+      locale,
+      ...(reset ? { reset: true } : {}),
+    });
   }
 
   submitInput(
@@ -139,6 +148,7 @@ export interface LeaveDoorOpenBrowserView {
   showPlayerInput(input: string): void;
   showError(message: string): void;
   setEnded(ended: boolean): void;
+  resetSession?(): void;
 }
 
 export type ScreenPossibility = { number: number; label: string };
@@ -225,21 +235,32 @@ export class LeaveDoorOpenBrowserController {
   ) {}
 
   async start(): Promise<void> {
+    await this.#start(false);
+  }
+
+  async restart(): Promise<void> {
+    await this.#start(true);
+  }
+
+  async #start(reset: boolean): Promise<void> {
     if (this.#busy) return;
     this.#sessionId = null;
     this.#latestScreen = null;
+    if (reset) this.view.resetSession?.();
     await this.#run("starting", async () => {
-      const result = await this.transport.startSession(
-        this.options.locale ?? "zh-TW",
-      );
+      const locale = this.options.locale ?? "zh-TW";
+      const result = reset
+        ? await this.transport.startSession(locale, true)
+        : await this.transport.startSession(locale);
       this.#sessionId = result.sessionId;
-      await this.#present(result);
+      await this.#settle(result);
     });
   }
 
   async submit(input: string): Promise<void> {
     if (this.#busy || this.#sessionId === null) return;
     const sessionId = this.#sessionId;
+    let resumeAfterExpiredHandle = false;
     if (isConversationalInput(input)) {
       this.view.showPlayerInput(input);
     }
@@ -247,17 +268,9 @@ export class LeaveDoorOpenBrowserController {
     await this.#run(
       operation,
       async () => {
-        let result = await this.transport.submitInput(sessionId, input);
-        let presented = await this.#present(result);
-        while (result.dialogueResolutionPending && !result.ended) {
-          result = await this.transport.resolveDialogue(sessionId);
-          presented = await this.#present(result);
-        }
-        while (result.advancePending && !result.ended) {
-          if (presented) await this.options.waitBetweenTurns();
-          result = await this.transport.advanceTurn(sessionId);
-          presented = await this.#present(result);
-        }
+        const result = await this.#settle(
+          await this.transport.submitInput(sessionId, input),
+        );
         if (result.ended) this.#sessionId = null;
       },
       (error) => {
@@ -266,10 +279,30 @@ export class LeaveDoorOpenBrowserController {
           error.status === 404
         ) {
           this.#sessionId = null;
-          this.view.setEnded(true);
+          resumeAfterExpiredHandle = true;
+          return true;
         }
+        return false;
       },
     );
+    if (resumeAfterExpiredHandle) await this.start();
+  }
+
+  async #settle(
+    initial: LeaveDoorOpenClientResult,
+  ): Promise<LeaveDoorOpenClientResult> {
+    let result = initial;
+    let presented = await this.#present(result);
+    while (result.dialogueResolutionPending && !result.ended) {
+      result = await this.transport.resolveDialogue(result.sessionId);
+      presented = await this.#present(result);
+    }
+    while (result.advancePending && !result.ended) {
+      if (presented) await this.options.waitBetweenTurns();
+      result = await this.transport.advanceTurn(result.sessionId);
+      presented = await this.#present(result);
+    }
+    return result;
   }
 
   async #present(result: LeaveDoorOpenClientResult): Promise<boolean> {
@@ -283,27 +316,28 @@ export class LeaveDoorOpenBrowserController {
   async #run(
     operation: LeaveDoorOpenBusyOperation,
     task: () => Promise<void>,
-    onError?: (error: unknown) => void,
+    onError?: (error: unknown) => boolean,
   ): Promise<void> {
     this.#busy = true;
     this.view.setBusy(true, operation);
     try {
       await task();
     } catch (error) {
-      onError?.(error);
-      this.view.showError(
-        error instanceof LeaveDoorOpenTransportError && error.status === 404
-          ? localize(
-              this.options.locale ?? "zh-TW",
-              "browser.sessionExpired",
-            )
-          : error instanceof Error
-          ? error.message
-          : localize(
-              this.options.locale ?? "zh-TW",
-              "browser.serviceUnavailable",
-            ),
-      );
+      if (!(onError?.(error) ?? false)) {
+        this.view.showError(
+          error instanceof LeaveDoorOpenTransportError && error.status === 404
+            ? localize(
+                this.options.locale ?? "zh-TW",
+                "browser.sessionExpired",
+              )
+            : error instanceof Error
+            ? error.message
+            : localize(
+                this.options.locale ?? "zh-TW",
+                "browser.serviceUnavailable",
+              ),
+        );
+      }
     } finally {
       this.#busy = false;
       this.view.setBusy(false, operation);

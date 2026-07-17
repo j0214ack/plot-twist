@@ -25,6 +25,10 @@ import {
   resolveLeaveDoorOpenWebOptions,
 } from "./server/leave-door-open-config";
 import { createLeaveDoorOpenWebSessionFactory } from "./server/leave-door-open-runtime";
+import {
+  FileLeaveDoorOpenPersistence,
+  formatLeaveDoorOpenConsoleSummary,
+} from "./server/leave-door-open-persistence";
 import { leaveDoorOpenPageRoutePlugin } from "./server/leave-door-open-page-route";
 import { OpenAiStructuredRoleModel } from "./pocs/leave-the-door-open/src/live-openai-model";
 import {
@@ -102,6 +106,9 @@ export default defineConfig(({ command, isPreview, mode }) => {
     process.cwd(),
     "pocs/leave-the-door-open/validation/prompts",
   );
+  const leaveDoorOpenPersistence = new FileLeaveDoorOpenPersistence(
+    resolve(process.cwd(), leaveDoorOpenOptions.dataDirectory),
+  );
   const leaveDoorOpenSessions = new LeaveDoorOpenSessionService(
     createLeaveDoorOpenWebSessionFactory({
       model: leaveDoorOpenModel,
@@ -144,7 +151,12 @@ export default defineConfig(({ command, isPreview, mode }) => {
         ),
       },
       generatedPerformance: leaveDoorOpenOptions.generatedPerformance,
+      appendLogLine: (sessionId, line) => {
+        leaveDoorOpenPersistence.appendJournalLine(sessionId, line);
+        console.info(formatLeaveDoorOpenConsoleSummary(line));
+      },
     }),
+    { persistence: leaveDoorOpenPersistence },
   );
 
   return {

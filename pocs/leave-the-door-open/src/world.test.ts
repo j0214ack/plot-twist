@@ -3,7 +3,10 @@ import {
   createVerticalSliceWorld,
   type NarrativeActionId,
 } from "./world";
-import type { AmbientRoutineChoicePort } from "./ambient-routines";
+import {
+  SeededAmbientRoutineChoice,
+  type AmbientRoutineChoicePort,
+} from "./ambient-routines";
 
 const DAY = 24 * 60;
 
@@ -35,6 +38,34 @@ function executeChapterDoorAction(
 }
 
 describe("VerticalSliceWorld", () => {
+  // Spec: ADR 0036 LDO-SAVE-003 and LDO-SAVE-009.
+  it("restores an exact World checkpoint and continues the same random routine trajectory", () => {
+    const original = createVerticalSliceWorld({
+      ambientChoice: new SeededAmbientRoutineChoice(42),
+    });
+    completeClockTutorial(original);
+    original.advanceTo(DAY + 8 * 60 + 20);
+
+    const checkpoint = original.checkpoint();
+    const restored = createVerticalSliceWorld({ checkpoint });
+
+    expect(checkpoint.schemaVersion).toBe(1);
+    expect(restored.snapshot()).toEqual(original.snapshot());
+    expect(restored.events()).toEqual(original.events());
+
+    original.advanceTo(2 * DAY + 7 * 60 + 55);
+    restored.advanceTo(2 * DAY + 7 * 60 + 55);
+
+    expect(restored.snapshot()).toEqual(original.snapshot());
+    expect(restored.events()).toEqual(original.events());
+    expect(restored.events()).toContainEqual(
+      expect.objectContaining({
+        type: "ambient_routine_selected",
+        slotId: "chapter1_day2_morning_ambient",
+      }),
+    );
+  });
+
   // Spec: chapter-1.md LDO-CH1-017 and ADR 0032 LDO-SOCIAL-001/009.
   it("offers Martin one bounded relationship attempt during the early Chapter 1 window", () => {
     const world = createVerticalSliceWorld();

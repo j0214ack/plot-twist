@@ -35,6 +35,12 @@ type TimeAdvancePlan = {
     | { kind: "end"; guide: string };
 };
 
+export type TerminalPlaySessionCheckpoint = {
+  schemaVersion: 1;
+  started: boolean;
+  ended: boolean;
+};
+
 export class TerminalPlaySession {
   #started = false;
   #ended = false;
@@ -44,7 +50,32 @@ export class TerminalPlaySession {
     private readonly controller: VerticalSliceGameController,
     private readonly output: TerminalOutput,
     private readonly observeError: (error: unknown) => void = () => {},
-  ) {}
+    checkpoint?: TerminalPlaySessionCheckpoint,
+  ) {
+    if (checkpoint !== undefined) {
+      if (
+        checkpoint.schemaVersion !== 1 ||
+        typeof checkpoint.started !== "boolean" ||
+        typeof checkpoint.ended !== "boolean" ||
+        (checkpoint.ended && !checkpoint.started)
+      ) {
+        throw new Error("Invalid Terminal play checkpoint");
+      }
+      this.#started = checkpoint.started;
+      this.#ended = checkpoint.ended;
+    }
+  }
+
+  checkpoint(): TerminalPlaySessionCheckpoint {
+    if (this.#timeAdvancePlan !== null) {
+      throw new Error("Terminal play cannot checkpoint during time advance");
+    }
+    return {
+      schemaVersion: 1,
+      started: this.#started,
+      ended: this.#ended,
+    };
+  }
 
   async start(): Promise<void> {
     if (this.#started) {

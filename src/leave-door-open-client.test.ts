@@ -12,6 +12,44 @@ import {
 } from "./leave-door-open-client";
 
 describe("Leave the Door Open browser adapter", () => {
+  // Spec: ADR 0036 LDO-SAVE-005.
+  it("resumes on page start but sends an explicit reset for New Game", async () => {
+    const transport: LeaveDoorOpenTransport = {
+      startSession: vi.fn(async (_locale, reset) => ({
+        sessionId: reset ? "fresh-session" : "saved-session",
+        ended: false,
+        advancePending: false,
+        dialogueResolutionPending: false,
+        screen: reset ? "fresh opening" : "saved screen",
+      })),
+      async submitInput() {
+        throw new Error("Not exercised");
+      },
+      async resolveDialogue() {
+        throw new Error("Not exercised");
+      },
+      async advanceTurn() {
+        throw new Error("Not exercised");
+      },
+    };
+    const view: LeaveDoorOpenBrowserView = {
+      setBusy: vi.fn(),
+      showScreen: vi.fn(),
+      showPlayerInput: vi.fn(),
+      showError: vi.fn(),
+      setEnded: vi.fn(),
+    };
+    const controller = new LeaveDoorOpenBrowserController(transport, view);
+
+    await controller.start();
+    await controller.restart();
+
+    expect(transport.startSession).toHaveBeenNthCalledWith(1, "zh-TW");
+    expect(transport.startSession).toHaveBeenNthCalledWith(2, "zh-TW", true);
+    expect(view.showScreen).toHaveBeenNthCalledWith(1, "saved screen");
+    expect(view.showScreen).toHaveBeenNthCalledWith(2, "fresh opening");
+  });
+
   // Spec: ADR 0029 LDO-WEB-016.
   it("distinguishes neutral time loading from Persona thinking", () => {
     expect(busyStatusText(true, "time", "zh-TW")).toBe("時間正在前進……");
@@ -424,6 +462,18 @@ Time moved to a new routine moment.`),
             ended: false,
             advancePending: false,
             dialogueResolutionPending: false,
+            screen: "fresh opening",
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sessionId: "server-session-b",
+            ended: false,
+            advancePending: false,
+            dialogueResolutionPending: false,
             screen: "help",
           }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -432,6 +482,7 @@ Time moved to a new routine moment.`),
     const transport = new HttpLeaveDoorOpenTransport(fetcher);
 
     await transport.startSession("zh-TW");
+    await transport.startSession("zh-TW", true);
     await transport.submitInput("server-session-b", "/help");
 
     expect(fetcher).toHaveBeenNthCalledWith(
@@ -446,6 +497,16 @@ Time moved to a new routine moment.`),
     );
     expect(fetcher).toHaveBeenNthCalledWith(
       2,
+      "/api/leave-the-door-open/sessions",
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ locale: "zh-TW", reset: true }),
+      },
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      3,
       "/api/leave-the-door-open/sessions/server-session-b/input",
       {
         method: "POST",
@@ -508,17 +569,18 @@ Continue talking or choose a Possibility.
     ).toBe(true);
   });
 
-  // Spec: ADR 0018 LDO-WEB-005; ADR 0033 LDO-LOC-003. Expiry is
-  // recoverable through a locale-authored visible new-game state.
-  it("ends the local browser handle when the ephemeral server session has expired", async () => {
+  // Spec: ADR 0036 LDO-SAVE-005; an evicted runtime handle is not a lost save.
+  it("automatically resumes the durable save when an old runtime session has expired", async () => {
+    let starts = 0;
     const transport: LeaveDoorOpenTransport = {
       async startSession() {
+        starts += 1;
         return {
-          sessionId: "expired-a",
+          sessionId: starts === 1 ? "expired-a" : "restored-b",
           ended: false,
           advancePending: false,
           dialogueResolutionPending: false,
-          screen: "opening",
+          screen: starts === 1 ? "saved before restart" : "restored after restart",
         };
       },
       async submitInput() {
@@ -543,9 +605,11 @@ Continue talking or choose a Possibility.
 
     await controller.submit("/help");
 
-    expect(view.showError).toHaveBeenCalledWith(
-      "這個試玩連線已經失效，請重新開始。",
+    expect(starts).toBe(2);
+    expect(view.showScreen).toHaveBeenLastCalledWith(
+      "restored after restart",
     );
-    expect(view.setEnded).toHaveBeenLastCalledWith(true);
+    expect(view.showError).not.toHaveBeenCalled();
+    expect(view.setEnded).toHaveBeenLastCalledWith(false);
   });
 });

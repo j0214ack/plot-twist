@@ -16,7 +16,8 @@ describe("Leave the Door Open web runtime configuration", () => {
     });
   });
 
-  // Spec: ADR 0018 LDO-WEB-004; ADR 0019 Decisions 3 and 5.
+  // Spec: ADR 0018 LDO-WEB-004; ADR 0019 Decisions 3 and 5;
+  // ADR 0036 LDO-SAVE-007.
   it("keeps the local play model conventions while allowing explicit server overrides", () => {
     expect(resolveLeaveDoorOpenWebOptions({})).toEqual({
       modelBackend: "openai",
@@ -24,6 +25,7 @@ describe("Leave the Door Open web runtime configuration", () => {
       reasoningEffort: "medium",
       inputFirewallReasoningEffort: "low",
       generatedPerformance: true,
+      dataDirectory: "pocs/leave-the-door-open/playtest-data/web",
     });
     expect(
       resolveLeaveDoorOpenWebOptions({
@@ -31,6 +33,7 @@ describe("Leave the Door Open web runtime configuration", () => {
         LDO_PLAY_MODEL: "gpt-5.6",
         LDO_PLAY_EFFORT: "medium",
         LDO_PLAY_DISABLE_GENERATED_PERFORMANCE: "1",
+        LDO_DATA_DIR: "/data/leave-the-door-open",
       }),
     ).toEqual({
       modelBackend: "codex",
@@ -38,6 +41,7 @@ describe("Leave the Door Open web runtime configuration", () => {
       reasoningEffort: "medium",
       inputFirewallReasoningEffort: "low",
       generatedPerformance: false,
+      dataDirectory: "/data/leave-the-door-open",
     });
     expect(() =>
       resolveLeaveDoorOpenWebOptions({ LDO_PLAY_EFFORT: "high" }),

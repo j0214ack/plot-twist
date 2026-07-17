@@ -74,11 +74,68 @@ const unlock = async (config = options()): Promise<string> => {
   );
   expect(res.statusCode).toBe(200);
   const cookie = res.headers.get("set-cookie");
-  expect(typeof cookie).toBe("string");
-  return String(cookie).split(";", 1)[0]!;
+  expect(Array.isArray(cookie)).toBe(true);
+  return (cookie as string[])
+    .map((value) => value.split(";", 1)[0]!)
+    .join("; ");
 };
 
 describe("public demo access middleware", () => {
+  // Spec: ADR 0036 LDO-SAVE-001 and LDO-SAVE-006.
+  it("issues and preserves a separate signed browser player identity for LDO ownership", async () => {
+    const middleware = createDemoAccessMiddleware(options());
+    const firstRequest = request({
+      url: "/api/demo-session",
+      body: { accessCode: "quill-constellation" },
+    });
+    const first = await run(middleware, firstRequest);
+    const firstSetCookies = first.res.headers.get("set-cookie");
+
+    expect(Array.isArray(firstSetCookies)).toBe(true);
+    const issuedCookies = firstSetCookies as string[];
+    const demoCookie = issuedCookies
+      .find((cookie) => cookie.startsWith("__Host-demo_session="))!
+      .split(";", 1)[0]!;
+    const playerCookie = issuedCookies
+      .find((cookie) => cookie.startsWith("__Host-ldo_player="))!
+      .split(";", 1)[0]!;
+
+    const second = await run(
+      middleware,
+      request({
+        url: "/api/demo-session",
+        body: { accessCode: "quill-constellation" },
+        headers: { cookie: playerCookie },
+      }),
+    );
+    const secondPlayerCookie = (second.res.headers.get("set-cookie") as string[])
+      .find((cookie) => cookie.startsWith("__Host-ldo_player="))!
+      .split(";", 1)[0]!;
+
+    expect(secondPlayerCookie).toBe(playerCookie);
+
+    const ownedRequest = request({
+      url: "/api/leave-the-door-open/sessions",
+      headers: { cookie: `${demoCookie}; ${playerCookie}` },
+    });
+    const owned = await run(middleware, ownedRequest);
+
+    expect(owned.next).toHaveBeenCalledOnce();
+    expect((ownedRequest as DemoRequest & { playerId?: string }).playerId).toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
+
+    const identityMissing = await run(
+      middleware,
+      request({
+        url: "/api/leave-the-door-open/sessions",
+        headers: { cookie: demoCookie },
+      }),
+    );
+    expect(identityMissing.next).not.toHaveBeenCalled();
+    expect(identityMissing.res.statusCode).toBe(401);
+  });
+
   // Spec: Decision 0005 PUB-1 and PUB-10; the same guard precedes model APIs in dev and preview.
   it("installs the access boundary in both Vite server modes", () => {
     const plugin = demoAccessPlugin(options());
@@ -107,11 +164,14 @@ describe("public demo access middleware", () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ mode: "access-code" });
-    expect(res.headers.get("set-cookie")).toEqual(
+    expect(res.headers.get("set-cookie")).toEqual([
       expect.stringMatching(
         /^__Host-demo_session=[^;]+; Path=\/; Max-Age=1800; HttpOnly; Secure; SameSite=Strict$/,
       ),
-    );
+      expect.stringMatching(
+        /^__Host-ldo_player=[^;]+; Path=\/; Max-Age=31536000; HttpOnly; Secure; SameSite=Strict$/,
+      ),
+    ]);
   });
 
   // Spec: Decision 0005 PUB-4 and PUB-9.
@@ -138,7 +198,9 @@ describe("public demo access middleware", () => {
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ mode: "anonymous" });
-    expect(res.headers.get("set-cookie")).toEqual(expect.stringContaining("demo_session="));
+    expect(res.headers.get("set-cookie")).toEqual(
+      expect.arrayContaining([expect.stringContaining("demo_session=")]),
+    );
   });
 
   // Spec: Decision 0005 PUB-1, PUB-2, PUB-3 and PUB-9.
@@ -191,7 +253,8 @@ describe("public demo access middleware", () => {
   // Spec: Decision 0005 PUB-6; session integrity and expiry are server-owned.
   it("rejects tampered and expired sessions before protected handlers", async () => {
     const validCookie = await unlock();
-    const tamperedCookie = `${validCookie}x`;
+    const [validDemoCookie, ...otherCookies] = validCookie.split("; ");
+    const tamperedCookie = [`${validDemoCookie}x`, ...otherCookies].join("; ");
     const expiredMiddleware = createDemoAccessMiddleware(
       options({ now: () => now + 31 * 60 * 1000 }),
     );

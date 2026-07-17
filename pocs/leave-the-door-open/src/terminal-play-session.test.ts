@@ -7,6 +7,41 @@ import type { ConversationPorts } from "./conversation";
 import { TerminalPlaySession } from "./terminal-play-session";
 
 describe("Leave the Door Open terminal play session", () => {
+  // Spec: ADR 0036 LDO-SAVE-003 and LDO-SAVE-004.
+  it("restores a started quiescent adapter without replaying the opening", async () => {
+    const originalController = createVerticalSliceGameController({
+      locale: "zh-TW",
+    });
+    const originalOutputs: string[] = [];
+    const original = new TerminalPlaySession(
+      originalController,
+      (screen) => originalOutputs.push(screen),
+    );
+    await original.start();
+    await original.handleInput("/help");
+
+    const controllerCheckpoint = originalController.checkpoint();
+    const terminalCheckpoint = original.checkpoint();
+    const restoredController = createVerticalSliceGameController({
+      locale: "zh-TW",
+      checkpoint: controllerCheckpoint,
+    });
+    const restoredOutputs: string[] = [];
+    const restored = new TerminalPlaySession(
+      restoredController,
+      (screen) => restoredOutputs.push(screen),
+      undefined,
+      terminalCheckpoint,
+    );
+
+    await expect(restored.start()).rejects.toThrow("already started");
+    await restored.handleInput("/help");
+
+    expect(restoredController.snapshot()).toEqual(originalController.snapshot());
+    expect(restoredOutputs).toHaveLength(1);
+    expect(restoredOutputs[0]).toContain("你是馬丁自言自語裡的一個聲音。");
+  });
+
   // Spec: ADR 0035 LDO-LAT-008.
   it("returns the rendered Persona phase before explicitly resolving the post-Persona Judge phase", async () => {
     const outputs: string[] = [];

@@ -5,11 +5,15 @@ import {
   isGameLocale,
   type GameLocale,
 } from "../pocs/leave-the-door-open/src/localization";
+import type { GameControllerCheckpoint } from "../pocs/leave-the-door-open/src/controller";
+import type { TerminalPlaySessionCheckpoint } from "../pocs/leave-the-door-open/src/terminal-play-session";
+import type { LeaveDoorOpenPersistence } from "./leave-door-open-persistence";
 
 export interface LeaveDoorOpenApiRequest extends AsyncIterable<Uint8Array | string> {
   method?: string;
   url?: string;
   headers: Record<string, string | string[] | undefined>;
+  playerId?: string;
 }
 
 export interface LeaveDoorOpenApiResponse {
@@ -38,11 +42,21 @@ export interface LeaveDoorOpenWebSession {
     dialogueResolutionPending: boolean;
     screen: string;
   }>;
+  checkpoint(): LeaveDoorOpenWebCheckpoint | null;
 }
+
+export type LeaveDoorOpenWebCheckpoint = {
+  schemaVersion: 1;
+  controller: GameControllerCheckpoint;
+  terminal: TerminalPlaySessionCheckpoint;
+  latestScreen: string;
+};
 
 export type LeaveDoorOpenWebSessionFactory = (
   sessionId: string,
   locale: GameLocale,
+  checkpoint?: LeaveDoorOpenWebCheckpoint,
+  playerId?: string,
 ) =>
   | LeaveDoorOpenWebSession
   | Promise<LeaveDoorOpenWebSession>;
@@ -58,15 +72,18 @@ export type LeaveDoorOpenWebResult = {
 
 type StoredSession = {
   session: LeaveDoorOpenWebSession;
+  playerId: string;
   locale: GameLocale;
   touchedAt: number;
   tail: Promise<void>;
+  lastResult: LeaveDoorOpenWebResult;
 };
 
 type LeaveDoorOpenSessionServiceOptions = {
   createSessionId?: () => string;
   now?: () => number;
   sessionTtlMs?: number;
+  persistence?: LeaveDoorOpenPersistence;
 };
 
 const DEFAULT_SESSION_TTL_MS = 30 * 60 * 1_000;
@@ -76,6 +93,9 @@ export class LeaveDoorOpenSessionService {
   readonly #createSessionId: () => string;
   readonly #now: () => number;
   readonly #sessionTtlMs: number;
+  readonly #persistence: LeaveDoorOpenPersistence | undefined;
+  readonly #activeSessionIds = new Map<string, string>();
+  readonly #pendingStarts = new Map<string, Promise<LeaveDoorOpenWebResult>>();
 
   constructor(
     private readonly createSession: LeaveDoorOpenWebSessionFactory,
@@ -84,88 +104,154 @@ export class LeaveDoorOpenSessionService {
     this.#createSessionId = options.createSessionId ?? randomUUID;
     this.#now = options.now ?? Date.now;
     this.#sessionTtlMs = options.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
+    this.#persistence = options.persistence;
   }
 
-  async startSession(locale: GameLocale = "en"): Promise<LeaveDoorOpenWebResult> {
+  async startSession(
+    playerId: string,
+    locale: GameLocale = "en",
+    reset = false,
+  ): Promise<LeaveDoorOpenWebResult> {
     this.#pruneExpired();
+    const playerKey = this.#playerKey(playerId, locale);
+    const pending = this.#pendingStarts.get(playerKey);
+    if (pending !== undefined) return pending;
+
+    const start = this.#startSession(playerId, locale, reset, playerKey);
+    this.#pendingStarts.set(playerKey, start);
+    try {
+      return await start;
+    } finally {
+      if (this.#pendingStarts.get(playerKey) === start) {
+        this.#pendingStarts.delete(playerKey);
+      }
+    }
+  }
+
+  async #startSession(
+    playerId: string,
+    locale: GameLocale,
+    reset: boolean,
+    playerKey: string,
+  ): Promise<LeaveDoorOpenWebResult> {
+    const activeSessionId = this.#activeSessionIds.get(playerKey);
+    if (reset) {
+      if (activeSessionId !== undefined) this.#sessions.delete(activeSessionId);
+      this.#activeSessionIds.delete(playerKey);
+      await this.#persistence?.remove(playerId, locale);
+    } else if (activeSessionId !== undefined) {
+      const active = this.#sessions.get(activeSessionId);
+      if (active !== undefined) {
+        await active.tail;
+        active.touchedAt = this.#now();
+        return structuredClone(active.lastResult);
+      }
+      this.#activeSessionIds.delete(playerKey);
+    }
+
+    const saved = reset
+      ? null
+      : (await this.#persistence?.load(playerId, locale)) ?? null;
     const sessionId = this.#createSessionId();
-    const session = await this.createSession(sessionId, locale);
-    const screen = await session.start();
-    this.#sessions.set(sessionId, {
-      session,
-      locale,
-      touchedAt: this.#now(),
-      tail: Promise.resolve(),
-    });
-    return {
+    const session = await this.createSession(
       sessionId,
       locale,
-      ended: false,
+      saved?.checkpoint,
+      playerId,
+    );
+    const screen = await session.start();
+    const result: LeaveDoorOpenWebResult = {
+      sessionId,
+      locale,
+      ended: saved?.checkpoint.terminal.ended ?? false,
       advancePending: false,
       dialogueResolutionPending: false,
       screen,
     };
+    const stored: StoredSession = {
+      session,
+      playerId,
+      locale,
+      touchedAt: this.#now(),
+      tail: Promise.resolve(),
+      lastResult: result,
+    };
+    this.#sessions.set(sessionId, stored);
+    this.#activeSessionIds.set(playerKey, sessionId);
+    await this.#persist(sessionId, stored);
+    return structuredClone(result);
   }
 
   async submitInput(
+    playerId: string,
     sessionId: string,
     input: string,
   ): Promise<LeaveDoorOpenWebResult> {
-    this.#pruneExpired();
-    const stored = this.#sessions.get(sessionId);
-    if (stored === undefined) {
-      throw new LeaveDoorOpenSessionNotFoundError();
-    }
-    stored.touchedAt = this.#now();
-    const resultPromise = stored.tail.then(() => stored.session.handleInput(input));
-    stored.tail = resultPromise.then(
-      () => undefined,
-      () => undefined,
+    return this.#runSessionOperation(playerId, sessionId, (session) =>
+      session.handleInput(input),
     );
-    const result = await resultPromise;
-    stored.touchedAt = this.#now();
-    if (result.ended) this.#sessions.delete(sessionId);
-    return { sessionId, locale: stored.locale, ...result };
   }
 
-  async advanceTurn(sessionId: string): Promise<LeaveDoorOpenWebResult> {
-    this.#pruneExpired();
-    const stored = this.#sessions.get(sessionId);
-    if (stored === undefined) {
-      throw new LeaveDoorOpenSessionNotFoundError();
-    }
-    stored.touchedAt = this.#now();
-    const resultPromise = stored.tail.then(() => stored.session.advanceTurn());
-    stored.tail = resultPromise.then(
-      () => undefined,
-      () => undefined,
+  async advanceTurn(
+    playerId: string,
+    sessionId: string,
+  ): Promise<LeaveDoorOpenWebResult> {
+    return this.#runSessionOperation(playerId, sessionId, (session) =>
+      session.advanceTurn(),
     );
-    const result = await resultPromise;
-    stored.touchedAt = this.#now();
-    if (result.ended) this.#sessions.delete(sessionId);
-    return { sessionId, locale: stored.locale, ...result };
   }
 
   async resolveDialogue(
+    playerId: string,
     sessionId: string,
+  ): Promise<LeaveDoorOpenWebResult> {
+    return this.#runSessionOperation(playerId, sessionId, (session) =>
+      session.resolveDialogue(),
+    );
+  }
+
+  async #runSessionOperation(
+    playerId: string,
+    sessionId: string,
+    operation: (
+      session: LeaveDoorOpenWebSession,
+    ) => Promise<Omit<LeaveDoorOpenWebResult, "sessionId" | "locale">>,
   ): Promise<LeaveDoorOpenWebResult> {
     this.#pruneExpired();
     const stored = this.#sessions.get(sessionId);
-    if (stored === undefined) {
+    if (stored === undefined || stored.playerId !== playerId) {
       throw new LeaveDoorOpenSessionNotFoundError();
     }
     stored.touchedAt = this.#now();
-    const resultPromise = stored.tail.then(() =>
-      stored.session.resolveDialogue(),
-    );
+    const resultPromise = stored.tail.then(async () => {
+      const result = await operation(stored.session);
+      stored.touchedAt = this.#now();
+      stored.lastResult = { sessionId, locale: stored.locale, ...result };
+      await this.#persist(sessionId, stored);
+      return structuredClone(stored.lastResult);
+    });
     stored.tail = resultPromise.then(
       () => undefined,
       () => undefined,
     );
-    const result = await resultPromise;
-    stored.touchedAt = this.#now();
-    if (result.ended) this.#sessions.delete(sessionId);
-    return { sessionId, locale: stored.locale, ...result };
+    return resultPromise;
+  }
+
+  async #persist(sessionId: string, stored: StoredSession): Promise<void> {
+    if (this.#persistence === undefined) return;
+    const checkpoint = stored.session.checkpoint();
+    if (checkpoint === null) return;
+    await this.#persistence.save(stored.playerId, stored.locale, {
+      schemaVersion: 1,
+      sourceSessionId: sessionId,
+      locale: stored.locale,
+      savedAt: new Date(this.#now()).toISOString(),
+      checkpoint,
+    });
+  }
+
+  #playerKey(playerId: string, locale: GameLocale): string {
+    return `${playerId}\0${locale}`;
   }
 
   #pruneExpired(): void {
@@ -173,6 +259,10 @@ export class LeaveDoorOpenSessionService {
     for (const [sessionId, stored] of this.#sessions) {
       if (now - stored.touchedAt > this.#sessionTtlMs) {
         this.#sessions.delete(sessionId);
+        const playerKey = this.#playerKey(stored.playerId, stored.locale);
+        if (this.#activeSessionIds.get(playerKey) === sessionId) {
+          this.#activeSessionIds.delete(playerKey);
+        }
       }
     }
   }
@@ -252,6 +342,16 @@ const parseLocale = (payload: unknown): GameLocale => {
   return locale;
 };
 
+const parseReset = (payload: unknown): boolean => {
+  const reset =
+    typeof payload === "object" && payload !== null && "reset" in payload
+      ? (payload as { reset?: unknown }).reset
+      : undefined;
+  if (reset === undefined) return false;
+  if (typeof reset !== "boolean") throw new Error("Reset must be a boolean");
+  return reset;
+};
+
 export const createLeaveDoorOpenApiMiddleware = (
   service: LeaveDoorOpenSessionService,
 ) =>
@@ -277,28 +377,48 @@ export const createLeaveDoorOpenApiMiddleware = (
       writeJson(response, 405, { error: "Method not allowed" });
       return;
     }
+    if (request.playerId === undefined) {
+      writeJson(response, 401, { error: "Player identity is required" });
+      return;
+    }
 
     try {
       const payload = await readJson(request);
       if (path === START_PATH) {
-        writeJson(response, 201, await service.startSession(parseLocale(payload)));
+        writeJson(
+          response,
+          201,
+          await service.startSession(
+            request.playerId,
+            parseLocale(payload),
+            parseReset(payload),
+          ),
+        );
         return;
       }
       const sessionId =
         inputMatch?.[1] ?? advanceMatch?.[1] ?? resolveDialogueMatch?.[1];
       if (sessionId === undefined) throw new LeaveDoorOpenSessionNotFoundError();
       if (resolveDialogueMatch !== null) {
-        writeJson(response, 200, await service.resolveDialogue(sessionId));
+        writeJson(
+          response,
+          200,
+          await service.resolveDialogue(request.playerId, sessionId),
+        );
         return;
       }
       if (advanceMatch !== null) {
-        writeJson(response, 200, await service.advanceTurn(sessionId));
+        writeJson(
+          response,
+          200,
+          await service.advanceTurn(request.playerId, sessionId),
+        );
         return;
       }
       writeJson(
         response,
         200,
-        await service.submitInput(sessionId, parseInput(payload)),
+        await service.submitInput(request.playerId, sessionId, parseInput(payload)),
       );
     } catch (error) {
       const statusCode =
@@ -309,6 +429,7 @@ export const createLeaveDoorOpenApiMiddleware = (
                 (error.message.startsWith("Content-Type") ||
                   error.message.startsWith("Request") ||
                   error.message.startsWith("Input") ||
+                  error.message.startsWith("Reset") ||
                   error.message.startsWith("Unsupported locale")))
             ? 400
             : 503;

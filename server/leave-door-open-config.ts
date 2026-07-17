@@ -8,6 +8,7 @@ export type LeaveDoorOpenWebOptions = {
   reasoningEffort: LiveReasoningEffort;
   inputFirewallReasoningEffort: LiveReasoningEffort;
   generatedPerformance: boolean;
+  dataDirectory: string;
 };
 
 export const LEAVE_DOOR_OPEN_PROMPT_FILES = {
@@ -36,5 +37,8 @@ export const resolveLeaveDoorOpenWebOptions = (
     inputFirewallReasoningEffort: "low",
     generatedPerformance:
       environment.LDO_PLAY_DISABLE_GENERATED_PERFORMANCE !== "1",
+    dataDirectory:
+      environment.LDO_DATA_DIR ??
+      "pocs/leave-the-door-open/playtest-data/web",
   };
 };

@@ -8,3 +8,4 @@ coverage/
 .env.*.local
 evals/results/
 pocs/leave-the-door-open/playtest-logs/
+pocs/leave-the-door-open/playtest-data/

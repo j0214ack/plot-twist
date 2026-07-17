@@ -5,6 +5,7 @@ import {
   type NarrativeActionId,
   type NPCId,
   type VerticalSliceWorld,
+  type WorldCheckpoint,
   type WorldSnapshot,
 } from "./world";
 import type {
@@ -40,6 +41,7 @@ import { selectRelevantMemoryForPersona } from "./memory-context";
 import {
   createSeededFirewallResponseChoice,
   GuardedResponseDeck,
+  SeededFirewallResponseChoice,
   type FirewallResponseChoicePort,
   type FirewallResponseChoiceSnapshot,
   type GuardedResponseDeckSnapshot,
@@ -134,6 +136,34 @@ type PendingDialogueResolution = {
   personaShouldEndConversation: boolean;
 };
 
+export type GameControllerCheckpoint = {
+  schemaVersion: 1;
+  locale: GameLocale;
+  world: WorldCheckpoint;
+  controller: {
+    messages: Record<NPCId, ConversationMessage[]>;
+    personaMessages: Record<NPCId, PersonaConversationMessage[]>;
+    mindStates: Record<NPCId, MindState>;
+    lastPersonaStates: Partial<Record<NPCId, PersonaOwnedState>>;
+    performances: PerformanceRecord[];
+    acceptedActionVariants: Array<[string, string]>;
+    acceptedActionPersonaReplies: Array<[string, string]>;
+    dailyPersonaReplyCounts: Record<NPCId, number>;
+    conversationClosedForDay: Record<NPCId, boolean>;
+    conversationChapterDay: number | null;
+    selectedNpcId: NPCId | null;
+    conversationStatus: Extract<ConversationStatus, "idle" | "error">;
+    errorMessage: string | null;
+    actionFeedback: ActionFeedback | null;
+    surfacedActions: SurfacedAction[];
+    chapterOnePsychologyInitialized: boolean;
+    inputFirewallPresentation: {
+      responseDeck: GuardedResponseDeckSnapshot;
+      responseChoice: FirewallResponseChoiceSnapshot;
+    };
+  };
+};
+
 export type TimeAdvancePolicy = {
   maxTurnMinutes: number;
 };
@@ -183,6 +213,7 @@ export class VerticalSliceGameController {
     conversationPorts: ConversationPorts | null = null,
     timeAdvancePolicy: TimeAdvancePolicy = DEFAULT_TIME_ADVANCE_POLICY,
     locale: GameLocale = "en",
+    checkpoint?: GameControllerCheckpoint,
   ) {
     if (
       !Number.isSafeInteger(timeAdvancePolicy.maxTurnMinutes) ||
@@ -194,12 +225,62 @@ export class VerticalSliceGameController {
     this.#conversationPorts = conversationPorts;
     this.#timeAdvancePolicy = { ...timeAdvancePolicy };
     this.#locale = locale;
+    if (checkpoint === undefined) {
+      this.#firewallResponseChoice =
+        conversationPorts?.firewallResponseChoice ??
+        createSeededFirewallResponseChoice();
+      this.#firewallResponses = new GuardedResponseDeck(
+        this.#firewallResponseChoice,
+      );
+      return;
+    }
+
+    const restored = validateGameControllerCheckpoint(checkpoint, locale);
     this.#firewallResponseChoice =
-      conversationPorts?.firewallResponseChoice ??
-      createSeededFirewallResponseChoice();
-    this.#firewallResponses = new GuardedResponseDeck(
+      SeededFirewallResponseChoice.fromSnapshot(
+        restored.controller.inputFirewallPresentation.responseChoice,
+      );
+    this.#firewallResponses = GuardedResponseDeck.fromSnapshot(
+      restored.controller.inputFirewallPresentation.responseDeck,
       this.#firewallResponseChoice,
     );
+    this.#messages.husband.push(...restored.controller.messages.husband);
+    this.#messages.wife.push(...restored.controller.messages.wife);
+    this.#personaMessages.husband.push(
+      ...restored.controller.personaMessages.husband,
+    );
+    this.#personaMessages.wife.push(
+      ...restored.controller.personaMessages.wife,
+    );
+    this.#mindStates.husband = restored.controller.mindStates.husband;
+    this.#mindStates.wife = restored.controller.mindStates.wife;
+    Object.assign(
+      this.#lastPersonaStates,
+      restored.controller.lastPersonaStates,
+    );
+    this.#performances.push(...restored.controller.performances);
+    for (const [key, value] of restored.controller.acceptedActionVariants) {
+      this.#acceptedActionVariants.set(key, value);
+    }
+    for (const [key, value] of restored.controller.acceptedActionPersonaReplies) {
+      this.#acceptedActionPersonaReplies.set(key, value);
+    }
+    Object.assign(
+      this.#dailyPersonaReplyCounts,
+      restored.controller.dailyPersonaReplyCounts,
+    );
+    Object.assign(
+      this.#conversationClosedForDay,
+      restored.controller.conversationClosedForDay,
+    );
+    this.#conversationChapterDay = restored.controller.conversationChapterDay;
+    this.#selectedNpcId = restored.controller.selectedNpcId;
+    this.#conversationStatus = restored.controller.conversationStatus;
+    this.#errorMessage = restored.controller.errorMessage;
+    this.#actionFeedback = restored.controller.actionFeedback;
+    this.#surfacedActions = restored.controller.surfacedActions;
+    this.#chapterOnePsychologyInitialized =
+      restored.controller.chapterOnePsychologyInitialized;
   }
 
   advanceTo(targetTime: number): void {
@@ -371,6 +452,52 @@ export class VerticalSliceGameController {
         },
       },
     };
+  }
+
+  checkpoint(): GameControllerCheckpoint {
+    if (this.#interactionIsPending() || this.#pendingDialogueResolution !== null) {
+      throw new Error("Controller cannot checkpoint a pending interaction");
+    }
+    if (
+      this.#conversationStatus !== "idle" &&
+      this.#conversationStatus !== "error"
+    ) {
+      throw new Error("Controller checkpoint requires a quiescent conversation");
+    }
+    const responseChoice = this.#firewallResponseChoice.snapshot?.() ?? null;
+    if (responseChoice === null) {
+      throw new Error("Firewall response choice cannot be checkpointed");
+    }
+    return structuredClone({
+      schemaVersion: 1,
+      locale: this.#locale,
+      world: this.#world.checkpoint(),
+      controller: {
+        messages: this.#messages,
+        personaMessages: this.#personaMessages,
+        mindStates: this.#mindStates,
+        lastPersonaStates: this.#lastPersonaStates,
+        performances: this.#performances,
+        acceptedActionVariants: [...this.#acceptedActionVariants.entries()],
+        acceptedActionPersonaReplies: [
+          ...this.#acceptedActionPersonaReplies.entries(),
+        ],
+        dailyPersonaReplyCounts: this.#dailyPersonaReplyCounts,
+        conversationClosedForDay: this.#conversationClosedForDay,
+        conversationChapterDay: this.#conversationChapterDay,
+        selectedNpcId: this.#selectedNpcId,
+        conversationStatus: this.#conversationStatus,
+        errorMessage: this.#errorMessage,
+        actionFeedback: this.#actionFeedback,
+        surfacedActions: this.#surfacedActions,
+        chapterOnePsychologyInitialized:
+          this.#chapterOnePsychologyInitialized,
+        inputFirewallPresentation: {
+          responseDeck: this.#firewallResponses.snapshot(),
+          responseChoice,
+        },
+      },
+    });
   }
 
   #availableActionOptionIds(): ActionOptionId[] {
@@ -972,16 +1099,22 @@ export class VerticalSliceGameController {
 export type GameControllerCreationOptions = {
   locale?: GameLocale;
   timeAdvancePolicy?: TimeAdvancePolicy;
+  checkpoint?: GameControllerCheckpoint;
 };
 
 export const createVerticalSliceGameController = (
   options: GameControllerCreationOptions = {},
 ): VerticalSliceGameController =>
   new VerticalSliceGameController(
-    createVerticalSliceWorld(),
+    createVerticalSliceWorld(
+      options.checkpoint === undefined
+        ? {}
+        : { checkpoint: options.checkpoint.world },
+    ),
     null,
     options.timeAdvancePolicy ?? DEFAULT_TIME_ADVANCE_POLICY,
     options.locale ?? "en",
+    options.checkpoint,
   );
 
 export const createConversationalVerticalSliceGameController = (
@@ -989,8 +1122,37 @@ export const createConversationalVerticalSliceGameController = (
   options: GameControllerCreationOptions = {},
 ): VerticalSliceGameController =>
   new VerticalSliceGameController(
-    createVerticalSliceWorld(),
+    createVerticalSliceWorld(
+      options.checkpoint === undefined
+        ? {}
+        : { checkpoint: options.checkpoint.world },
+    ),
     ports,
     options.timeAdvancePolicy ?? DEFAULT_TIME_ADVANCE_POLICY,
     options.locale ?? "en",
+    options.checkpoint,
   );
+
+const validateGameControllerCheckpoint = (
+  checkpoint: GameControllerCheckpoint,
+  locale: GameLocale,
+): GameControllerCheckpoint => {
+  if (
+    checkpoint?.schemaVersion !== 1 ||
+    checkpoint.locale !== locale ||
+    checkpoint.world?.schemaVersion !== 1 ||
+    typeof checkpoint.controller !== "object" ||
+    checkpoint.controller === null ||
+    !Array.isArray(checkpoint.controller.messages?.husband) ||
+    !Array.isArray(checkpoint.controller.messages?.wife) ||
+    !Array.isArray(checkpoint.controller.personaMessages?.husband) ||
+    !Array.isArray(checkpoint.controller.personaMessages?.wife) ||
+    !Array.isArray(checkpoint.controller.mindStates?.husband?.atoms) ||
+    !Array.isArray(checkpoint.controller.mindStates?.wife?.atoms) ||
+    !Array.isArray(checkpoint.controller.surfacedActions) ||
+    !["idle", "error"].includes(checkpoint.controller.conversationStatus)
+  ) {
+    throw new Error("Invalid Game Controller checkpoint");
+  }
+  return structuredClone(checkpoint);
+};

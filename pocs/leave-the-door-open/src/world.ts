@@ -12,6 +12,7 @@ export type CalendarWeekdayId =
 import {
   createSeededAmbientRoutineChoice,
   getAmbientRoutineDefinition,
+  SeededAmbientRoutineChoice,
   type AmbientChanceSnapshot,
   type AmbientRoutineChoicePort,
   type AmbientRoutineId,
@@ -219,6 +220,12 @@ export type WorldSnapshot = {
   evidence: Partial<Record<EvidenceId, EvidenceSnapshot>>;
 };
 
+export type WorldCheckpoint = {
+  schemaVersion: 1;
+  snapshot: WorldSnapshot;
+  events: GameEvent[];
+};
+
 type GameState = Omit<
   WorldSnapshot,
   "actionProgress" | "ambientChance" | "weekdayId"
@@ -254,44 +261,44 @@ export class VerticalSliceWorld {
   readonly #actionProgress: Partial<
     Record<NPCId, Partial<Record<NarrativeActionId, PsychologicalStage>>>
   > = {};
-  readonly #state: GameState = {
-    time: START_TIME,
-    chapter: "tutorial",
-    chapterDay: null,
-    paused: false,
-    npcs: {
-      husband: {
-        locationId: "living_room",
-        visibleActivityId: "idle",
-      },
-      wife: {
-        locationId: "dining_area",
-        visibleActivityId: "idle",
-      },
-    },
-    worldFacts: {
-      livingRoomClock: "three_minutes_slow",
-      hallwayDoor: "closed",
-      wifeObservedDoorOnChapterDay: null,
-      wifeHasRemainedAtThreshold: false,
-      wifeRemainedAtThresholdOnChapterDay: null,
-      roomInterior: "hidden",
-      wifeHasEnteredRoom: false,
-      wifeEnteredRoomOnChapterDay: null,
-      roomWindow: "closed",
-      martinEliseConversation: "not_attempted",
-      martinEliseConversationOnChapterDay: null,
-      chapter1Complete: false,
-    },
-    intentions: [],
-    completedActions: [],
-    evidence: {},
-    eventLog: [],
-  };
+  readonly #state: GameState;
 
-  constructor(options: { ambientChoice?: AmbientRoutineChoicePort } = {}) {
-    this.#ambientChoice =
-      options.ambientChoice ?? createSeededAmbientRoutineChoice();
+  constructor(options: {
+    ambientChoice?: AmbientRoutineChoicePort;
+    checkpoint?: WorldCheckpoint;
+  } = {}) {
+    if (options.checkpoint !== undefined && options.ambientChoice !== undefined) {
+      throw new Error("A restored World owns its recorded ambient choice");
+    }
+    if (options.checkpoint === undefined) {
+      this.#ambientChoice =
+        options.ambientChoice ?? createSeededAmbientRoutineChoice();
+      this.#state = initialGameState();
+      return;
+    }
+
+    const checkpoint = validateWorldCheckpoint(options.checkpoint);
+    const { snapshot } = checkpoint;
+    if (snapshot.ambientChance === null) {
+      throw new Error("World checkpoint is missing ambient chance state");
+    }
+    this.#ambientChoice = SeededAmbientRoutineChoice.fromSnapshot(
+      snapshot.ambientChance,
+    );
+    this.#chapterOneStartDay = chapterOneStartDayFromSnapshot(snapshot);
+    Object.assign(this.#actionProgress, structuredClone(snapshot.actionProgress));
+    this.#state = {
+      time: snapshot.time,
+      chapter: snapshot.chapter,
+      chapterDay: snapshot.chapterDay,
+      paused: snapshot.paused,
+      npcs: structuredClone(snapshot.npcs),
+      worldFacts: structuredClone(snapshot.worldFacts),
+      intentions: structuredClone(snapshot.intentions),
+      completedActions: structuredClone(snapshot.completedActions),
+      evidence: structuredClone(snapshot.evidence),
+      eventLog: structuredClone(checkpoint.events),
+    };
   }
 
   advanceTo(targetTime: number): void {
@@ -485,6 +492,18 @@ export class VerticalSliceWorld {
       actionProgress: this.#actionProgress,
       evidence: this.#state.evidence,
     });
+  }
+
+  checkpoint(): WorldCheckpoint {
+    const snapshot = this.snapshot();
+    if (snapshot.ambientChance === null) {
+      throw new Error("World ambient choice cannot be checkpointed");
+    }
+    return {
+      schemaVersion: 1,
+      snapshot,
+      events: this.events(),
+    };
   }
 
   events(): GameEvent[] {
@@ -1198,8 +1217,78 @@ export class VerticalSliceWorld {
 }
 
 export const createVerticalSliceWorld = (
-  options: { ambientChoice?: AmbientRoutineChoicePort } = {},
+  options: {
+    ambientChoice?: AmbientRoutineChoicePort;
+    checkpoint?: WorldCheckpoint;
+  } = {},
 ): VerticalSliceWorld => new VerticalSliceWorld(options);
+
+const initialGameState = (): GameState => ({
+  time: START_TIME,
+  chapter: "tutorial",
+  chapterDay: null,
+  paused: false,
+  npcs: {
+    husband: {
+      locationId: "living_room",
+      visibleActivityId: "idle",
+    },
+    wife: {
+      locationId: "dining_area",
+      visibleActivityId: "idle",
+    },
+  },
+  worldFacts: {
+    livingRoomClock: "three_minutes_slow",
+    hallwayDoor: "closed",
+    wifeObservedDoorOnChapterDay: null,
+    wifeHasRemainedAtThreshold: false,
+    wifeRemainedAtThresholdOnChapterDay: null,
+    roomInterior: "hidden",
+    wifeHasEnteredRoom: false,
+    wifeEnteredRoomOnChapterDay: null,
+    roomWindow: "closed",
+    martinEliseConversation: "not_attempted",
+    martinEliseConversationOnChapterDay: null,
+    chapter1Complete: false,
+  },
+  intentions: [],
+  completedActions: [],
+  evidence: {},
+  eventLog: [],
+});
+
+const validateWorldCheckpoint = (
+  checkpoint: WorldCheckpoint,
+): WorldCheckpoint => {
+  if (
+    checkpoint?.schemaVersion !== 1 ||
+    typeof checkpoint.snapshot !== "object" ||
+    checkpoint.snapshot === null ||
+    !Number.isSafeInteger(checkpoint.snapshot.time) ||
+    checkpoint.snapshot.time < START_TIME ||
+    checkpoint.snapshot.weekdayId !== calendarWeekdayAt(checkpoint.snapshot.time) ||
+    !Array.isArray(checkpoint.events)
+  ) {
+    throw new Error("Invalid World checkpoint");
+  }
+  return structuredClone(checkpoint);
+};
+
+const chapterOneStartDayFromSnapshot = (
+  snapshot: WorldSnapshot,
+): number | null => {
+  const calendarDay = Math.floor(snapshot.time / MINUTES_PER_DAY);
+  if (snapshot.chapter === 1) {
+    if (snapshot.chapterDay === null || snapshot.chapterDay < 1) {
+      throw new Error("Invalid Chapter 1 checkpoint day");
+    }
+    return calendarDay - snapshot.chapterDay + 1;
+  }
+  return snapshot.worldFacts.livingRoomClock === "accurate"
+    ? calendarDay + 1
+    : null;
+};
 import {
   selectRoutineVariant,
   type PsychologicalStage,

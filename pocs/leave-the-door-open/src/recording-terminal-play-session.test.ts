@@ -72,8 +72,8 @@ describe("recording terminal play session", () => {
     );
   });
 
-  // Spec: ADR 0029 LDO-WEB-014; automatic ticks are logged without pretending
-  // that each one is a new player input.
+  // Spec: ADR 0029 LDO-WEB-014; ADR 0036 LDO-SAVE-008. Automatic ticks are
+  // logged without pretending each one is input or repeating cumulative state.
   it("records one resume input and separate observer records for later automatic ticks", async () => {
     const lines: string[] = [];
     const recorder = new PlaytestSessionRecorder({
@@ -116,18 +116,27 @@ describe("recording terminal play session", () => {
         .filter(({ type }) => type === "player_input")
         .map(({ data }) => data.input),
     ).toEqual(["1", "/resume"]);
+    expect(
+      records.filter(({ type }) => type === "screen_rendered"),
+    ).toHaveLength(3);
     expect(records).toContainEqual(
       expect.objectContaining({
         visibility: "observer",
         type: "time_advance_tick_handled",
         data: expect.objectContaining({
           result: { ended: false, advancePending: true },
-          controllerSnapshot: expect.objectContaining({
-            world: expect.objectContaining({ time: 8 * 60 + 15 }),
+          stateDelta: expect.objectContaining({
+            fromTime: 8 * 60,
+            toTime: 8 * 60 + 15,
+            newEvents: expect.any(Array),
           }),
         }),
       }),
     );
+    const tickRecord = records.find(
+      ({ type }) => type === "time_advance_tick_handled",
+    );
+    expect(tickRecord.data).not.toHaveProperty("controllerSnapshot");
   });
 
   it("LDO-OBS-008 journals safe internal interaction errors as observer-only records", () => {

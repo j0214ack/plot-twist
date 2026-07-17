@@ -1,4 +1,10 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 
@@ -6,6 +12,7 @@ export interface DemoRequest extends AsyncIterable<Uint8Array | string> {
   method?: string;
   url?: string;
   headers: Record<string, string | string[] | undefined>;
+  playerId?: string;
 }
 
 export interface DemoResponse {
@@ -20,6 +27,8 @@ export interface DemoAccessOptions {
   accessCode?: string;
   secureCookies: boolean;
   sessionTtlMs?: number;
+  playerIdentitySecret?: string;
+  playerIdentityTtlMs?: number;
   now?: () => number;
 }
 
@@ -35,6 +44,7 @@ const PROTECTED_PATHS = new Set(["/api/spells", "/api/transcriptions"]);
 const PROTECTED_PREFIXES = ["/api/leave-the-door-open/"];
 const MAX_SESSION_REQUEST_BYTES = 2_048;
 const DEFAULT_SESSION_TTL_MS = 30 * 60 * 1000;
+const DEFAULT_PLAYER_IDENTITY_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 const header = (request: DemoRequest, name: string): string => {
   const value = request.headers[name.toLowerCase()];
@@ -86,17 +96,57 @@ const verifySessionToken = (token: string, options: DemoAccessOptions): boolean 
   return Number.isFinite(expiresAt) && expiresAt > (options.now?.() ?? Date.now());
 };
 
+const playerIdentitySecret = (options: DemoAccessOptions): string =>
+  options.playerIdentitySecret ?? options.sessionSecret;
+
+const createPlayerIdentityToken = (options: DemoAccessOptions): string => {
+  const playerId = randomUUID();
+  const payload = `v1.${playerId}`;
+  return `${payload}.${sign(payload, playerIdentitySecret(options))}`;
+};
+
+const parsePlayerIdentityToken = (
+  token: string,
+  options: DemoAccessOptions,
+): string | null => {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") return null;
+  const playerId = parts[1] ?? "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(playerId)) {
+    return null;
+  }
+  const payload = `v1.${playerId}`;
+  const signature = parts[2] ?? "";
+  return sameValue(signature, sign(payload, playerIdentitySecret(options)))
+    ? playerId
+    : null;
+};
+
 const cookieName = (options: DemoAccessOptions): string =>
   options.secureCookies ? "__Host-demo_session" : "demo_session";
 
-const sessionCookie = (request: DemoRequest, options: DemoAccessOptions): string | undefined => {
-  const expectedName = cookieName(options);
+const playerCookieName = (options: DemoAccessOptions): string =>
+  options.secureCookies ? "__Host-ldo_player" : "ldo_player";
+
+const cookieValue = (
+  request: DemoRequest,
+  expectedName: string,
+): string | undefined => {
   for (const segment of header(request, "cookie").split(";")) {
     const [name, ...valueParts] = segment.trim().split("=");
     if (name === expectedName) return valueParts.join("=");
   }
   return undefined;
 };
+
+const sessionCookie = (request: DemoRequest, options: DemoAccessOptions): string | undefined => {
+  return cookieValue(request, cookieName(options));
+};
+
+const playerIdentityCookie = (
+  request: DemoRequest,
+  options: DemoAccessOptions,
+): string | undefined => cookieValue(request, playerCookieName(options));
 
 const hasAllowedBrowserContext = (request: DemoRequest, options: DemoAccessOptions): boolean => {
   if (header(request, "origin") !== options.allowedOrigin) return false;
@@ -148,7 +198,7 @@ const issueSession = async (
     }
 
     const maxAge = Math.floor((options.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS) / 1000);
-    const attributes = [
+    const sessionAttributes = [
       `${cookieName(options)}=${createSessionToken(options)}`,
       "Path=/",
       `Max-Age=${maxAge}`,
@@ -156,7 +206,27 @@ const issueSession = async (
       ...(options.secureCookies ? ["Secure"] : []),
       "SameSite=Strict",
     ];
-    response.setHeader("set-cookie", attributes.join("; "));
+    const existingPlayerToken = playerIdentityCookie(request, options);
+    const playerToken =
+      existingPlayerToken !== undefined &&
+      parsePlayerIdentityToken(existingPlayerToken, options) !== null
+        ? existingPlayerToken
+        : createPlayerIdentityToken(options);
+    const playerMaxAge = Math.floor(
+      (options.playerIdentityTtlMs ?? DEFAULT_PLAYER_IDENTITY_TTL_MS) / 1000,
+    );
+    const playerAttributes = [
+      `${playerCookieName(options)}=${playerToken}`,
+      "Path=/",
+      `Max-Age=${playerMaxAge}`,
+      "HttpOnly",
+      ...(options.secureCookies ? ["Secure"] : []),
+      "SameSite=Strict",
+    ];
+    response.setHeader("set-cookie", [
+      sessionAttributes.join("; "),
+      playerAttributes.join("; "),
+    ]);
     writeJson(response, 200, {
       mode: options.accessCode ? "access-code" : "anonymous",
     });
@@ -194,6 +264,19 @@ export const createDemoAccessMiddleware = (options: DemoAccessOptions) => {
     if (!token || !verifySessionToken(token, options)) {
       writeJson(response, 401, { error: "A valid demo session is required" });
       return;
+    }
+    if (path.startsWith("/api/leave-the-door-open/")) {
+      const playerToken = playerIdentityCookie(request, options);
+      const playerId = playerToken
+        ? parsePlayerIdentityToken(playerToken, options)
+        : null;
+      if (playerId === null) {
+        writeJson(response, 401, {
+          error: "A valid player identity is required",
+        });
+        return;
+      }
+      request.playerId = playerId;
     }
     next();
   };

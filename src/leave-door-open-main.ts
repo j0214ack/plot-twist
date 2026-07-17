@@ -161,9 +161,17 @@ class DomLeaveDoorOpenView implements LeaveDoorOpenBrowserView {
     error.textContent = message;
   }
 
+  resetSession(): void {
+    this.#ended = false;
+    this.#hasServerScreen = false;
+    screen.textContent = "";
+    possibilities.replaceChildren();
+    error.textContent = "";
+  }
+
   setEnded(ended: boolean): void {
     this.#ended = ended;
-    newGame.hidden = !ended;
+    newGame.hidden = false;
     if (ended) status.textContent = localize(this.locale, "browser.ended");
     this.#syncControls();
   }
@@ -214,7 +222,7 @@ thoughtForm.addEventListener("submit", (event) => {
   thoughtInput.value = "";
   submitInput(thought);
 });
-newGame.addEventListener("click", () => void controller.start());
+newGame.addEventListener("click", () => void controller.restart());
 
 const enterPlaytest = async (): Promise<void> => {
   accessPanel.hidden = true;

@@ -6,8 +6,13 @@ import {
   createLeaveDoorOpenApiMiddleware,
   leaveDoorOpenApiPlugin,
   LeaveDoorOpenSessionService,
+  type LeaveDoorOpenWebCheckpoint,
   type LeaveDoorOpenWebSession,
 } from "./leave-door-open-api";
+import type {
+  LeaveDoorOpenPersistence,
+  PersistedLeaveDoorOpenSession,
+} from "./leave-door-open-persistence";
 
 const unusedPorts: ConversationPorts = {
   persona: {
@@ -25,16 +30,26 @@ const unusedPorts: ConversationPorts = {
   },
 };
 
-const realTerminalSession = (): LeaveDoorOpenWebSession => {
-  let latestScreen = "";
+const realTerminalSession = (
+  locale: "en" | "zh-TW" = "en",
+  checkpoint?: LeaveDoorOpenWebCheckpoint,
+): LeaveDoorOpenWebSession => {
+  let latestScreen = checkpoint?.latestScreen ?? "";
+  const controller = createConversationalVerticalSliceGameController(
+    unusedPorts,
+    { locale, checkpoint: checkpoint?.controller },
+  );
   const terminal = new TerminalPlaySession(
-    createConversationalVerticalSliceGameController(unusedPorts),
+    controller,
     (screen) => {
       latestScreen = screen;
     },
+    undefined,
+    checkpoint?.terminal,
   );
   return {
     async start() {
+      if (checkpoint !== undefined) return latestScreen;
       await terminal.start();
       return latestScreen;
     },
@@ -47,12 +62,132 @@ const realTerminalSession = (): LeaveDoorOpenWebSession => {
     },
     async advanceTurn() {
       const result = await terminal.advanceTurn();
-      return { ...result, screen: latestScreen };
+      return {
+        ...result,
+        dialogueResolutionPending: false,
+        screen: latestScreen,
+      };
+    },
+    async resolveDialogue() {
+      throw new Error("Not exercised");
+    },
+    checkpoint() {
+      return {
+        schemaVersion: 1,
+        controller: controller.checkpoint(),
+        terminal: terminal.checkpoint(),
+        latestScreen,
+      };
     },
   };
 };
 
+const realWebFactory = (
+  _sessionId: string,
+  locale: "en" | "zh-TW",
+  checkpoint?: LeaveDoorOpenWebCheckpoint,
+) => realTerminalSession(locale, checkpoint);
+
+class MemoryPersistence implements LeaveDoorOpenPersistence {
+  readonly sessions = new Map<string, PersistedLeaveDoorOpenSession>();
+
+  async load(playerId: string, locale: "en" | "zh-TW") {
+    const saved = this.sessions.get(`${playerId}:${locale}`);
+    return saved === undefined ? null : structuredClone(saved);
+  }
+
+  async save(
+    playerId: string,
+    locale: "en" | "zh-TW",
+    session: PersistedLeaveDoorOpenSession,
+  ) {
+    this.sessions.set(`${playerId}:${locale}`, structuredClone(session));
+  }
+
+  async remove(playerId: string, locale: "en" | "zh-TW") {
+    this.sessions.delete(`${playerId}:${locale}`);
+  }
+
+  appendJournalLine() {}
+}
+
 describe("Leave the Door Open web session service", () => {
+  // Spec: ADR 0036 LDO-SAVE-001 through LDO-SAVE-006.
+  it("restores one browser player's checkpoint after a server restart and enforces ownership", async () => {
+    const persistence = new MemoryPersistence();
+    const sessionIds = ["runtime-a", "runtime-b", "runtime-c"];
+    const createSession = (
+      _sessionId: string,
+      locale: "en" | "zh-TW",
+      checkpoint?: LeaveDoorOpenWebCheckpoint,
+    ) => realTerminalSession(locale, checkpoint);
+    const firstServer = new LeaveDoorOpenSessionService(createSession, {
+      createSessionId: () => sessionIds.shift()!,
+      persistence,
+    });
+
+    const opening = await firstServer.startSession("player-a", "zh-TW");
+    const changed = await firstServer.submitInput(
+      "player-a",
+      opening.sessionId,
+      "/help",
+    );
+
+    const restartedServer = new LeaveDoorOpenSessionService(createSession, {
+      createSessionId: () => sessionIds.shift()!,
+      persistence,
+    });
+    const restored = await restartedServer.startSession("player-a", "zh-TW");
+    const otherPlayer = await restartedServer.startSession(
+      "player-b",
+      "zh-TW",
+    );
+
+    expect(restored).toMatchObject({
+      sessionId: "runtime-b",
+      locale: "zh-TW",
+      screen: changed.screen,
+    });
+    expect(otherPlayer.sessionId).toBe("runtime-c");
+    expect(otherPlayer.screen).not.toBe(changed.screen);
+    await expect(
+      restartedServer.submitInput(
+        "player-b",
+        restored.sessionId,
+        "/help",
+      ),
+    ).rejects.toThrow("This playtest session is no longer available");
+  });
+
+  // Spec: ADR 0036 LDO-SAVE-005 and LDO-SAVE-006.
+  it("deletes the owned locale checkpoint only for an explicit reset", async () => {
+    const persistence = new MemoryPersistence();
+    const sessionIds = ["before-reset", "after-reset"];
+    const service = new LeaveDoorOpenSessionService(realWebFactory, {
+      createSessionId: () => sessionIds.shift()!,
+      persistence,
+    });
+    const opening = await service.startSession("player-a", "zh-TW");
+    const changed = await service.submitInput(
+      "player-a",
+      opening.sessionId,
+      "/help",
+    );
+
+    const resumed = await service.startSession("player-a", "zh-TW");
+    const reset = await service.startSession("player-a", "zh-TW", true);
+
+    expect(resumed).toMatchObject({
+      sessionId: "before-reset",
+      screen: changed.screen,
+    });
+    expect(reset.sessionId).toBe("after-reset");
+    expect(reset.screen).not.toBe(changed.screen);
+    await expect(
+      service.submitInput("player-a", "before-reset", "/help"),
+    ).rejects.toThrow("This playtest session is no longer available");
+  });
+
   // Spec: ADR 0035 LDO-LAT-008.
   it("exposes a dedicated continuation endpoint for a pending post-Persona Judge phase", async () => {
     let resolveCalls = 0;
@@ -85,8 +220,12 @@ describe("Leave the Door Open web session service", () => {
       createSessionId: () => "phased-api-a",
     });
     const middleware = createLeaveDoorOpenApiMiddleware(service);
-    await service.startSession();
-    const first = await service.submitInput("phased-api-a", "Why today?");
+    await service.startSession("test-player");
+    const first = await service.submitInput(
+      "test-player",
+      "phased-api-a",
+      "Why today?",
+    );
 
     const resolved = await invoke(middleware, {
       method: "POST",
@@ -178,9 +317,13 @@ describe("Leave the Door Open web session service", () => {
       createSessionId: () => "paced-api-a",
     });
     const middleware = createLeaveDoorOpenApiMiddleware(service);
-    await service.startSession();
+    await service.startSession("test-player");
 
-    const first = await service.submitInput("paced-api-a", "/resume");
+    const first = await service.submitInput(
+      "test-player",
+      "paced-api-a",
+      "/resume",
+    );
     const second = await invoke(middleware, {
       method: "POST",
       url: "/api/leave-the-door-open/sessions/paced-api-a/advance",
@@ -202,7 +345,7 @@ describe("Leave the Door Open web session service", () => {
 
   // Spec: ADR 0018 LDO-WEB-001 and LDO-WEB-003.
   it("installs the same session API in Vite development and Fly preview servers", () => {
-    const service = new LeaveDoorOpenSessionService(realTerminalSession);
+    const service = new LeaveDoorOpenSessionService(realWebFactory);
     const plugin = leaveDoorOpenApiPlugin(service);
     const devUse = vi.fn();
     const previewUse = vi.fn();
@@ -221,12 +364,12 @@ describe("Leave the Door Open web session service", () => {
 
   // Spec: ADR 0018 LDO-WEB-003 and LDO-WEB-005.
   it("starts the real play surface and sends later input to the same isolated session", async () => {
-    const service = new LeaveDoorOpenSessionService(realTerminalSession, {
+    const service = new LeaveDoorOpenSessionService(realWebFactory, {
       createSessionId: () => "opaque-session-a",
       now: () => 1_000,
     });
 
-    const opening = await service.startSession();
+    const opening = await service.startSession("test-player");
     expect(opening).toMatchObject({
       sessionId: "opaque-session-a",
       ended: false,
@@ -234,7 +377,11 @@ describe("Leave the Door Open web session service", () => {
     expect(opening.screen).toContain("Leave the Door Open");
     expect(opening.screen).toContain("The living-room clock is three minutes slow");
 
-    const continued = await service.submitInput("opaque-session-a", "/help");
+    const continued = await service.submitInput(
+      "test-player",
+      "opaque-session-a",
+      "/help",
+    );
     expect(continued).toMatchObject({
       sessionId: "opaque-session-a",
       ended: false,
@@ -245,7 +392,7 @@ describe("Leave the Door Open web session service", () => {
 
   // Spec: ADR 0018 LDO-WEB-003 and LDO-WEB-006.
   it("exposes bounded start and input endpoints without putting game rules in the payload", async () => {
-    const service = new LeaveDoorOpenSessionService(realTerminalSession, {
+    const service = new LeaveDoorOpenSessionService(realWebFactory, {
       createSessionId: () => "opaque-session-b",
       now: () => 2_000,
     });
@@ -263,7 +410,7 @@ describe("Leave the Door Open web session service", () => {
         ended: false,
       },
     });
-    expect(started.json.screen).toContain("The living-room clock is three minutes slow");
+    expect(started.json.screen).toContain("客廳的時鐘慢了三分鐘");
 
     const continued = await invoke(middleware, {
       method: "POST",
@@ -271,7 +418,7 @@ describe("Leave the Door Open web session service", () => {
       body: JSON.stringify({ input: "/help" }),
     });
     expect(continued.statusCode).toBe(200);
-    expect(continued.json.screen).toContain("Speak by typing normally");
+    expect(continued.json.screen).toContain("直接輸入文字和角色說話");
 
     const rejected = await invoke(middleware, {
       method: "POST",
@@ -308,11 +455,19 @@ describe("Leave the Door Open web session service", () => {
     const service = new LeaveDoorOpenSessionService(() => session, {
       createSessionId: () => "serialized-session",
     });
-    await service.startSession();
+    await service.startSession("test-player");
 
-    const first = service.submitInput("serialized-session", "first");
+    const first = service.submitInput(
+      "test-player",
+      "serialized-session",
+      "first",
+    );
     await Promise.resolve();
-    const second = service.submitInput("serialized-session", "second");
+    const second = service.submitInput(
+      "test-player",
+      "serialized-session",
+      "second",
+    );
     await Promise.resolve();
 
     expect(events).toEqual(["start:first"]);
@@ -329,17 +484,17 @@ describe("Leave the Door Open web session service", () => {
   // Spec: ADR 0018 LDO-WEB-005; Fly memory is an ephemeral, bounded playtest store.
   it("expires an inactive session instead of retaining it indefinitely", async () => {
     let now = 10_000;
-    const service = new LeaveDoorOpenSessionService(realTerminalSession, {
+    const service = new LeaveDoorOpenSessionService(realWebFactory, {
       createSessionId: () => "expiring-session",
       now: () => now,
       sessionTtlMs: 1_000,
     });
-    await service.startSession();
+    await service.startSession("test-player");
 
     now += 1_001;
 
     await expect(
-      service.submitInput("expiring-session", "/help"),
+      service.submitInput("test-player", "expiring-session", "/help"),
     ).rejects.toThrow("This playtest session is no longer available");
   });
 });
@@ -355,6 +510,7 @@ const invoke = async (
     method: requestInit.method,
     url: requestInit.url,
     headers: { "content-type": "application/json" },
+    playerId: "test-player",
     async *[Symbol.asyncIterator]() {
       for (const chunk of chunks) yield chunk;
     },

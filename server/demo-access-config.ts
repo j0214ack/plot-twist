@@ -45,6 +45,11 @@ export const resolveDemoAccessOptions = (
   return {
     allowedOrigin,
     sessionSecret,
+    playerIdentitySecret:
+      environment.LDO_PLAYER_IDENTITY_SECRET ||
+      (context.isPreview
+        ? sessionSecret
+        : "leave-door-open-local-player-identity-v1"),
     accessCode:
       !context.isPreview &&
       (context.mode === "ldo-local-codex" ||

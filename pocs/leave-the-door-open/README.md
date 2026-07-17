@@ -160,6 +160,21 @@ door arc. The World records the attempt so later dialogue can remember it.
   separate English and Chinese sessions while preserving the same game state
   and authority boundaries.
 
+### Browser persistence remains server-owned
+
+- A long-lived signed HttpOnly cookie identifies one browser profile's save;
+  it is separate from the short-lived shared demo-access session.
+- The server persists one versioned checkpoint per player and locale only at a
+  quiescent Controller/terminal boundary. The renderer still receives only a
+  safe screen and opaque runtime session ID.
+- Refresh resumes the active save. Server restart, deployment, scale-to-zero,
+  or inactive-handle eviction restores it into a new runtime session. Only an
+  explicit New Game request removes it.
+- Raw observer JSONL stays server-side beside the checkpoints. It diagnoses a
+  playthrough but is never replayed as gameplay state.
+- This PoC is deliberately single-machine and browser-profile-scoped; accounts,
+  cross-device recovery, and multi-writer persistence remain deferred.
+
 ## Evaluation philosophy
 
 Automated validation answers whether a mechanism exists and whether authority
@@ -261,6 +276,7 @@ rationale.
 | Thin browser renderer and input adapter | [`../../src/leave-door-open-main.ts`](../../src/leave-door-open-main.ts) |
 | Chronological Web transcript reconciliation | [`../../src/leave-door-open-client.ts`](../../src/leave-door-open-client.ts) |
 | Browser session API and real game composition | [`../../server/leave-door-open-api.ts`](../../server/leave-door-open-api.ts) and [`../../server/leave-door-open-runtime.ts`](../../server/leave-door-open-runtime.ts) |
+| Browser checkpoint and observer-journal store | [`../../server/leave-door-open-persistence.ts`](../../server/leave-door-open-persistence.ts) |
 
 ## Next milestone
 
@@ -345,6 +361,7 @@ rationale.
   - [`decisions/0033-author-bilingual-player-facing-content.md`](decisions/0033-author-bilingual-player-facing-content.md)
   - [`decisions/0034-preserve-guarded-reaction-continuity-without-leaking-guarded-input.md`](decisions/0034-preserve-guarded-reaction-continuity-without-leaking-guarded-input.md)
   - [`decisions/0035-collapse-runtime-dialogue-to-persona-and-one-post-persona-judge.md`](decisions/0035-collapse-runtime-dialogue-to-persona-and-one-post-persona-judge.md)
+  - [`decisions/0036-persist-browser-scoped-player-checkpoints-and-observer-journals.md`](decisions/0036-persist-browser-scoped-player-checkpoints-and-observer-journals.md)
 
 ## Verification and paid commands
 

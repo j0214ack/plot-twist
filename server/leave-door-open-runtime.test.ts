@@ -3,6 +3,43 @@ import type { StructuredRoleModel } from "../pocs/leave-the-door-open/src/live-p
 import { createLeaveDoorOpenWebSessionFactory } from "./leave-door-open-runtime";
 
 describe("Leave the Door Open server runtime", () => {
+  // Spec: ADR 0036 LDO-SAVE-003 and LDO-SAVE-004.
+  it("restores the last quiescent Web checkpoint without replaying start", async () => {
+    const unusedModel: StructuredRoleModel = {
+      async call() {
+        throw new Error("Checkpoint restore must not call a model");
+      },
+    };
+    const logLines: string[] = [];
+    const factory = createLeaveDoorOpenWebSessionFactory({
+      model: unusedModel,
+      prompts: {
+        inputFirewall: "input firewall",
+        persona: "persona",
+        memorySelector: "memory selector",
+        actionJudge: "judge",
+      },
+      generatedPerformance: false,
+      appendLogLine: (_sessionId, line) => logLines.push(line),
+    });
+    const original = await factory("web-save-a", "zh-TW");
+    await original.start();
+    const help = await original.handleInput("/help");
+    const checkpoint = original.checkpoint();
+
+    const restored = await factory("web-save-b", "zh-TW", checkpoint);
+    const resumed = await restored.start();
+
+    expect(checkpoint).toMatchObject({
+      schemaVersion: 1,
+      controller: { schemaVersion: 1, locale: "zh-TW" },
+      terminal: { schemaVersion: 1, started: true, ended: false },
+      latestScreen: help.screen,
+    });
+    expect(resumed).toBe(help.screen);
+    expect(logLines.join("\n")).toContain('"restored":true');
+  });
+
   // Spec: ADR 0035 LDO-LAT-008.
   it("returns the Persona screen before starting the post-Persona Judge continuation", async () => {
     const calls: string[] = [];
@@ -113,6 +150,7 @@ describe("Leave the Door Open server runtime", () => {
       },
     };
     const logLines: string[] = [];
+    const journalSessionIds: string[] = [];
     const factory = createLeaveDoorOpenWebSessionFactory({
       model: unusedModel,
       prompts: {
@@ -122,7 +160,10 @@ describe("Leave the Door Open server runtime", () => {
         actionJudge: "judge",
       },
       generatedPerformance: false,
-      appendLogLine: (line) => logLines.push(line),
+      appendLogLine: (sessionId, line) => {
+        journalSessionIds.push(sessionId);
+        logLines.push(line);
+      },
     });
 
     const session = await factory("web-session-a", "zh-TW");
@@ -135,5 +176,6 @@ describe("Leave the Door Open server runtime", () => {
     expect(logLines.join("\n")).toContain('"locale":"zh-TW"');
     expect(logLines.join("\n")).toContain('"type":"screen_rendered"');
     expect(logLines.join("\n")).toContain('"type":"player_input"');
+    expect(new Set(journalSessionIds)).toEqual(new Set(["web-session-a"]));
   });
 });

@@ -8,8 +8,14 @@ https://plot-twist-unwritten-spell.fly.dev/leave-the-door-open/
 
 It uses the same shared access code as the existing Fly demo. The browser never
 receives an OpenAI credential. After access is established, it starts an
-ephemeral server-owned `TerminalPlaySession` and forwards text, focus,
+server-owned `TerminalPlaySession` and forwards text, focus,
 Possibility numbers, resume, and help input to that session.
+
+Progress is bound to one browser profile by a separate signed, HttpOnly player
+cookie. Opening or refreshing the page resumes that browser's save in the
+selected locale. `重新開始` / `Start over` is the only operation that deletes
+that locale's checkpoint and begins again. The shared access code still gates
+the demo; it is not a player identity or save-recovery code.
 
 ## Local preview
 
@@ -30,6 +36,13 @@ The Vite server—not browser JavaScript—uses the key to call
 `gpt-5.6-luna` with `low` reasoning. This local mode bypasses the public demo
 access-code prompt even when root `.env.local` contains `DEMO_ACCESS_CODE`.
 The key remains server-only.
+
+Local checkpoints and raw observer journals are written under
+`pocs/leave-the-door-open/playtest-data/web/`, which is ignored by Git. The
+development console prints compact event summaries instead of complete
+screens, prompts, and cumulative Controller snapshots. Removing that local
+directory or clearing the browser's `ldo_player` cookie deliberately severs the
+local save association.
 
 To use the previous isolated Codex backend instead, authenticate Codex CLI and
 run its explicit alternate command:
@@ -64,14 +77,22 @@ LDO_PLAY_EFFORT=low
 LDO_PLAY_DISABLE_GENERATED_PERFORMANCE=1  # optional authored fallback
 ```
 
-## Deliberate limitations
+## Persistence and deliberate limitations
 
-- Sessions live in one Fly process and expire after 30 minutes of inactivity.
-- A deployment, machine restart, or scale-down may require starting again.
+- Inactive runtime handles still leave memory after 30 minutes, but the next
+  page start restores the durable checkpoint with a new opaque runtime session.
+- Fly uses one persistent Volume and one application machine. Deployment,
+  restart, and scale-to-zero preserve progress as long as that Volume remains
+  attached.
+- Saves are browser-profile- and locale-scoped. Clearing cookies, using private
+  browsing, another browser/profile, or another device creates a new player.
+  Accounts, recovery codes, export/import, and cross-device continuation are
+  intentionally deferred.
 - This is a text renderer and input adapter; the World, Controller, fixed
   Actions, Persona/Judge calls, performance, and safe projection remain on the
   server.
-- Friend-playtest events and model calls are written as structured JSON lines
-  to the Fly application log; durable remote playtest storage is not included.
+- Friend-playtest events and model calls are appended as per-runtime-session
+  JSONL journals on the same private data root. Journals are diagnostic
+  evidence, not event sourcing and not a player-facing API.
 - Both local HTML profiles are development-only. Fly never falls back to a
   local Codex installation.

@@ -228,7 +228,10 @@ Names may vary, but the authority and payload must be equivalent:
 
 ```ts
 interface GameHostPort {
-  startSession(options: { locale: "en" | "zh-TW" }): Promise<SessionStarted>;
+  startSession(options: {
+    locale: "en" | "zh-TW";
+    reset?: boolean;
+  }): Promise<SessionStarted>;
   submitCommand(command: PlayerCommand): Promise<CommandResult>;
   resolveDialogue(): Promise<CommandResult>; // only when marked pending
   advanceTurn(): Promise<TurnResult>; // no target, duration, event, or Action
@@ -489,8 +492,12 @@ duplicate or out-of-order `turnId`/`sequence` values.
 
 ### Locale boundary
 
-The player selects `en` or `zh-TW` when `startSession` is called. That locale
-is immutable until a new session starts and is repeated in safe host results so
+The player selects `en` or `zh-TW` when `startSession` is called. Without
+`reset`, the host resumes that browser profile's active or durable save for the
+locale; `reset: true` is the explicit New Game operation. Browser identity,
+cookies, checkpoint data, and restoration remain host concerns and never enter
+the renderer contract. The locale is immutable within the restored session and
+is repeated in safe host results so
 the renderer can select its own authored chrome, fonts, line breaking, and
 accessibility labels. The host supplies authored localized labels, names,
 guidance, and subtitle text; semantic IDs and Playbook node IDs remain the same
@@ -509,7 +516,8 @@ It owns layout and presentation for:
 - operation-specific loading (`角色正在想……` for dialogue, neutral time
   progress for advancement);
 - disabled/busy state while semantic work or required playback is pending;
-- recoverable errors, expired sessions, retry/new game;
+- recoverable errors, automatic reacquisition of an expired runtime handle,
+  retry, and explicit new game;
 - keyboard/controller/touch navigation, readable text, focus order, reduced
   motion, subtitle, and audio controls.
 

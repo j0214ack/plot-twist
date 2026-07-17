@@ -52,6 +52,15 @@ input or gameplay evaluator.
 - **LDO-OBS-010 — Replay language:** The session-start observer record includes
   the immutable `en` or `zh-TW` locale. Replaying or comparing a journal must
   never silently substitute another player-facing language.
+- **LDO-OBS-011 — Web durable evidence:** Browser sessions append one JSONL
+  journal per opaque runtime session under the configured private data root.
+  The development console shows only a compact event/role/latency/token
+  summary; exact player and model boundaries remain in the journal.
+- **LDO-OBS-012 — Bounded automatic ticks:** Later automatic time ticks record
+  the result, final bounded world/interaction fields, and only newly added
+  events and performances. They do not repeat the full cumulative Controller
+  history or an identical screen. This is the observer form of ADR 0036
+  LDO-SAVE-007 and LDO-SAVE-008.
 
 ## Intervention policy for agent playtests
 

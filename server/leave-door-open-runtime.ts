@@ -11,6 +11,7 @@ import { StructuredModelConversationPorts } from "../pocs/leave-the-door-open/sr
 import { StructuredModelPerformanceDirector } from "../pocs/leave-the-door-open/src/structured-performance-director";
 import { TerminalPlaySession } from "../pocs/leave-the-door-open/src/terminal-play-session";
 import type {
+  LeaveDoorOpenWebCheckpoint,
   LeaveDoorOpenWebSession,
   LeaveDoorOpenWebSessionFactory,
 } from "./leave-door-open-api";
@@ -26,17 +27,23 @@ export type LeaveDoorOpenWebRuntimeOptions = {
     performanceDirector?: string;
   };
   generatedPerformance: boolean;
-  appendLogLine?: (line: string) => void;
+  appendLogLine?: (sessionId: string, line: string) => void;
 };
 
 export const createLeaveDoorOpenWebSessionFactory = (
   options: LeaveDoorOpenWebRuntimeOptions,
 ): LeaveDoorOpenWebSessionFactory =>
-  (sessionId, locale = "en"): LeaveDoorOpenWebSession => {
+  (sessionId, locale = "en", savedCheckpoint): LeaveDoorOpenWebSession => {
+    const restoredCheckpoint =
+      savedCheckpoint === undefined
+        ? undefined
+        : validateWebCheckpoint(savedCheckpoint, locale);
     const recorder = new PlaytestSessionRecorder({
       sessionId,
       appendLine:
-        options.appendLogLine ??
+        (options.appendLogLine === undefined
+          ? undefined
+          : (line) => options.appendLogLine!(sessionId, line)) ??
         ((line) => {
           console.info(line.trimEnd());
         }),
@@ -48,6 +55,7 @@ export const createLeaveDoorOpenWebSessionFactory = (
         surface: "web",
         locale,
         generatedPerformance: options.generatedPerformance,
+        restored: restoredCheckpoint !== undefined,
       },
     });
 
@@ -85,22 +93,28 @@ export const createLeaveDoorOpenWebSessionFactory = (
             ),
           }
         : {}),
-    }, { locale });
-    let latestScreen = "";
+    }, {
+      locale,
+      checkpoint: restoredCheckpoint?.controller,
+    });
+    let latestScreen = restoredCheckpoint?.latestScreen ?? "";
+    const terminalDelegate = new TerminalPlaySession(
+      controller,
+      createRecordingTerminalOutput(recorder, (screen) => {
+        latestScreen = screen;
+      }),
+      createRecordingTerminalErrorObserver(recorder),
+      restoredCheckpoint?.terminal,
+    );
     const terminal = new RecordingTerminalPlaySession(
-      new TerminalPlaySession(
-        controller,
-        createRecordingTerminalOutput(recorder, (screen) => {
-          latestScreen = screen;
-        }),
-        createRecordingTerminalErrorObserver(recorder),
-      ),
+      terminalDelegate,
       controller,
       recorder,
     );
 
     return {
       async start() {
+        if (restoredCheckpoint !== undefined) return latestScreen;
         await terminal.start();
         return latestScreen;
       },
@@ -155,5 +169,41 @@ export const createLeaveDoorOpenWebSessionFactory = (
           screen: latestScreen,
         };
       },
+      checkpoint() {
+        try {
+          return {
+            schemaVersion: 1,
+            controller: controller.checkpoint(),
+            terminal: terminalDelegate.checkpoint(),
+            latestScreen,
+          };
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            (error.message.includes("pending interaction") ||
+              error.message.includes("during time advance"))
+          ) {
+            return null;
+          }
+          throw error;
+        }
+      },
     };
   };
+
+const validateWebCheckpoint = (
+  checkpoint: LeaveDoorOpenWebCheckpoint,
+  locale: import("../pocs/leave-the-door-open/src/localization").GameLocale,
+): LeaveDoorOpenWebCheckpoint => {
+  if (
+    checkpoint?.schemaVersion !== 1 ||
+    checkpoint.controller?.schemaVersion !== 1 ||
+    checkpoint.controller.locale !== locale ||
+    checkpoint.terminal?.schemaVersion !== 1 ||
+    typeof checkpoint.latestScreen !== "string" ||
+    checkpoint.latestScreen.length === 0
+  ) {
+    throw new Error("Invalid Leave the Door Open Web checkpoint");
+  }
+  return structuredClone(checkpoint);
+};
