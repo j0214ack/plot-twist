@@ -29,6 +29,16 @@ export type MindState = {
   atoms: PsychologicalAtom[];
 };
 
+export const projectPersonaOwnedMindState = (
+  state: MindState,
+): MindState => ({
+  atoms: state.atoms
+    .filter(
+      (atom) => atom.kind !== "reframe" || atom.status !== "unavailable",
+    )
+    .map((atom) => structuredClone(atom)),
+});
+
 export type MindStateTransition = {
   atomId: string;
   fromStatus: string;
@@ -87,6 +97,20 @@ export const createChapterOneMindState = (
               "Beginning near the closed door feels tied to an uncertain sequence.",
             status: "active",
           },
+          {
+            kind: "pressure",
+            atomId: "husband.relationship.complete_explanation",
+            description:
+              "Beginning a personal conversation feels like creating an obligation to explain everything.",
+            status: "active",
+          },
+          {
+            kind: "reframe",
+            atomId: "husband.relationship.one_honest_sentence",
+            proposition:
+              "One honest sentence can be a complete attempt without explaining the past, fixing the relationship, or requiring an equally intimate answer.",
+            status: "unavailable",
+          },
         ]
       : [
           {
@@ -102,6 +126,20 @@ export const createChapterOneMindState = (
             description:
               "Movement near the room feels like being the first to disturb it.",
             status: "active",
+          },
+          {
+            kind: "pressure",
+            atomId: "wife.relationship.immediate_answer",
+            description:
+              "Hearing something personal feels like being asked to produce an immediate complete answer.",
+            status: "active",
+          },
+          {
+            kind: "reframe",
+            atomId: "wife.relationship.one_truthful_reply",
+            proposition:
+              "One truthful reply can be enough without resolving the larger relationship.",
+            status: "unavailable",
           },
         ],
 });

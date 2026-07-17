@@ -70,25 +70,34 @@ export default defineConfig(({ command, isPreview, mode }) => {
           throw new Error("OPENAI_API_KEY is not configured on the server");
         },
       };
-  const leaveDoorOpenModel: StructuredRoleModel =
+  const leaveDoorOpenCodexClient = new LocalCodexExecClient();
+  const leaveDoorOpenOpenAiClient = env.OPENAI_API_KEY
+    ? new OpenAI({ apiKey: env.OPENAI_API_KEY })
+    : null;
+  const createLeaveDoorOpenModel = (
+    reasoningEffort: typeof leaveDoorOpenOptions.reasoningEffort,
+  ): StructuredRoleModel =>
     leaveDoorOpenOptions.modelBackend === "codex"
-      ? new CodexExecStructuredRoleModel(new LocalCodexExecClient(), {
+      ? new CodexExecStructuredRoleModel(leaveDoorOpenCodexClient, {
           model: leaveDoorOpenOptions.model,
-          reasoningEffort: leaveDoorOpenOptions.reasoningEffort,
+          reasoningEffort,
         })
-      : env.OPENAI_API_KEY
-        ? new OpenAiStructuredRoleModel(
-            new OpenAI({ apiKey: env.OPENAI_API_KEY }),
-            {
-              model: leaveDoorOpenOptions.model,
-              reasoningEffort: leaveDoorOpenOptions.reasoningEffort,
-            },
-          )
+      : leaveDoorOpenOpenAiClient !== null
+        ? new OpenAiStructuredRoleModel(leaveDoorOpenOpenAiClient, {
+            model: leaveDoorOpenOptions.model,
+            reasoningEffort,
+          })
         : {
             async call() {
               throw new Error("OPENAI_API_KEY is not configured on the server");
             },
           };
+  const leaveDoorOpenModel = createLeaveDoorOpenModel(
+    leaveDoorOpenOptions.reasoningEffort,
+  );
+  const leaveDoorOpenInputFirewallModel = createLeaveDoorOpenModel(
+    leaveDoorOpenOptions.inputFirewallReasoningEffort,
+  );
   const leaveDoorOpenPromptRoot = resolve(
     process.cwd(),
     "pocs/leave-the-door-open/validation/prompts",
@@ -96,11 +105,26 @@ export default defineConfig(({ command, isPreview, mode }) => {
   const leaveDoorOpenSessions = new LeaveDoorOpenSessionService(
     createLeaveDoorOpenWebSessionFactory({
       model: leaveDoorOpenModel,
+      inputFirewallModel: leaveDoorOpenInputFirewallModel,
       prompts: {
+        inputFirewall: readFileSync(
+          resolve(
+            leaveDoorOpenPromptRoot,
+            LEAVE_DOOR_OPEN_PROMPT_FILES.inputFirewall,
+          ),
+          "utf8",
+        ),
         persona: readFileSync(
           resolve(
             leaveDoorOpenPromptRoot,
             LEAVE_DOOR_OPEN_PROMPT_FILES.persona,
+          ),
+          "utf8",
+        ),
+        memorySelector: readFileSync(
+          resolve(
+            leaveDoorOpenPromptRoot,
+            LEAVE_DOOR_OPEN_PROMPT_FILES.memorySelector,
           ),
           "utf8",
         ),

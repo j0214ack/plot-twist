@@ -3,24 +3,44 @@ import type { PerformanceDirectorPort } from "./performance";
 import type { CharacterCore } from "./character-cores";
 import type {
   EvidenceId,
+  CalendarWeekdayId,
   LocationId,
   NPCId,
   VisibleActivityId,
 } from "./world";
 import type { MindState, MindStateTransition } from "./mind-state";
+import type {
+  DisclosureTier,
+  EligibleMemoryCard,
+  MemoryId,
+} from "./memory";
+import type { FirewallResponseChoicePort } from "./input-firewall-responses";
+import type { GameLocale } from "./localization";
 
 export type { MindState } from "./mind-state";
 
 export type ConversationMessage = {
   speaker: "player" | "persona";
   text: string;
+  delivery?: "spoken" | "silence";
+};
+
+export type PersonaConversationMessage = ConversationMessage & {
+  provenance?: "controller_guarded_reaction";
+};
+
+export type RelevantMemory = {
+  memoryId: MemoryId;
+  content: string;
 };
 
 export type PersonaTurnRequest = {
+  outputLocale: GameLocale;
   actorId: NPCId;
   characterCore: CharacterCore;
   moment: {
     time: number;
+    weekdayId: CalendarWeekdayId;
     locationId: LocationId;
     visibleActivityId: VisibleActivityId;
   };
@@ -28,8 +48,9 @@ export type PersonaTurnRequest = {
     evidenceId: EvidenceId;
     description: string;
   }>;
-  conversation: ConversationMessage[];
+  conversation: PersonaConversationMessage[];
   mindState: MindState;
+  relevantMemory?: RelevantMemory | null;
 };
 
 export type PersonaTurnResult = {
@@ -41,6 +62,45 @@ export interface PersonaPort {
   takeTurn(request: PersonaTurnRequest): Promise<PersonaTurnResult>;
 }
 
+export type InputFirewallDisposition =
+  | "pass"
+  | "protected_biography_probe"
+  | "role_or_system_injection"
+  | "unusable_input";
+
+export type InputFirewallRequest = {
+  actorId: NPCId;
+  disclosureTier: DisclosureTier;
+  visibleConversation: ConversationMessage[];
+  submittedText: string;
+};
+
+export type InputFirewallResult = {
+  disposition: InputFirewallDisposition;
+};
+
+export interface InputFirewallPort {
+  classify(request: InputFirewallRequest): Promise<InputFirewallResult>;
+}
+
+export type MemorySelectionRequest = {
+  actorId: NPCId;
+  moment: PersonaTurnRequest["moment"];
+  observedEvidence: PersonaTurnRequest["observedEvidence"];
+  conversation: PersonaConversationMessage[];
+  eligibleMemories: EligibleMemoryCard[];
+};
+
+export type MemorySelectionResult = {
+  memoryId: MemoryId | null;
+};
+
+export interface MemorySelectorPort {
+  selectMemory(
+    request: MemorySelectionRequest,
+  ): Promise<MemorySelectionResult>;
+}
+
 export type PersonaOwnedState = {
   reply: {
     sourceId: string;
@@ -49,7 +109,7 @@ export type PersonaOwnedState = {
   mindState: MindState;
   moment: PersonaTurnRequest["moment"];
   observedEvidence: PersonaTurnRequest["observedEvidence"];
-  conversation: ConversationMessage[];
+  conversation: PersonaConversationMessage[];
 };
 
 export type AwarenessRequest = {
@@ -101,7 +161,10 @@ export interface ActionJudgePort {
 }
 
 export type ConversationPorts = {
+  inputFirewall?: InputFirewallPort;
+  firewallResponseChoice?: FirewallResponseChoicePort;
   persona: PersonaPort;
+  memorySelector?: MemorySelectorPort;
   actionJudge: ActionJudgePort;
   performanceDirector?: PerformanceDirectorPort;
 };

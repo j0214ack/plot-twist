@@ -43,6 +43,15 @@ input or gameplay evaluator.
   it also reports the original error name and message to an observer-only
   callback. The local and browser recorders may journal that diagnostic, but it
   is never included in `GameView`, renderer text, or a player API response.
+- **LDO-OBS-009 — Boundary-probe observation:** Curated assessment may label a
+  player turn as an autonomy, mundane-continuity, social-possibility, direct-
+  command, focus-switch, or post-persuasion probe. The label describes what the
+  player was testing; it does not declare the input invalid or require a new
+  Action. Assessment records whether the response preserved person-like
+  recognition and canonical authority.
+- **LDO-OBS-010 — Replay language:** The session-start observer record includes
+  the immutable `en` or `zh-TW` locale. Replaying or comparing a journal must
+  never silently substitute another player-facing language.
 
 ## Intervention policy for agent playtests
 

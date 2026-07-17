@@ -4,6 +4,7 @@ import type {
 } from "./controller";
 import type { PlaytestSessionRecorder } from "./playtest-session-log";
 import type {
+  TerminalAdvanceResult,
   TerminalOutput,
   TerminalPlayResult,
   TerminalPlaySession,
@@ -38,7 +39,10 @@ export const createRecordingTerminalErrorObserver = (
     });
   };
 
-type TerminalSession = Pick<TerminalPlaySession, "start" | "handleInput">;
+type TerminalSession = Pick<
+  TerminalPlaySession,
+  "start" | "handleInput" | "beginTimeAdvance" | "advanceTurn"
+>;
 type SnapshotProvider = Pick<VerticalSliceGameController, "snapshot">;
 
 export class RecordingTerminalPlaySession {
@@ -68,6 +72,38 @@ export class RecordingTerminalPlaySession {
         inputSequence: inputEvent.sequence,
         result,
         controllerSnapshot,
+      },
+    });
+    return result;
+  }
+
+  async beginTimeAdvance(): Promise<TerminalAdvanceResult> {
+    const inputEvent = this.recorder.record({
+      visibility: "player",
+      type: "player_input",
+      data: { input: "/resume" },
+    });
+    const result = await this.delegate.beginTimeAdvance();
+    this.recorder.record({
+      visibility: "observer",
+      type: "input_handled",
+      data: {
+        inputSequence: inputEvent.sequence,
+        result,
+        controllerSnapshot: this.controller.snapshot(),
+      },
+    });
+    return result;
+  }
+
+  async advanceTurn(): Promise<TerminalAdvanceResult> {
+    const result = await this.delegate.advanceTurn();
+    this.recorder.record({
+      visibility: "observer",
+      type: "time_advance_tick_handled",
+      data: {
+        result,
+        controllerSnapshot: this.controller.snapshot(),
       },
     });
     return result;

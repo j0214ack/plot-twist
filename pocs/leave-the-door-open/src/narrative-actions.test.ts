@@ -11,7 +11,6 @@ describe("authored NarrativeAction definitions", () => {
         "Physically interact with the living-room clock for a brief period; when finished, leave it intact, running, and showing the current time.",
       option: {
         optionId: "spend-time-with-clock",
-        label: "Spend a moment with the clock.",
       },
       variants: [
         {
@@ -38,7 +37,6 @@ describe("authored NarrativeAction definitions", () => {
         "Open the fully closed hallway door only far enough to leave a narrow gap, then walk away.",
       option: {
         optionId: "open-door-a-crack",
-        label: "Open the door just a little.",
       },
       variants: [
         {
@@ -64,7 +62,6 @@ describe("authored NarrativeAction definitions", () => {
         "Step one pace across the room threshold, remain briefly without touching anything, then step back.",
       option: {
         optionId: "step-inside-room",
-        label: "Step across the threshold, then step back.",
       },
       variants: [
         {
@@ -90,7 +87,6 @@ describe("authored NarrativeAction definitions", () => {
         "Open the closed room window one hand-width and leave it there.",
       option: {
         optionId: "open-room-window",
-        label: "Open the window a little.",
       },
       variants: [
         {
@@ -104,6 +100,43 @@ describe("authored NarrativeAction definitions", () => {
         closurePolicy: {
           kind: "authored_postcondition",
           postconditionId: "room_window_open_one_hand_width",
+        },
+      },
+    });
+  });
+
+  // Spec: ADR 0033 LDO-LOC-002 and LDO-LOC-004.
+  it("keeps display copy out of semantic Action definitions", () => {
+    const definition = getNarrativeActionDefinition("open_door_a_crack");
+
+    expect(definition.option).toEqual({ optionId: "open-door-a-crack" });
+    expect(definition.option).not.toHaveProperty("label");
+  });
+
+  // Spec: chapter-1.md LDO-CH1-017 and ADR 0032 LDO-SOCIAL-001/003.
+  it("defines one fixed bounded attempt instead of an open spouse-to-spouse conversation", () => {
+    expect(
+      getNarrativeActionDefinition("say_one_honest_thing_to_elise"),
+    ).toMatchObject({
+      actionId: "say_one_honest_thing_to_elise",
+      description:
+        "At the next suitable shared evening moment, say one honest thing to Elise without requiring an immediate answer or larger resolution.",
+      option: {
+        optionId: "say-one-honest-thing",
+      },
+      recipientActorIds: ["wife"],
+      variants: [
+        {
+          variantId: "one_honest_opening",
+          description:
+            "Make one honest opening, allow Elise one response, and let the exchange end without forcing a conclusion.",
+        },
+      ],
+      performanceEnvelope: {
+        targetObjectIds: [],
+        closurePolicy: {
+          kind: "authored_postcondition",
+          postconditionId: "bounded_spousal_exchange_recorded",
         },
       },
     });

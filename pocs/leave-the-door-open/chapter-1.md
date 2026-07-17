@@ -57,6 +57,10 @@ It must not tell the player to open, enter, clean, or change the room.
 
 ## Chapter time and conversation model
 
+- Absolute calendar day zero is Thursday. Weekday continues independently of
+  tutorial and chapter numbering, so a Thursday tutorial success makes Chapter
+  1 Day 1 Friday, while a delayed success may make it Saturday, Sunday, or a
+  later weekday. See ADR 0031.
 - The days before Chapter 1 contain the clock tutorial only. A no-intention
   resume may advance through an ordinary routine to the next morning's clock
   pause; it does not skip the required tutorial success loop.
@@ -80,6 +84,9 @@ It must not tell the player to open, enter, clean, or change the room.
 - Main-story no-intention guidance says that the next authored routine may make
   the accumulated distinction visible. The following screen must then provide
   a genuinely changed routine cue; this promise cannot be empty reassurance.
+- Workday departure/return and weekend outing routines continue underneath the
+  causal chapter spine. They establish ordinary life and actor presence only;
+  they do not change MindState, Evidence, Action eligibility, or chapter phase.
 - A player may focus a spouse who has no currently eligible Action. Persona may
   still provide grounded characterization or a distinction, but no ineligible
   Action reaches the Judge.
@@ -94,6 +101,12 @@ roomInterior = hidden | revealed
 roomWindow = closed | open_one_hand_width
 wifeHasRemainedAtThreshold = boolean
 wifeHasEnteredRoom = boolean
+martinEliseConversation =
+  not_attempted |
+  practical_deflection |
+  distance_acknowledged |
+  one_truth_returned
+martinEliseConversationOnChapterDay = number | null
 chapter1Complete = boolean
 ```
 
@@ -203,6 +216,63 @@ Existing Action retained as a genuine intermediate story state.
 These Actions are not variants of one another. Their visible completions and
 persistent semantic states differ.
 
+### `say_one_honest_thing_to_elise`
+
+Optional bounded relationship Action; it is not part of the door causal spine.
+
+- Actor: Martin.
+- Recipient: Elise.
+- Player label: `Try to say one honest thing to Elise.`
+- Hard prerequisites:
+  - Chapter 1 is active and incomplete;
+  - Martin is at home at a paused interaction moment;
+  - Elise has not yet completed `step_inside_room` and the room interior is
+    still `hidden`;
+  - the Action is neither intended nor completed.
+- Acceptance means only that Martin owns making one honest opening without
+  requiring an immediate solution or controlling Elise's reply.
+- The World schedules the accepted intention for the first 20:15 at which both
+  adults are at home. If either is away, it remains pending for the next 20:15
+  co-presence. An intention accepted before the eligibility window closes is
+  not cancelled when another Action later reveals the room.
+- Execution is one bounded scene at the dining table: at most one authored
+  opening from Martin, one authored response from Elise, and one closing
+  narration beat. It never starts a Persona-to-Persona loop.
+- The Controller selects exactly one authored closure from Elise's validated
+  relationship readiness before committing the intention:
+  - `practical_deflection` when her relationship pressure is still `active`
+    and her one-reply reframe is still `unavailable`;
+  - `distance_acknowledged` when either relationship atom has moved but the
+    reframe is not both `accepted` and accompanied by resolved pressure;
+  - `one_truth_returned` only when the reframe is `accepted` and the pressure
+    is `resolved`.
+- Authored fallback performance:
+  - `practical_deflection`: Martin says, “I think we've been talking around
+    each other.” Elise leaves one hand beside her cup. After a pause she asks
+    what time he is leaving tomorrow. The first sentence remains unanswered,
+    but not unheard.
+  - `distance_acknowledged`: Martin says, “I don't know how to start this, but
+    I miss talking to you.” Elise looks at him and says, “I know.” Neither
+    tries to turn the two sentences into a conclusion.
+  - `one_truth_returned`: Martin says, “I miss knowing how you are when we
+    aren't discussing the day.” Elise answers, “I keep waiting until I can say
+    everything properly.” Martin nods. They let that be enough for tonight.
+- The Performance Director may vary gesture, pause, and exact wording within
+  the selected closure, but receives the fixed closure ID and may emit at most
+  three beats. Invalid, excessive, unavailable, or failed generation falls
+  back to the authored performance above.
+- Authored closure:
+  - record the selected `martinEliseConversation` value and Chapter day;
+  - mark the Action completed and remove its intention;
+  - place both adults in the dining area with outcome-specific visible
+    activities;
+  - create no Evidence, change no door or room object, change neither
+    character's MindState, and do not complete the chapter.
+
+This is deliberately **try to say one honest thing**, not **have a deep
+conversation**. Martin's successful willingness does not grant control over
+Elise or promise a better outcome.
+
 ## Psychological regions
 
 These are authoring regions, not free-form Action selectors. Persona remains
@@ -250,6 +320,34 @@ threshold, entry boundary, and closed-window moments each add only their own
 reframe and pressure. Earlier statuses persist, and adding a phase twice is
 idempotent. Future reframes therefore cannot leak into an earlier Persona
 packet merely because they belong to the same chapter.
+
+### Separate relationship readiness
+
+The optional relationship Action uses a second, small psychological dimension.
+These atoms are available from Chapter 1 entry because either spouse may be
+focused before the door arc advances. They describe private constraints; they
+are not instructions for Persona to introduce the topic without a grounded
+player turn.
+
+Martin:
+
+- pressure `husband.relationship.complete_explanation`: beginning a personal
+  conversation feels like creating an obligation to explain everything;
+- reframe `husband.relationship.one_honest_sentence`: one honest sentence can
+  be a complete attempt without explaining the past, fixing the relationship,
+  or requiring an equally intimate answer.
+
+Elise:
+
+- pressure `wife.relationship.immediate_answer`: hearing something personal
+  feels like being asked to produce an immediate complete answer;
+- reframe `wife.relationship.one_truthful_reply`: one truthful reply can be
+  enough without resolving the larger relationship.
+
+The transition Judge may move only these authored atoms when Persona speech
+supports the change. Martin's atoms inform awareness and willingness for his
+Action. Elise's two validated statuses select its authored closure; Martin's
+door atoms and Elise's room atoms have no relationship-outcome authority.
 
 ## Routine and HintBrief progression
 
@@ -347,6 +445,10 @@ not move or replace them.
 | 5 | 08:20 | Wife returns inside and notices the closed window; pause. |
 | 5 | 08:21 | Execute an accepted `open_room_window` intention and complete the chapter. |
 
+An accepted `say_one_honest_thing_to_elise` intention adds one optional 20:15
+timepoint before the next morning pause. It does not move or replace any row in
+the causal schedule. The same accepted intention cannot execute twice.
+
 If a causal pause resumes without its required intention, that phase recurs at
 the same local routine time on a later Chapter day. It must retain the same
 hard prerequisites and authored closure while using a progress-sensitive,
@@ -422,6 +524,29 @@ Husband has observed the window.
   eligible authored routine semantics, or none, through injected replayable
   chance. Their optional HintBriefs may reinforce safe phase information but
   cannot be the sole source of a required clue or change causal World state.
+- **LDO-CH1-017 — Bounded relationship attempt:** Before room entry, Martin may
+  form one fixed intention to say one honest thing to Elise. Acceptance
+  guarantees only the attempt and never creates an open Persona-to-Persona
+  exchange.
+- **LDO-CH1-018 — Independent relationship readiness:** Separate authored
+  Martin and Elise relationship atoms enter at Chapter start. Door/room atoms
+  cannot stand in for them, and one spouse's transition cannot mutate the
+  other's state.
+- **LDO-CH1-019 — Controller-selected authored closure:** The Controller maps
+  Elise's validated relationship atom statuses to exactly one of
+  `practical_deflection`, `distance_acknowledged`, or `one_truth_returned`
+  before World commitment. Judge and Performance cannot invent or broaden the
+  result.
+- **LDO-CH1-020 — Natural delayed execution:** World executes the accepted
+  attempt only at the next 20:15 co-presence and retains it across an unavailable
+  evening. It runs once, does not teleport either adult, and does not disturb
+  the causal morning schedule.
+- **LDO-CH1-021 — Bounded authored performance:** The selected relationship
+  closure has authored fallback text and at most three visible beats. A failed
+  or overlong Performance result falls back without changing World closure.
+- **LDO-CH1-022 — Durable non-causal trace:** World records the exact closure
+  and Chapter day without Evidence, object mutation, cross-character MindState
+  mutation, door-arc progress, or chapter completion.
 
 ## Paper-probe gates before runtime
 
@@ -462,4 +587,6 @@ Husband has observed the window.
 - ideal human difficulty, day count, conversation quota, or prose quality;
 - an automatic literary-interest score or per-day ambient/hint quota;
 - multiple competing Chapter 1 quest threads;
+- generic social commands, arbitrary actor targets, repeatable relationship
+  scenes, or autonomous multi-Persona conversations;
 - LLM-selected Actions, hints, durable outcomes, or chapter completion.

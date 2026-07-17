@@ -7,6 +7,56 @@ import type { ConversationPorts } from "./conversation";
 import { TerminalPlaySession } from "./terminal-play-session";
 
 describe("Leave the Door Open terminal play session", () => {
+  // Spec: ADR 0033 LDO-LOC-003, LDO-LOC-006, and LDO-LOC-007.
+  it("renders authored tutorial guidance in the session's zh-TW locale", async () => {
+    const outputs: string[] = [];
+    const session = new TerminalPlaySession(
+      createVerticalSliceGameController({ locale: "zh-TW" }),
+      (screen) => outputs.push(screen),
+    );
+
+    await session.start();
+
+    expect(outputs.at(-1)).toContain("讓門開著——本機文字試玩");
+    expect(outputs.at(-1)).toContain(
+      "你是馬丁自言自語裡的一個聲音。",
+    );
+    expect(outputs.at(-1)).toContain(
+      "起點：客廳的時鐘慢了三分鐘。",
+    );
+    expect(outputs.at(-1)).toContain("可能的行動：");
+    expect(outputs.at(-1)).not.toContain(
+      "You are a voice inside Martin's self-talk.",
+    );
+  });
+
+  // Spec: ADR 0029 LDO-WEB-014, LDO-TIME-001, and LDO-PERF-003.
+  it("exposes one real simulation tick at a time for paced renderers", async () => {
+    const outputs: string[] = [];
+    const controller = createVerticalSliceGameController();
+    const session = new TerminalPlaySession(controller, (screen) => {
+      outputs.push(screen);
+    });
+    await session.start();
+    await session.handleInput("1");
+
+    const first = await session.beginTimeAdvance();
+
+    expect(first).toEqual({ ended: false, advancePending: true });
+    expect(controller.snapshot().world.time).toBe(7 * 60 + 59);
+    expect(outputs.at(-1)).toContain("The clock now shows 07:59.");
+    expect(outputs.at(-1)).not.toContain(
+      "He sits at the far end of the sofa.",
+    );
+
+    const second = await session.advanceTurn();
+
+    expect(second).toEqual({ ended: false, advancePending: true });
+    expect(controller.snapshot().world.time).toBe(8 * 60);
+    expect(outputs.at(-1)).toContain("He sits at the far end of the sofa.");
+    expect(outputs.at(-1)).not.toContain("Chapter 1 — Day 1");
+  });
+
   it("LDO-OBS-008 reports a swallowed interaction failure only to the observer", async () => {
     const outputs: string[] = [];
     const observerErrors: unknown[] = [];
@@ -331,6 +381,52 @@ describe("Leave the Door Open terminal play session", () => {
     );
   });
 
+  // Spec: chapter-1.md LDO-CH1-017, LDO-CH1-020, and LDO-CH1-022.
+  it("plays the optional bounded spouse exchange at 20:15 before continuing to the next causal pause", async () => {
+    const outputs: string[] = [];
+    const controller = createVerticalSliceGameController();
+    const session = new TerminalPlaySession(controller, (screen) => {
+      outputs.push(screen);
+    });
+
+    await session.start();
+    await session.handleInput("1");
+    await session.handleInput("/resume");
+    await session.handleInput("/focus martin");
+
+    expect(outputs.at(-1)).toContain(
+      "1. Try to say one honest thing to Elise.",
+    );
+    await session.handleInput("1");
+    expect(controller.snapshot().world.intentions).toContainEqual({
+      actorId: "husband",
+      actionId: "say_one_honest_thing_to_elise",
+      relationshipOutcomeId: "practical_deflection",
+    });
+
+    await session.handleInput("/resume");
+
+    expect(controller.snapshot().world).toMatchObject({
+      time: 2 * 24 * 60 + 8 * 60 + 10,
+      paused: true,
+      worldFacts: {
+        martinEliseConversation: "practical_deflection",
+        martinEliseConversationOnChapterDay: 1,
+        hallwayDoor: "closed",
+        chapter1Complete: false,
+      },
+    });
+    expect(outputs.at(-1)).toContain(
+      "20:15 — Dining area — Martin says, “I think we've been talking around each other.”",
+    );
+    expect(outputs.at(-1)).toContain(
+      "The first sentence remains unanswered, but not unheard.",
+    );
+    expect(outputs.at(-1)).toContain(
+      "08:10 — Hallway — This time he does not turn back.",
+    );
+  });
+
   it("LDO-CH1-008 LDO-CH1-009 LDO-CH1-010 LDO-CH1-012 completes the deterministic five-day Chapter 1 path", async () => {
     const outputs: string[] = [];
     const controller = createVerticalSliceGameController();
@@ -566,7 +662,10 @@ describe("Leave the Door Open terminal play session", () => {
       "08:00 — Living room — He sits at the far end of the sofa.",
     );
     expect(outputs.at(-1)).toContain(
-      "12:12 — Dining area — He rinses his cup, dries the ring beneath it, and leaves it upside down.",
+      "08:25 — Front door — He checks the time, shoulders his work bag, and leaves for the bus.",
+    );
+    expect(outputs.at(-1)).toContain(
+      "18:05 — Living room — He returns from work and leaves his bag beside the sofa.",
     );
     expect(outputs.at(-1)).toContain(
       "18:40 — Living room — He folds the sofa throw into the same narrow rectangle.",

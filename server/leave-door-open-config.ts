@@ -6,11 +6,14 @@ export type LeaveDoorOpenWebOptions = {
   modelBackend: "openai" | "codex";
   model: string;
   reasoningEffort: LiveReasoningEffort;
+  inputFirewallReasoningEffort: LiveReasoningEffort;
   generatedPerformance: boolean;
 };
 
 export const LEAVE_DOOR_OPEN_PROMPT_FILES = {
-  persona: "persona-v7.md",
+  inputFirewall: "input-firewall-v1.md",
+  persona: "persona-v9.md",
+  memorySelector: "memory-selector-v1.md",
   actionJudge: "action-judge-v4.md",
   performanceDirector: "performance-director-v1.md",
 } as const;
@@ -22,7 +25,7 @@ export const resolveLeaveDoorOpenWebOptions = (
   if (modelBackend !== "openai" && modelBackend !== "codex") {
     throw new Error("LDO_WEB_MODEL_BACKEND must be openai or codex");
   }
-  const reasoningEffort = environment.LDO_PLAY_EFFORT ?? "low";
+  const reasoningEffort = environment.LDO_PLAY_EFFORT ?? "medium";
   if (reasoningEffort !== "low" && reasoningEffort !== "medium") {
     throw new Error("LDO_PLAY_EFFORT must be low or medium");
   }
@@ -30,6 +33,7 @@ export const resolveLeaveDoorOpenWebOptions = (
     modelBackend,
     model: environment.LDO_PLAY_MODEL ?? "gpt-5.6-luna",
     reasoningEffort,
+    inputFirewallReasoningEffort: "low",
     generatedPerformance:
       environment.LDO_PLAY_DISABLE_GENERATED_PERFORMANCE !== "1",
   };

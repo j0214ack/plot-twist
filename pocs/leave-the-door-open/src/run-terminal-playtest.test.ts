@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("local terminal playtest executable", () => {
-  it("LDO-OBS-001 LDO-OBS-002 LDO-OBS-004 journals a no-model terminal session end to end", async () => {
+  it("LDO-OBS-001 LDO-OBS-002 LDO-OBS-004 LDO-OBS-010 LDO-LOC-001 LDO-LOC-008 journals a localized no-model terminal session end to end", async () => {
     const logRoot = await mkdtemp(join(tmpdir(), "ldo-runner-log-"));
     const sessionId = "runner-acceptance";
     try {
@@ -25,6 +25,7 @@ describe("local terminal playtest executable", () => {
             ...process.env,
             LDO_PLAY_LOG_ROOT: logRoot,
             LDO_PLAY_SESSION_ID: sessionId,
+            LDO_PLAY_LOCALE: "zh-TW",
             LDO_PLAY_DISABLE_GENERATED_PERFORMANCE: "1",
           },
           input: "/quit\n",
@@ -50,16 +51,20 @@ describe("local terminal playtest executable", () => {
         visibility: "observer",
         data: {
           model: "gpt-5.6-luna",
-          reasoningEffort: "low",
-          personaPrompt: "persona-v7.md",
+          reasoningEffort: "medium",
+          inputFirewallReasoningEffort: "low",
+          inputFirewallPrompt: "input-firewall-v1.md",
+          personaPrompt: "persona-v9.md",
+          memorySelectorPrompt: "memory-selector-v1.md",
           actionJudgePrompt: "action-judge-v4.md",
           performanceDirectorPrompt: "performance-director-v1.md",
           generatedPerformance: false,
+          locale: "zh-TW",
         },
       });
       expect(records[1]).toMatchObject({
         visibility: "player",
-        data: { screen: expect.stringContaining("Martin") },
+        data: { screen: expect.stringContaining("馬丁") },
       });
       expect(records[2]).toMatchObject({
         visibility: "player",

@@ -13,6 +13,11 @@ path and enforce authority boundaries, but cannot establish fun, ideal
 strictness, difficulty, pacing, or discoverability; those require human
 playtests under decision 0003.
 
+Run 004 probes a much smaller private-self-talk acting contract and a
+Controller-bounded zero-or-one memory selector. It records both the first
+prompt's authority failure and the minimally guarded revision rather than
+reporting only the successful sample.
+
 The current primary plan is `mechanism-feasibility-plan.md`. The earlier
 `live-eval-plan.md` and one-turn smoke artifacts remain diagnostic evidence,
 not product-quality scores.

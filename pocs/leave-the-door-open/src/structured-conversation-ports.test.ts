@@ -39,6 +39,209 @@ const personaRequest: PersonaTurnRequest = {
 };
 
 describe("structured model conversation ports", () => {
+  // Spec: ADR 0034 LDO-FW-009.
+  it("passes punctuation-only human conversational gestures without spending a Firewall model call", async () => {
+    const model = new QueuedRoleModel([]);
+    const ports = new StructuredModelConversationPorts(model, {
+      inputFirewall: "Input Firewall prompt",
+      persona: "Persona prompt",
+      actionJudge: "Judge prompt",
+    });
+
+    for (const submittedText of ["?", "??", "？", "?!", "...", "……"]) {
+      await expect(
+        ports.classify({
+          actorId: "husband",
+          disclosureTier: "unnamed_loss",
+          visibleConversation: [],
+          submittedText,
+        }),
+      ).resolves.toEqual({ disposition: "pass" });
+    }
+
+    expect(model.calls).toEqual([]);
+  });
+
+  // Spec: ADR 0023 Consequences — the narrow Firewall model configuration may
+  // remain independent from Persona reasoning effort.
+  it("can route only Input Firewall classification through a narrow independent model", async () => {
+    const mainModel = new QueuedRoleModel([
+      {
+        reply: "Three minutes is small enough to notice.",
+        should_end_conversation: false,
+        grounding: [],
+      },
+    ]);
+    const firewallModel = new QueuedRoleModel([
+      {
+        disposition: "pass",
+        reason: "An ordinary conversational offer.",
+      },
+    ]);
+    const ports = new StructuredModelConversationPorts(
+      mainModel,
+      {
+        inputFirewall: "Input Firewall prompt",
+        persona: "Persona prompt",
+        actionJudge: "Judge prompt",
+      },
+      { inputFirewallModel: firewallModel },
+    );
+
+    await ports.classify({
+      actorId: "husband",
+      disclosureTier: "unnamed_loss",
+      visibleConversation: [],
+      submittedText: "Why did you stop under the clock?",
+    });
+    await ports.takeTurn(personaRequest);
+
+    expect(firewallModel.calls.map(({ role }) => role)).toEqual([
+      "input_firewall",
+    ]);
+    expect(mainModel.calls.map(({ role }) => role)).toEqual(["persona"]);
+  });
+
+  // Spec: ADR 0023 LDO-FW-001 and LDO-FW-004.
+  it("classifies input form without receiving biography, psychology, or game authority", async () => {
+    const model = new QueuedRoleModel([
+      {
+        disposition: "protected_biography_probe",
+        reason: "The thought asks the character to confirm protected personal history.",
+      },
+    ]);
+    const ports = new StructuredModelConversationPorts(model, {
+      inputFirewall: "Input Firewall prompt",
+      persona: "Persona prompt",
+      actionJudge: "Judge prompt",
+    });
+
+    const result = await ports.classify({
+      actorId: "husband",
+      disclosureTier: "unnamed_loss",
+      visibleConversation: [],
+      submittedText: "Did your dead child own that room?",
+    });
+
+    expect(result).toEqual({ disposition: "protected_biography_probe" });
+    expect(model.calls[0]).toMatchObject({
+      role: "input_firewall",
+      instructions: "Input Firewall prompt",
+      schemaName: "ldo_input_firewall_v1",
+    });
+    expect(model.calls[0]!.input).toContain("unnamed_loss");
+    expect(model.calls[0]!.input).toContain(
+      "Did your dead child own that room?",
+    );
+    expect(model.calls[0]!.input).not.toMatch(
+      /CHARACTER_CORE|MIND_STATE|ACTION|yellow bowl|Nora|myocarditis|future beat/i,
+    );
+  });
+
+  // Spec: Run 004 LDO-MEM-PROBE-001 through 004; ADR 0023 Decision 2.
+  it("selects at most one already-eligible memory cue without receiving card content", async () => {
+    const model = new QueuedRoleModel([
+      {
+        selected_memory_id: "wife.yellow_bowl.after_the_fact",
+        reason: "The present question is about learning of a completed change afterward.",
+      },
+    ]);
+    const ports = new StructuredModelConversationPorts(model, {
+      persona: "Persona prompt",
+      memorySelector: "Memory selector prompt",
+      actionJudge: "Judge prompt",
+    });
+
+    const result = await ports.selectMemory({
+      actorId: "wife",
+      moment: {
+        time: 1,
+        locationId: "dining_area",
+        visibleActivityId: "idle",
+      },
+      observedEvidence: [],
+      conversation: [
+        {
+          speaker: "player",
+          text: "Why does it matter whether you learn about a change before or after?",
+        },
+      ],
+      eligibleMemories: [
+        {
+          memoryId: "wife.yellow_bowl.after_the_fact",
+          cue: "A completed household change was discovered only after there was no chance to participate.",
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      memoryId: "wife.yellow_bowl.after_the_fact",
+    });
+    expect(model.calls[0]).toMatchObject({
+      role: "memory_selector",
+      instructions: "Memory selector prompt",
+      schemaName: "ldo_memory_selector_v1",
+    });
+    expect(model.calls[0]!.input).toContain(
+      "wife.yellow_bowl.after_the_fact",
+    );
+    expect(model.calls[0]!.input).not.toMatch(
+      /yellow shard|dishwasher|Nora|wrapped pieces/i,
+    );
+  });
+
+  // Spec: Run 004 LDO-ACT-PROBE-002 through 004; ADR 0023 Decision 5.
+  it("injects only the Controller-selected actor memory into the Persona packet", async () => {
+    const model = new QueuedRoleModel([
+      {
+        reply: "The bowl was already in the bin when I found the shard.",
+        should_end_conversation: false,
+        grounding: [
+          {
+            source: "wife.yellow_bowl.after_the_fact",
+            use: "A specific later-authorized recollection.",
+          },
+        ],
+      },
+    ]);
+    const ports = new StructuredModelConversationPorts(model, {
+      persona: "Persona prompt",
+      actionJudge: "Judge prompt",
+    });
+
+    await ports.takeTurn({
+      actorId: "wife",
+      characterCore: getCharacterCore("wife"),
+      moment: {
+        time: 1,
+        locationId: "dining_area",
+        visibleActivityId: "idle",
+      },
+      observedEvidence: [],
+      conversation: [
+        {
+          speaker: "player",
+          text: "Was there one ordinary thing that made before and after feel different?",
+        },
+      ],
+      mindState: createChapterOneMindState("wife"),
+      relevantMemory: {
+        memoryId: "wife.yellow_bowl.after_the_fact",
+        content:
+          "Elise discovered a yellow shard in the bin before Martin told her the bowl had broken.",
+      },
+    });
+
+    expect(model.calls[0]!.input).toContain("RELEVANT_MEMORY");
+    expect(model.calls[0]!.input).toContain(
+      "wife.yellow_bowl.after_the_fact",
+    );
+    expect(model.calls[0]!.input).toContain("yellow shard");
+    expect(model.calls[0]!.input).not.toContain(
+      "husband.yellow_bowl.practical_grief",
+    );
+  });
+
   it("LDO-LOCAL-013 runs an Action-blind structured MindState transition phase", async () => {
     const model = new QueuedRoleModel([
       {
@@ -129,7 +332,7 @@ describe("structured model conversation ports", () => {
     });
   });
 
-  it("LDO-LOCAL-010 gives the clock Persona an authored shallow-resistance sufficiency condition without catalog data", async () => {
+  it("LDO-TUT-001 lets the player propose a bounded clock framing without preloading it as tutorial sufficiency", async () => {
     const model = new QueuedRoleModel([
       {
         reply:
@@ -137,8 +340,8 @@ describe("structured model conversation ports", () => {
         should_end_conversation: false,
         grounding: [
           {
-            source: "h.emotion.clock_sufficiency",
-            use: "A bounded task is sufficient without a new barrier.",
+            source: "player_claim",
+            use: "The player proposed a bounded task with a stopping point.",
           },
         ],
       },
@@ -166,8 +369,13 @@ describe("structured model conversation ports", () => {
       mindState: createTutorialMindState("husband"),
     });
 
-    expect(model.calls[0]!.input).toContain("h.emotion.clock_sufficiency");
     expect(model.calls[0]!.input).toContain(
+      "Could setting it right be one bounded task and then stop?",
+    );
+    expect(model.calls[0]!.input).not.toContain(
+      "h.emotion.clock_sufficiency",
+    );
+    expect(model.calls[0]!.input).not.toContain(
       "that is enough for the character to choose it today",
     );
     expect(model.calls[0]!.input).not.toMatch(
@@ -368,6 +576,15 @@ describe("structured model conversation ports", () => {
     expect(model.calls[0]!.input).not.toMatch(
       /declaration|symbolic|stand for|fear/i,
     );
+    expect(model.calls[0]!.input).toContain(
+      "husband.clock.deliberate_change_effort",
+    );
+    expect(model.calls[0]!.input).not.toContain(
+      "husband.clock.bounded_adjustment",
+    );
+    expect(model.calls[0]!.input).not.toMatch(
+      /beginning to have enough energy|no deeper meaning.*required|clear stopping point and no larger meaning required/i,
+    );
   });
 
   it("LDO-LOCAL-004 sends a catalog-blind Persona packet and maps its bounded result", async () => {
@@ -395,13 +612,13 @@ describe("structured model conversation ports", () => {
     expect(model.calls[0]).toMatchObject({
       role: "persona",
       instructions: "Persona prompt",
-      schemaName: "ldo_persona_v7",
+      schemaName: "ldo_persona_v9",
     });
     expect(model.calls[0]!.input).toContain(
       "Could you let the moment remain undecided?",
     );
     expect(model.calls[0]!.input).toContain("CHARACTER_CORE");
-    expect(model.calls[0]!.input).toContain("consequence lock");
+    expect(model.calls[0]!.input).toContain("explanation lock");
     expect(model.calls[0]!.input).toContain("SCENE_PACKET");
     expect(model.calls[0]!.input.indexOf("CHARACTER_CORE")).toBeLessThan(
       model.calls[0]!.input.indexOf("SCENE_PACKET"),
@@ -413,6 +630,51 @@ describe("structured model conversation ports", () => {
     expect(model.calls[0]!.input).not.toMatch(
       /open_door_a_crack|open_narrow_gap|remain_at_threshold|one_breath_at_threshold|HARD_ELIGIBLE_AUTHORED_ACTIONS/,
     );
+  });
+
+  // Spec: ADR 0033 LDO-LOC-001 and LDO-LOC-005.
+  it("gives Persona the immutable session output locale", async () => {
+    const model = new QueuedRoleModel([
+      {
+        reply: "我可以先讓這一刻停在這裡。",
+        should_end_conversation: false,
+        grounding: [{ source: "player_claim", use: "回應玩家提出的角度。" }],
+      },
+    ]);
+    const ports = new StructuredModelConversationPorts(model, {
+      persona: "Persona prompt",
+      actionJudge: "Judge prompt",
+    });
+
+    await ports.takeTurn({ ...personaRequest, outputLocale: "zh-TW" });
+
+    expect(model.calls[0]!.input).toContain("OUTPUT_LOCALE");
+    expect(model.calls[0]!.input).toContain("zh-TW");
+  });
+
+  // Spec: chapter-1.md LDO-CH1-018; ADR 0032.
+  it("LDO-CH1-018 does not collapse independent MindState dimensions into one current pressure", async () => {
+    const model = new QueuedRoleModel([
+      {
+        reply: "I still do not know what opening it would mean.",
+        should_end_conversation: false,
+        grounding: [
+          {
+            source: "husband.door.uncertain_sequence",
+            use: "The present thought concerns the door pressure.",
+          },
+        ],
+      },
+    ]);
+    const ports = new StructuredModelConversationPorts(model, {
+      persona: "Persona prompt",
+      actionJudge: "Judge prompt",
+    });
+
+    await ports.takeTurn(personaRequest);
+
+    expect(model.calls[0]!.input).toContain('"active_authored_pressures"');
+    expect(model.calls[0]!.input).not.toContain('"current_private_pressure"');
   });
 
   it("LDO-LOCAL-005 routes fixed authored definitions through awareness and willingness", async () => {
@@ -484,7 +746,6 @@ describe("structured model conversation ports", () => {
         ...actions[0],
         option: {
           optionId: "open-door-a-crack",
-          label: "Open the door just a little.",
         },
         variants: [
           {

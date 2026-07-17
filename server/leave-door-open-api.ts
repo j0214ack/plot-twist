@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
+import {
+  isGameLocale,
+  type GameLocale,
+} from "../pocs/leave-the-door-open/src/localization";
 
 export interface LeaveDoorOpenApiRequest extends AsyncIterable<Uint8Array | string> {
   method?: string;
@@ -16,21 +20,36 @@ export interface LeaveDoorOpenApiResponse {
 
 export interface LeaveDoorOpenWebSession {
   start(): Promise<string>;
-  handleInput(input: string): Promise<{ ended: boolean; screen: string }>;
+  handleInput(input: string): Promise<{
+    ended: boolean;
+    advancePending: boolean;
+    screen: string;
+  }>;
+  advanceTurn(): Promise<{
+    ended: boolean;
+    advancePending: boolean;
+    screen: string;
+  }>;
 }
 
-export type LeaveDoorOpenWebSessionFactory = (sessionId: string) =>
+export type LeaveDoorOpenWebSessionFactory = (
+  sessionId: string,
+  locale: GameLocale,
+) =>
   | LeaveDoorOpenWebSession
   | Promise<LeaveDoorOpenWebSession>;
 
 export type LeaveDoorOpenWebResult = {
   sessionId: string;
+  locale: GameLocale;
   ended: boolean;
+  advancePending: boolean;
   screen: string;
 };
 
 type StoredSession = {
   session: LeaveDoorOpenWebSession;
+  locale: GameLocale;
   touchedAt: number;
   tail: Promise<void>;
 };
@@ -58,17 +77,18 @@ export class LeaveDoorOpenSessionService {
     this.#sessionTtlMs = options.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   }
 
-  async startSession(): Promise<LeaveDoorOpenWebResult> {
+  async startSession(locale: GameLocale = "en"): Promise<LeaveDoorOpenWebResult> {
     this.#pruneExpired();
     const sessionId = this.#createSessionId();
-    const session = await this.createSession(sessionId);
+    const session = await this.createSession(sessionId, locale);
     const screen = await session.start();
     this.#sessions.set(sessionId, {
       session,
+      locale,
       touchedAt: this.#now(),
       tail: Promise.resolve(),
     });
-    return { sessionId, ended: false, screen };
+    return { sessionId, locale, ended: false, advancePending: false, screen };
   }
 
   async submitInput(
@@ -89,7 +109,25 @@ export class LeaveDoorOpenSessionService {
     const result = await resultPromise;
     stored.touchedAt = this.#now();
     if (result.ended) this.#sessions.delete(sessionId);
-    return { sessionId, ...result };
+    return { sessionId, locale: stored.locale, ...result };
+  }
+
+  async advanceTurn(sessionId: string): Promise<LeaveDoorOpenWebResult> {
+    this.#pruneExpired();
+    const stored = this.#sessions.get(sessionId);
+    if (stored === undefined) {
+      throw new LeaveDoorOpenSessionNotFoundError();
+    }
+    stored.touchedAt = this.#now();
+    const resultPromise = stored.tail.then(() => stored.session.advanceTurn());
+    stored.tail = resultPromise.then(
+      () => undefined,
+      () => undefined,
+    );
+    const result = await resultPromise;
+    stored.touchedAt = this.#now();
+    if (result.ended) this.#sessions.delete(sessionId);
+    return { sessionId, locale: stored.locale, ...result };
   }
 
   #pruneExpired(): void {
@@ -112,6 +150,8 @@ export class LeaveDoorOpenSessionNotFoundError extends Error {
 const START_PATH = "/api/leave-the-door-open/sessions";
 const INPUT_PATH =
   /^\/api\/leave-the-door-open\/sessions\/([A-Za-z0-9._-]{1,100})\/input$/;
+const ADVANCE_PATH =
+  /^\/api\/leave-the-door-open\/sessions\/([A-Za-z0-9._-]{1,100})\/advance$/;
 const MAX_REQUEST_BYTES = 4_096;
 const MAX_INPUT_CHARACTERS = 500;
 
@@ -162,6 +202,16 @@ const parseInput = (payload: unknown): string => {
   return input;
 };
 
+const parseLocale = (payload: unknown): GameLocale => {
+  const locale =
+    typeof payload === "object" && payload !== null && "locale" in payload
+      ? (payload as { locale?: unknown }).locale
+      : undefined;
+  if (locale === undefined) return "zh-TW";
+  if (!isGameLocale(locale)) throw new Error("Unsupported locale");
+  return locale;
+};
+
 export const createLeaveDoorOpenApiMiddleware = (
   service: LeaveDoorOpenSessionService,
 ) =>
@@ -172,7 +222,8 @@ export const createLeaveDoorOpenApiMiddleware = (
   ): Promise<void> => {
     const path = request.url?.split("?", 1)[0] ?? "";
     const inputMatch = INPUT_PATH.exec(path);
-    if (path !== START_PATH && inputMatch === null) {
+    const advanceMatch = ADVANCE_PATH.exec(path);
+    if (path !== START_PATH && inputMatch === null && advanceMatch === null) {
       next();
       return;
     }
@@ -184,11 +235,15 @@ export const createLeaveDoorOpenApiMiddleware = (
     try {
       const payload = await readJson(request);
       if (path === START_PATH) {
-        writeJson(response, 201, await service.startSession());
+        writeJson(response, 201, await service.startSession(parseLocale(payload)));
         return;
       }
-      const sessionId = inputMatch?.[1];
+      const sessionId = inputMatch?.[1] ?? advanceMatch?.[1];
       if (sessionId === undefined) throw new LeaveDoorOpenSessionNotFoundError();
+      if (advanceMatch !== null) {
+        writeJson(response, 200, await service.advanceTurn(sessionId));
+        return;
+      }
       writeJson(
         response,
         200,
@@ -202,7 +257,8 @@ export const createLeaveDoorOpenApiMiddleware = (
               (error instanceof Error &&
                 (error.message.startsWith("Content-Type") ||
                   error.message.startsWith("Request") ||
-                  error.message.startsWith("Input")))
+                  error.message.startsWith("Input") ||
+                  error.message.startsWith("Unsupported locale")))
             ? 400
             : 503;
       writeJson(response, statusCode, {

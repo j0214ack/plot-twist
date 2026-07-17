@@ -34,6 +34,21 @@ describe("Leave the Door Open Performance Director prompt", () => {
     );
   });
 
+  // Spec: chapter-1.md LDO-CH1-021; ADR 0032 LDO-SOCIAL-003/004/006.
+  it("permits only the selected bounded relationship dialogue and stops at its authored beat limit", async () => {
+    const prompt = (await readPerformancePrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain("AUTHORED_RELATIONSHIP_OUTCOME");
+    expect(prompt).toContain("PLAYER_SAFE_RECIPIENTS");
+    expect(prompt).toContain(
+      "Dialogue is permitted only when AUTHORED_RELATIONSHIP_OUTCOME is present",
+    );
+    expect(prompt).toContain(
+      "Do not add another reply, question, disclosure, resolution, or conversation turn",
+    );
+    expect(prompt).toContain("maximumBeatCount");
+  });
+
   it("LDO-LOCAL-012 ADR 0010 leaves closure, Evidence, and durable state to the engine", async () => {
     const prompt = (await readPerformancePrompt()).replace(/\s+/g, " ");
 
@@ -54,5 +69,14 @@ describe("Leave the Door Open Performance Director prompt", () => {
       "the final beat must visibly preserve that exact routine postcondition",
     );
     expect(prompt).toContain("Do not move the actor away from it afterward");
+  });
+
+  // Spec: ADR 0033 LDO-LOC-005 and LDO-LOC-006.
+  it("stages directly in the requested session locale", async () => {
+    const prompt = (await readPerformancePrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain("Follow `OUTPUT_LOCALE` for every visible beat");
+    expect(prompt).toContain("natural Traditional Chinese as used in Taiwan");
+    expect(prompt).toContain("Do not emit bilingual beats");
   });
 });

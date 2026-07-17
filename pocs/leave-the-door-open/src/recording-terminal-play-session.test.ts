@@ -10,6 +10,64 @@ import {
 import { TerminalPlaySession } from "./terminal-play-session";
 
 describe("recording terminal play session", () => {
+  // Spec: ADR 0029 LDO-WEB-014; automatic ticks are logged without pretending
+  // that each one is a new player input.
+  it("records one resume input and separate observer records for later automatic ticks", async () => {
+    const lines: string[] = [];
+    const recorder = new PlaytestSessionRecorder({
+      sessionId: "session-paced",
+      appendLine: (line) => lines.push(line),
+    });
+    const controller = createConversationalVerticalSliceGameController({
+      persona: {
+        async takeTurn() {
+          throw new Error("Not exercised");
+        },
+      },
+      actionJudge: {
+        async judgeAwareness() {
+          throw new Error("Not exercised");
+        },
+        async judgeWillingness() {
+          throw new Error("Not exercised");
+        },
+      },
+    });
+    const delegate = new TerminalPlaySession(
+      controller,
+      createRecordingTerminalOutput(recorder, () => undefined),
+    );
+    const session = new RecordingTerminalPlaySession(
+      delegate,
+      controller,
+      recorder,
+    );
+    await session.start();
+    await session.handleInput("1");
+
+    await session.beginTimeAdvance();
+    await session.advanceTurn();
+
+    const records = lines.map((line) => JSON.parse(line));
+    expect(
+      records
+        .filter(({ type }) => type === "player_input")
+        .map(({ data }) => data.input),
+    ).toEqual(["1", "/resume"]);
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        visibility: "observer",
+        type: "time_advance_tick_handled",
+        data: expect.objectContaining({
+          result: { ended: false, advancePending: true },
+          controllerSnapshot: expect.objectContaining({
+            world: expect.objectContaining({ time: 8 * 60 + 15 }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("LDO-OBS-008 journals safe internal interaction errors as observer-only records", () => {
     const lines: string[] = [];
     const recorder = new PlaytestSessionRecorder({

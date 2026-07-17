@@ -35,6 +35,269 @@ function executeChapterDoorAction(
 }
 
 describe("VerticalSliceWorld", () => {
+  // Spec: chapter-1.md LDO-CH1-017 and ADR 0032 LDO-SOCIAL-001/009.
+  it("offers Martin one bounded relationship attempt during the early Chapter 1 window", () => {
+    const world = createVerticalSliceWorld();
+    completeClockTutorial(world);
+    world.advanceTo(DAY + 8 * 60 + 20);
+    world.pause();
+
+    expect(world.eligibleNarrativeActions("husband")).toContain(
+      "say_one_honest_thing_to_elise",
+    );
+    expect(world.eligibleNarrativeActions("wife")).not.toContain(
+      "say_one_honest_thing_to_elise",
+    );
+  });
+
+  // Spec: chapter-1.md LDO-CH1-020 and LDO-CH1-022.
+  it("executes the selected bounded relationship closure once at the next 20:15 co-presence", () => {
+    const world = createVerticalSliceWorld();
+    completeClockTutorial(world);
+    world.advanceTo(DAY + 8 * 60 + 20);
+    world.pause();
+
+    expect(() =>
+      world.commitNarrativeAction(
+        "husband",
+        "say_one_honest_thing_to_elise",
+      ),
+    ).toThrow("Relationship Action requires an authored outcome");
+    world.commitNarrativeAction(
+      "husband",
+      "say_one_honest_thing_to_elise",
+      { relationshipOutcomeId: "distance_acknowledged" },
+    );
+
+    expect(world.snapshot().intentions).toContainEqual({
+      actorId: "husband",
+      actionId: "say_one_honest_thing_to_elise",
+      relationshipOutcomeId: "distance_acknowledged",
+    });
+    expect(world.eligibleNarrativeActions("husband")).not.toContain(
+      "say_one_honest_thing_to_elise",
+    );
+
+    world.resume();
+    world.advanceTo(DAY + 20 * 60 + 14);
+    expect(world.snapshot().worldFacts).toMatchObject({
+      martinEliseConversation: "not_attempted",
+      martinEliseConversationOnChapterDay: null,
+    });
+    expect(world.snapshot().npcs).toMatchObject({
+      husband: {
+        locationId: "dining_area",
+        visibleActivityId: "settling_at_dining_table",
+      },
+      wife: {
+        locationId: "dining_area",
+        visibleActivityId: "settling_at_dining_table",
+      },
+    });
+    expect(world.events()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          at: DAY + 20 * 60 + 14,
+          type: "routine_executed",
+          actorId: "husband",
+          routineId: "husband_settles_at_dining_table",
+        }),
+        expect.objectContaining({
+          at: DAY + 20 * 60 + 14,
+          type: "routine_executed",
+          actorId: "wife",
+          routineId: "wife_settles_at_dining_table",
+        }),
+      ]),
+    );
+
+    world.advanceTo(DAY + 20 * 60 + 15);
+
+    expect(world.snapshot()).toMatchObject({
+      chapter: 1,
+      chapterDay: 1,
+      npcs: {
+        husband: {
+          locationId: "dining_area",
+          visibleActivityId: "making_one_honest_opening",
+        },
+        wife: {
+          locationId: "dining_area",
+          visibleActivityId: "acknowledging_relationship_distance",
+        },
+      },
+      worldFacts: {
+        martinEliseConversation: "distance_acknowledged",
+        martinEliseConversationOnChapterDay: 1,
+        hallwayDoor: "closed",
+        roomInterior: "hidden",
+        chapter1Complete: false,
+      },
+      intentions: [],
+    });
+    expect(world.snapshot().completedActions).toContainEqual({
+      actorId: "husband",
+      actionId: "say_one_honest_thing_to_elise",
+      relationshipOutcomeId: "distance_acknowledged",
+    });
+    expect(world.snapshot().evidence).not.toHaveProperty(
+      "relationship_conversation",
+    );
+    expect(world.events()).toContainEqual({
+      at: DAY + 20 * 60 + 15,
+      type: "narrative_action_executed",
+      actorId: "husband",
+      recipientId: "wife",
+      actionId: "say_one_honest_thing_to_elise",
+      relationshipOutcomeId: "distance_acknowledged",
+      locationId: "dining_area",
+      visibleActivityId: "making_one_honest_opening",
+    });
+    expect(world.eligibleNarrativeActions("husband")).not.toContain(
+      "say_one_honest_thing_to_elise",
+    );
+  });
+
+  // Spec: ADR 0031 LDO-CALENDAR-001 and LDO-CALENDAR-002.
+  it("anchors absolute calendar time on Thursday without coupling it to chapter progress", () => {
+    const world = createVerticalSliceWorld();
+
+    expect(world.snapshot()).toMatchObject({
+      time: 7 * 60 + 56,
+      weekdayId: "thursday",
+      chapter: "tutorial",
+      chapterDay: null,
+    });
+
+    world.advanceTo(4 * DAY + 7 * 60 + 56);
+
+    expect(world.snapshot()).toMatchObject({
+      weekdayId: "monday",
+      chapter: "tutorial",
+      chapterDay: null,
+    });
+  });
+
+  // Spec: ADR 0031 LDO-CALENDAR-003, 005 and Decision 8.
+  it("moves Martin offstage for Thursday work and returns him without changing story state", () => {
+    const world = createVerticalSliceWorld();
+
+    world.advanceTo(8 * 60 + 25);
+
+    expect(world.snapshot()).toMatchObject({
+      weekdayId: "thursday",
+      npcs: {
+        husband: {
+          locationId: "away_from_home",
+          visibleActivityId: "away_at_work",
+        },
+      },
+      worldFacts: { livingRoomClock: "three_minutes_slow" },
+      completedActions: [],
+      evidence: {},
+    });
+    expect(world.events()).toContainEqual({
+      at: 8 * 60 + 25,
+      type: "routine_executed",
+      actorId: "husband",
+      routineId: "husband_leaves_for_work",
+      locationId: "away_from_home",
+      visibleActivityId: "away_at_work",
+    });
+
+    world.advanceTo(12 * 60 + 12);
+
+    expect(world.snapshot().npcs.husband.locationId).toBe("away_from_home");
+    expect(world.events()).not.toContainEqual(
+      expect.objectContaining({ routineId: "husband_rinses_cup" }),
+    );
+
+    world.advanceTo(18 * 60 + 5);
+
+    expect(world.snapshot().npcs.husband).toEqual({
+      locationId: "living_room",
+      visibleActivityId: "returning_from_work",
+    });
+  });
+
+  // Spec: ADR 0031 LDO-CALENDAR-003 and LDO-CALENDAR-005.
+  it("runs both canonical work schedules after tutorial success", () => {
+    const world = createVerticalSliceWorld();
+    completeClockTutorial(world);
+
+    world.advanceTo(8 * 60 + 35);
+
+    expect(world.snapshot().npcs).toMatchObject({
+      husband: {
+        locationId: "away_from_home",
+        visibleActivityId: "away_at_work",
+      },
+      wife: {
+        locationId: "away_from_home",
+        visibleActivityId: "away_at_work",
+      },
+    });
+
+    world.advanceTo(17 * 60 + 25);
+    expect(world.snapshot().npcs.wife).toEqual({
+      locationId: "dining_area",
+      visibleActivityId: "returning_from_work",
+    });
+
+    world.advanceTo(18 * 60 + 5);
+    expect(world.snapshot().npcs.husband).toEqual({
+      locationId: "living_room",
+      visibleActivityId: "returning_from_work",
+    });
+  });
+
+  // Spec: ADR 0031 LDO-CALENDAR-004 and Decision 8.
+  it("replaces weekend work with Saturday shopping and a Sunday outing", () => {
+    const world = createVerticalSliceWorld();
+    const saturday = 2 * DAY;
+    const sunday = 3 * DAY;
+
+    world.advanceTo(saturday + 10 * 60 + 30);
+    expect(world.snapshot()).toMatchObject({
+      weekdayId: "saturday",
+      npcs: {
+        husband: {
+          locationId: "away_from_home",
+          visibleActivityId: "away_shopping",
+        },
+      },
+    });
+    expect(world.events()).not.toContainEqual(
+      expect.objectContaining({
+        at: saturday + 8 * 60 + 25,
+        routineId: "husband_leaves_for_work",
+      }),
+    );
+
+    world.advanceTo(saturday + 11 * 60 + 57);
+    expect(world.snapshot().npcs.husband).toEqual({
+      locationId: "dining_area",
+      visibleActivityId: "returning_with_groceries",
+    });
+
+    world.advanceTo(sunday + 17 * 60 + 45);
+    expect(world.snapshot()).toMatchObject({
+      weekdayId: "sunday",
+      npcs: {
+        husband: {
+          locationId: "away_from_home",
+          visibleActivityId: "away_on_outing",
+        },
+      },
+    });
+
+    world.advanceTo(sunday + 20 * 60 + 7);
+    expect(world.snapshot().npcs.husband).toEqual({
+      locationId: "living_room",
+      visibleActivityId: "returning_from_outing",
+    });
+  });
+
   it("LDO-LOCAL-014 ADR 0021 repeats an unresolved tutorial observation day without introducing the Wife", () => {
     const world = createVerticalSliceWorld();
 
@@ -70,12 +333,20 @@ describe("VerticalSliceWorld", () => {
       visibleActivityId: "sitting_on_sofa",
     });
     expect(world.events()).toContainEqual({
-      at: 12 * 60 + 12,
+      at: 8 * 60 + 25,
       type: "routine_executed",
       actorId: "husband",
-      routineId: "husband_rinses_cup",
-      locationId: "dining_area",
-      visibleActivityId: "rinsing_cup",
+      routineId: "husband_leaves_for_work",
+      locationId: "away_from_home",
+      visibleActivityId: "away_at_work",
+    });
+    expect(world.events()).toContainEqual({
+      at: 18 * 60 + 5,
+      type: "routine_executed",
+      actorId: "husband",
+      routineId: "husband_returns_from_work",
+      locationId: "living_room",
+      visibleActivityId: "returning_from_work",
     });
     expect(world.events()).toContainEqual({
       at: 18 * 60 + 40,
@@ -349,7 +620,9 @@ describe("VerticalSliceWorld", () => {
 
     world.commitNarrativeAction("husband", "open_door_a_crack");
 
-    expect(world.eligibleNarrativeActions("husband")).toEqual([]);
+    expect(world.eligibleNarrativeActions("husband")).not.toContain(
+      "open_door_a_crack",
+    );
     expect(() =>
       world.commitNarrativeAction("husband", "open_door_a_crack"),
     ).toThrow("Narrative action is not eligible: open_door_a_crack");
@@ -801,6 +1074,7 @@ describe("VerticalSliceWorld", () => {
     world.pause();
     expect(world.eligibleNarrativeActions("husband")).toEqual([
       "open_door_a_crack",
+      "say_one_honest_thing_to_elise",
     ]);
 
     world.commitNarrativeAction(
@@ -984,7 +1258,7 @@ describe("VerticalSliceWorld", () => {
         },
         wife: {
           locationId: "dining_area",
-          visibleActivityId: "drinking_water",
+          visibleActivityId: "returning_from_work",
         },
       },
     });
@@ -1023,6 +1297,7 @@ describe("VerticalSliceWorld", () => {
 
     expect(world.eligibleNarrativeActions("husband")).toEqual([
       "open_door_a_crack",
+      "say_one_honest_thing_to_elise",
     ]);
     world.commitNarrativeAction("husband", "open_door_a_crack");
 

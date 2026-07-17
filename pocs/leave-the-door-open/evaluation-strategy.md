@@ -205,6 +205,49 @@ moment cue, uses it in conversation, misreads it, or receives no useful clue.
 The first tutorial may be intentionally more legible and compressed than the
 long-term pacing model.
 
+### The conscious-monkey player establishes trust by probing boundaries
+
+A new player should not be assumed to cooperate immediately with the premise
+that they are an inner voice. At least one real-player pattern is explicitly
+**epistemic play**: before role-playing sincerely, the player behaves like a
+conscious monkey testing whether the promised person and household actually
+exist behind the text.
+
+Typical probes include:
+
+- whether Martin goes to work if the player simply watches;
+- whether private bodily needs exist even when the game does not stage them;
+- whether Martin can contemplate talking to Elise;
+- whether a direct instruction to eat produces obedience, resistance,
+  deferral, or an ordinary routine rather than magical body control;
+- whether a character who was persuaded about one thing can still change
+  subject, resist, or act outside the player's preferred characterization.
+
+These are not necessarily attempts to solve the chapter. They test autonomy,
+continuity, semantic coverage, and the difference between influencing thought
+and commanding a body. A player may become willing to inhabit the inner-dialogue
+role only after several such probes receive coherent answers.
+
+Evaluation must therefore distinguish four valid response classes rather than
+expect every probe to become an Action:
+
+1. an authored autonomous routine happens without player permission;
+2. an ordinary private activity is credibly implied or acknowledged without
+   becoming a mandatory rendered event;
+3. a central supported possibility can become a fixed intention through the
+   normal Persona and Judge path;
+4. an unsupported or unwanted command is understood and answered in character
+   but creates no canonical World mutation.
+
+Monkey smoke tests should mix these probes, resume at inconvenient times,
+switch focus, issue commands before understanding the UI, revisit an accepted
+idea, and change topic after apparent persuasion. The pass condition is not
+obedience. It is that the system preserves schedule, character agency,
+continuity, Action authority, and a human-seeming response without exposing a
+catalog boundary. Repeated boundary probes are playtest evidence about whether
+the game's promise is trusted; they must be logged rather than dismissed as
+player error.
+
 ## Evidence hierarchy
 
 From narrowest to strongest claim:

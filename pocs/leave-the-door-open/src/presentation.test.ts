@@ -35,6 +35,52 @@ function reachControllerDay2Handle(
 }
 
 describe("WorldProjector", () => {
+  // Spec: ADR 0031 LDO-CALENDAR-001; ADR 0030 LDO-PRES-001.
+  it("projects the safe absolute weekday separately from relative chapter day", () => {
+    const world = createVerticalSliceWorld();
+
+    expect(projectWorld(world.snapshot(), world.events())).toMatchObject({
+      weekdayId: "thursday",
+      chapterDay: null,
+    });
+
+    world.advanceTo(24 * 60 + 7 * 60 + 56);
+
+    expect(projectWorld(world.snapshot(), world.events())).toMatchObject({
+      weekdayId: "friday",
+      chapterDay: null,
+    });
+  });
+
+  // Spec: ADR 0031 LDO-CALENDAR-003 through 006; ADR 0029 LDO-PERF-003.
+  it("projects authored work and weekend life as safe ordinary cues with real offstage placement", () => {
+    const world = createVerticalSliceWorld();
+
+    world.advanceTo(8 * 60 + 25);
+    let view = projectWorld(world.snapshot(), world.events());
+
+    expect(view.actors).toContainEqual({
+      id: "husband",
+      locationId: "away_from_home",
+      visibleActivityId: "away_at_work",
+    });
+    expect(renderWorldText(view)).toContain(
+      "08:25 — Front door — He checks the time, shoulders his work bag, and leaves for the bus.",
+    );
+
+    world.advanceTo(2 * DAY + 11 * 60 + 57);
+    view = projectWorld(world.snapshot(), world.events());
+    const rendered = renderWorldText(view);
+
+    expect(rendered).toContain("Thursday");
+    expect(rendered).toContain("Friday");
+    expect(rendered).toContain("Saturday");
+    expect(rendered).toContain(
+      "11:57 — Dining area — He returns with the remaining grocery bags.",
+    );
+    expect(rendered).not.toMatch(/procurement|restaurant-supply|payroll/i);
+  });
+
   it("LDO-LOCAL-014 ADR 0021 keeps the existing second resident outside the tutorial-safe projection until success", () => {
     const world = createVerticalSliceWorld();
     world.advanceTo(DAY + 7 * 60 + 57);
@@ -112,8 +158,8 @@ describe("WorldProjector", () => {
       actors: [
         {
           id: "husband",
-          locationId: "hallway",
-          visibleActivityId: "opening_door_a_crack",
+          locationId: "dining_area",
+          visibleActivityId: "returning_with_groceries",
         },
         {
           id: "wife",
@@ -217,7 +263,8 @@ describe("WorldProjector", () => {
 });
 
 describe("GameProjector", () => {
-  it("LDO-LOCAL-011 projects only safe generated performance beats after their semantic event", async () => {
+  // Spec: ADR 0029 LDO-PERF-003.
+  it("projects the authored routine cue without requesting generated staging", async () => {
     const ports: ConversationPorts = {
       persona: {
         async takeTurn() {
@@ -234,11 +281,7 @@ describe("GameProjector", () => {
       },
       performanceDirector: {
         async stage() {
-          return {
-            beats: [
-              "He looks up at it, starts to pass beneath it, then stops.",
-            ],
-          };
+          throw new Error("Routine performance must not be generated");
         },
       },
     };
@@ -250,10 +293,12 @@ describe("GameProjector", () => {
 
     expect(rendered).toBe(
       [
+        "Thursday",
         "07:57 — Living room — The wall clock shows 07:54.",
-        "07:57 — He looks up at it, starts to pass beneath it, then stops.",
+        "07:57 — Living room — He looks up, starts to pass beneath it, then stops.",
       ].join("\n"),
     );
+    expect(controller.snapshot().performances).toEqual([]);
     expect(JSON.stringify(view.world)).not.toMatch(
       /slow_clock_is_repeatedly_noticed|restore_valid_starting_state|acceptedPersonaReply|hintBrief/,
     );
@@ -313,6 +358,10 @@ describe("GameProjector", () => {
           {
             optionId: "open-door-a-crack",
             label: "Open the door just a little.",
+          },
+          {
+            optionId: "say-one-honest-thing",
+            label: "Try to say one honest thing to Elise.",
           },
         ],
       },

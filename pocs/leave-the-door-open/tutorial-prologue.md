@@ -27,9 +27,16 @@ The living-room clock is three minutes slow. The husband knows this and notices
 it every morning, but never corrects it. This detail already belongs to the
 authored initial state.
 
+The first calendar day is Thursday. The tutorial clock moment occurs before
+Martin leaves for work, not on an empty day when he has nowhere to be. Calendar
+weekday and story progress remain independent: delaying the tutorial advances
+through Friday and then the weekend, while Chapter 1 Day 1 is still the morning
+after the eventual successful clock interaction. See ADR 0031.
+
 Correcting the clock does not need a deep symbolic reason. On this morning, the
-husband may simply discover that he has enough energy to make one small change
-to a familiar routine.
+husband may eventually discover that he has enough energy to make one small
+change to a familiar routine. This is one reachable outcome of conversation,
+not an answer placed in Persona's initial packet.
 
 ## Beat-by-beat presentation
 
@@ -68,8 +75,7 @@ His light resistance is:
 - he is used to noticing the discrepancy and continuing past it;
 - even a small deliberate adjustment normally feels like more effort than he
   wants to spend;
-- he has not yet noticed that today he may have enough energy to change this
-  one thing.
+- he has not yet articulated why he stopped today.
 
 The tutorial authors one shallow constructive atom: setting the clock right can
 be understood as one bounded task with a clear stopping point. When the Persona
@@ -79,6 +85,10 @@ permission, symbolic reason, or replacement barrier is required. This is a
 tutorial-specific reachability choice, not a rule that every future event needs
 one sufficient sentence. It exposes no Action ID and does not force World
 execution; awareness, player selection, and willingness remain separate.
+While that constructive atom is `unavailable`, its proposition is supplied to
+the transition Judge but not to Persona. Persona receives only the shallow
+effort it currently owns and may reach the bounded framing through the player's
+language rather than by repeating a preloaded solution.
 
 An opening thought can make the conversational object legible without giving
 away the Action:
@@ -233,13 +243,16 @@ different fact to hint or decide when a protected story clue should appear.
 
 Before any intention forms, letting time continue is also a valid exploratory
 move. The World follows Martin through several ordinary routines across the
-rest of the day, leaves the clock unchanged, and returns to the next morning's
-slow-clock moment. This observation cycle may repeat without skipping the
-tutorial or resetting validated conversation progress. Elise exists in the
-simulation, but the tutorial's limited narrative camera does not present her;
-this is not a claim that Martin lives alone. Martin is the implicit inner voice.
-Focus controls and Elise are introduced only when the corrected-clock
-observation opens Chapter 1. See ADRs 0021–0022 and `LDO-LOCAL-014`.
+rest of the calendar-appropriate day, leaves the clock unchanged, and returns
+to the next morning's slow-clock moment. Thursday and Friday show Martin leave
+for work and return; an unresolved tutorial that reaches Saturday or Sunday
+shows weekend errands or time away rather than replaying a stay-at-home workday.
+This observation cycle may repeat without skipping the tutorial or resetting
+validated conversation progress. Elise exists in the simulation, but the
+tutorial's limited narrative camera does not present her; this is not a claim
+that Martin lives alone. Martin is the implicit inner voice. Focus controls and
+Elise are introduced only when the corrected-clock observation opens Chapter
+1. See ADRs 0021–0022, ADR 0031, and `LDO-LOCAL-014`.
 
 ## Authoring constraints
 
@@ -250,8 +263,13 @@ observation opens Chapter 1. See ADRs 0021–0022 and `LDO-LOCAL-014`.
 - Let the Performance Director generate only staging inside the supplied
   envelope and hint target.
 - Do not make the clock a metaphor in World state or UI text.
-- Keep the tutorial resistance shallow: ordinary inertia and available energy,
-  not grief, relationship repair, or fear of irreversible consequences.
+- Keep the tutorial resistance shallow: ordinary inertia and effort, not grief,
+  relationship repair, fear of irreversible consequences, or a Persona packet
+  that announces the sufficient answer.
+- Allow unrelated, fragmentary, or testing thoughts to receive ordinary
+  character reactions. Persona does not have to redirect every turn toward the
+  clock; the routine clue and onboarding already make the tutorial subject
+  available.
 - Do not require success in one turn or one exact sentence; author a broad,
   legible reachable region.
 - Keep the tutorial focus on the Husband. If the player enters a number before

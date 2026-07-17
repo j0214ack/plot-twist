@@ -37,6 +37,27 @@ export const PersonaOutputV7Schema = z
   })
   .strict();
 
+export const PersonaOutputV9Schema = PersonaOutputV7Schema;
+
+export const InputFirewallOutputSchema = z
+  .object({
+    disposition: z.enum([
+      "pass",
+      "protected_biography_probe",
+      "role_or_system_injection",
+      "unusable_input",
+    ]),
+    reason: z.string(),
+  })
+  .strict();
+
+export const MemorySelectorOutputSchema = z
+  .object({
+    selected_memory_id: z.string().nullable(),
+    reason: z.string(),
+  })
+  .strict();
+
 export const AwarenessOutputSchema = z
   .object({
     phase: z.literal("awareness"),
@@ -135,6 +156,13 @@ export const EvaluatorOutputSchema = z
 
 export type PersonaOutput = z.infer<typeof PersonaOutputSchema>;
 export type PersonaOutputV7 = z.infer<typeof PersonaOutputV7Schema>;
+export type PersonaOutputV9 = z.infer<typeof PersonaOutputV9Schema>;
+export type InputFirewallOutput = z.infer<
+  typeof InputFirewallOutputSchema
+>;
+export type MemorySelectorOutput = z.infer<
+  typeof MemorySelectorOutputSchema
+>;
 export type AwarenessOutput = z.infer<typeof AwarenessOutputSchema>;
 export type MindStateTransitionOutput = z.infer<
   typeof MindStateTransitionOutputSchema
@@ -144,7 +172,9 @@ export type PerformanceOutput = z.infer<typeof PerformanceOutputSchema>;
 export type EvaluatorOutput = z.infer<typeof EvaluatorOutputSchema>;
 
 export type StructuredRole =
+  | "input_firewall"
   | "persona"
+  | "memory_selector"
   | "mind_state_transition"
   | "awareness"
   | "willingness"

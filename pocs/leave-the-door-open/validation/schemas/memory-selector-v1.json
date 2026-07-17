@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "properties": {
+    "selections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "case_id": { "type": "string" },
+          "selected_memory_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 1
+          },
+          "reason": { "type": "string" }
+        },
+        "required": ["case_id", "selected_memory_ids", "reason"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["selections"],
+  "additionalProperties": false
+}

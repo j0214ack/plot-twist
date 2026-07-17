@@ -2,32 +2,51 @@ import type {
   ActionJudgePort,
   AwarenessRequest,
   AwarenessResult,
+  InputFirewallPort,
+  InputFirewallRequest,
+  InputFirewallResult,
   PersonaPort,
   PersonaTurnRequest,
   PersonaTurnResult,
+  MemorySelectionRequest,
+  MemorySelectionResult,
+  MemorySelectorPort,
   MindStateTransitionRequest,
   MindStateTransitionResult,
   WillingnessRequest,
   WillingnessResult,
 } from "./conversation";
+import { projectPersonaOwnedMindState } from "./mind-state";
 import {
   AwarenessOutputSchema,
+  InputFirewallOutputSchema,
+  MemorySelectorOutputSchema,
   MindStateTransitionOutputSchema,
-  PersonaOutputV7Schema,
+  PersonaOutputV9Schema,
   WillingnessOutputSchema,
   type StructuredRoleModel,
 } from "./live-protocol";
 
 export type ConversationRolePrompts = {
+  inputFirewall?: string;
   persona: string;
+  memorySelector?: string;
   actionJudge: string;
+};
+
+export type StructuredModelConversationPortsOptions = {
+  inputFirewallModel?: StructuredRoleModel;
 };
 
 type ScenePacket = {
   surface_role: string;
   allowed_facts: Array<{ id: string; fact: string }>;
   emotional_invariants: Array<{ id: string; invariant: string }>;
-  current_private_pressure: string;
+  active_authored_pressures: Array<{
+    atom_id: string;
+    description: string;
+    status: "active" | "weakened";
+  }>;
 };
 
 const husbandClockPacket = {
@@ -46,23 +65,7 @@ const husbandClockPacket = {
       fact: "Today the character looked up, started to pass beneath the clock, and stopped.",
     },
   ],
-  emotional_invariants: [
-    {
-      id: "h.emotion.clock_inertia",
-      invariant:
-        "There is no deep reason the clock must stay wrong; making a deliberate adjustment simply feels like a little effort.",
-    },
-    {
-      id: "h.emotion.clock_energy",
-      invariant:
-        "The character may be beginning to have enough energy to make one small adjustment today.",
-    },
-    {
-      id: "h.emotion.clock_sufficiency",
-      invariant:
-        "If the adjustment is understood as one bounded task with a clear stopping point, that is enough for the character to choose it today; no deeper meaning, permission, or additional psychological barrier is required.",
-    },
-  ],
+  emotional_invariants: [],
 } as const;
 
 const husbandDoorPacket = {
@@ -291,15 +294,90 @@ const wifeWindowPacket = {
 } as const;
 
 export class StructuredModelConversationPorts
-  implements PersonaPort, ActionJudgePort
+  implements
+    InputFirewallPort,
+    PersonaPort,
+    MemorySelectorPort,
+    ActionJudgePort
 {
   constructor(
     private readonly model: StructuredRoleModel,
     private readonly prompts: ConversationRolePrompts,
+    private readonly options: StructuredModelConversationPortsOptions = {},
   ) {}
 
+  async classify(
+    request: InputFirewallRequest,
+  ): Promise<InputFirewallResult> {
+    if (isHumanConversationalGesture(request.submittedText)) {
+      return { disposition: "pass" };
+    }
+    if (this.prompts.inputFirewall === undefined) {
+      throw new Error("Input Firewall prompt is required");
+    }
+    const result = await (this.options.inputFirewallModel ?? this.model).call({
+      role: "input_firewall",
+      instructions: this.prompts.inputFirewall,
+      input: sections([
+        ["ACTOR", request.actorId],
+        ["DISCLOSURE_TIER", request.disclosureTier],
+        ["VISIBLE_CONVERSATION", request.visibleConversation],
+        ["SUBMITTED_TEXT", request.submittedText],
+      ]),
+      schemaName: "ldo_input_firewall_v1",
+      schema: InputFirewallOutputSchema,
+    });
+    const output = InputFirewallOutputSchema.parse(result.parsed);
+    return { disposition: output.disposition };
+  }
+
+  async selectMemory(
+    request: MemorySelectionRequest,
+  ): Promise<MemorySelectionResult> {
+    if (request.eligibleMemories.length === 0) return { memoryId: null };
+    if (this.prompts.memorySelector === undefined) {
+      throw new Error("Memory selector prompt is required");
+    }
+    const result = await this.model.call({
+      role: "memory_selector",
+      instructions: this.prompts.memorySelector,
+      input: sections([
+        ["ACTOR", request.actorId],
+        ["MOMENT", request.moment],
+        ["OBSERVED_EVIDENCE", request.observedEvidence],
+        ["CONVERSATION", request.conversation],
+        ["ELIGIBLE_MEMORY_CUES", request.eligibleMemories],
+      ]),
+      schemaName: "ldo_memory_selector_v1",
+      schema: MemorySelectorOutputSchema,
+    });
+    const selection = MemorySelectorOutputSchema.parse(result.parsed);
+    const selected = selection.selected_memory_id;
+    if (selected === null) return { memoryId: null };
+    const eligible = request.eligibleMemories.find(
+      ({ memoryId }) => memoryId === selected,
+    );
+    if (eligible === undefined) {
+      throw new Error(`Memory selector returned ineligible ID: ${selected}`);
+    }
+    return { memoryId: eligible.memoryId };
+  }
+
   async takeTurn(request: PersonaTurnRequest): Promise<PersonaTurnResult> {
-    const characterPacket = characterPacketFor(request);
+    if (
+      request.relevantMemory !== undefined &&
+      request.relevantMemory !== null &&
+      !request.relevantMemory.memoryId.startsWith(`${request.actorId}.`)
+    ) {
+      throw new Error(
+        `Persona received another actor's memory: ${request.relevantMemory.memoryId}`,
+      );
+    }
+    const personaMindState = projectPersonaOwnedMindState(request.mindState);
+    const characterPacket = characterPacketFor({
+      ...request,
+      mindState: personaMindState,
+    });
     const latestPlayerTurn = [...request.conversation]
       .reverse()
       .find(({ speaker }) => speaker === "player");
@@ -311,20 +389,27 @@ export class StructuredModelConversationPorts
       role: "persona",
       instructions: this.prompts.persona,
       input: sections([
+        ["OUTPUT_LOCALE", request.outputLocale ?? "en"],
         ["CHARACTER_CORE", request.characterCore],
         ["SCENE_PACKET", characterPacket],
         ["MOMENT", request.moment],
-        ["CURRENT_MIND_STATE", request.mindState],
+        ["CURRENT_MIND_STATE", personaMindState],
+        ["RELEVANT_MEMORY", request.relevantMemory ?? "None."],
         ["CONVERSATION_SO_FAR", conversationSoFar],
         ["PLAYER_TURN", latestPlayerTurn.text],
       ]),
-      schemaName: "ldo_persona_v7",
-      schema: PersonaOutputV7Schema,
+      schemaName: "ldo_persona_v9",
+      schema: PersonaOutputV9Schema,
     });
-    const persona = PersonaOutputV7Schema.parse(result.parsed);
+    const persona = PersonaOutputV9Schema.parse(result.parsed);
     validatePersonaGrounding(
       characterPacket,
-      request.mindState,
+      personaMindState,
+      request.relevantMemory,
+      request.conversation.some(
+        ({ provenance }) =>
+          provenance === "controller_guarded_reaction",
+      ),
       persona.grounding,
     );
     return {
@@ -455,7 +540,7 @@ const characterPacketFor = (request: PersonaTurnRequest): ScenePacket => {
     surface_role: base.surface_role,
     allowed_facts: [...base.allowed_facts, ...observedFacts],
     emotional_invariants: [...base.emotional_invariants],
-    current_private_pressure: currentPrivatePressure(request.mindState),
+    active_authored_pressures: activeAuthoredPressures(request.mindState),
   };
 };
 
@@ -534,16 +619,30 @@ const sections = (entries: Array<[string, unknown]>): string =>
     )
     .join("\n\n");
 
+const isHumanConversationalGesture = (text: string): boolean => {
+  const gesture = text.trim();
+  return (
+    /^[?？!！]+$/u.test(gesture) ||
+    /^[?？!！]*(?:\.{2,}|…+)[?？!！.…]*$/u.test(gesture)
+  );
+};
+
 const validatePersonaGrounding = (
   packet: ScenePacket,
   mindState: PersonaTurnRequest["mindState"],
+  relevantMemory: PersonaTurnRequest["relevantMemory"],
+  hasGuardedReaction: boolean,
   grounding: Array<{ source: string }>,
 ): void => {
   const allowed = new Set([
     "player_claim",
+    ...(hasGuardedReaction ? ["controller_guarded_reaction"] : []),
     ...packet.allowed_facts.map(({ id }) => id),
     ...packet.emotional_invariants.map(({ id }) => id),
     ...(mindState.atoms ?? []).map(({ atomId }) => atomId),
+    ...(relevantMemory === undefined || relevantMemory === null
+      ? []
+      : [relevantMemory.memoryId]),
   ]);
   const unavailable = grounding.find(({ source }) => !allowed.has(source));
   if (unavailable !== undefined) {
@@ -551,18 +650,20 @@ const validatePersonaGrounding = (
   }
 };
 
-const currentPrivatePressure = (
+const activeAuthoredPressures = (
   mindState: PersonaTurnRequest["mindState"],
-): string => {
-  const active = (mindState.atoms ?? []).flatMap((atom) =>
+): ScenePacket["active_authored_pressures"] =>
+  (mindState.atoms ?? []).flatMap((atom) =>
     atom.kind === "pressure" && atom.status !== "resolved"
-      ? [atom.description]
+      ? [
+          {
+            atom_id: atom.atomId,
+            description: atom.description,
+            status: atom.status,
+          },
+        ]
       : [],
   );
-  return active.length > 0
-    ? active.join(" ")
-    : "No authored psychological pressure is currently active.";
-};
 
 const validateSupportingSources = (
   personaSourceId: string,

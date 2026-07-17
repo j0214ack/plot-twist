@@ -21,6 +21,7 @@ concept. This README is the current implementation and decision snapshot.
 ```text
 free-running routines
 → authored pause moment
+→ secret-blind Input Firewall classifies the submitted thought
 → catalog-blind Persona conversation
 → action-blind Judge transitions finite authored MindState atoms
 → Controller validates and persists the transitions
@@ -48,6 +49,14 @@ husband interacts with the slow clock and leaves it showing the correct time
 → Chapter 1 completes on that neutral trace
 ```
 
+Chapter 1 also contains one optional, non-causal branch. If Martin comes to own
+one bounded honest sentence, the fixed `say_one_honest_thing_to_elise` Action
+may schedule a single shared scene at the next available 20:15. The Controller
+selects one of three authored closures from Elise's separately validated
+relationship readiness; Performance may stage that closure in at most three
+beats, but cannot start a Persona-to-Persona conversation or change the causal
+door arc. The World records the attempt so later dialogue can remember it.
+
 ## Accepted invariants
 
 ### Authored Actions, generated psychology
@@ -59,6 +68,9 @@ husband interacts with the slow clock and leaves it showing the correct time
   Action or durable MindState patch.
 - Durable psychology is a finite authored catalog of belief, reframe, and
   pressure atoms. Later atoms are revealed only at their authored causal phase.
+- Persona sees only psychology the character currently owns. In particular,
+  the proposition of an `unavailable` constructive reframe remains Judge-side
+  until conversation actually makes that interpretation available.
 - An Action-blind transition phase of the Judge may move only supplied atoms
   forward through their authored statuses. The Controller rejects unknown,
   stale, invalid, regressive, or Persona-unsupported transitions.
@@ -69,6 +81,27 @@ husband interacts with the slow clock and leaves it showing the correct time
 - Player wording is not proof that a character owns a possibility. The Judge
   must ground awareness and willingness in the Persona's reply and MindState.
 - Only the World executes effects, creates Evidence, and records observation.
+
+### Biography and untrusted player input stay bounded
+
+- Characters may have complete authored lived history without making all of it
+  speakable in the current chapter.
+- The Controller selects a deterministic disclosure tier. Player guessing,
+  repetition, Persona output, and MindState movement cannot unlock it.
+- A secret-blind Input Firewall sees only the actor, disclosure tier, visible
+  conversation, and submitted thought. It never receives biography, MindState,
+  Actions, Judge state, or future story.
+- Normal thoughts pass unchanged to Persona. Protected-biography probes,
+  role/system injection, and truly unusable input bypass Persona and every
+  Judge on that turn and cannot change mechanical or psychological state.
+- Human punctuation gestures such as `?`, `??`, and `……` are valid private
+  reactions rather than Firewall failures. Raw guarded text never reaches
+  Persona; the already-safe authored character reaction may remain in later
+  self-talk continuity, where it proves only that the reaction occurred and not
+  that its wording was factually true.
+- Guarded responses use Controller-owned per-character shuffle bags. Exhausted
+  protected pain becomes silence; repeated mental noise receives one terminal
+  line and then silence. Selection state is observer-recorded and replayable.
 
 ### Routines, Actions, events, and Evidence are different things
 
@@ -105,10 +138,27 @@ husband interacts with the slow clock and leaves it showing the correct time
   `UIView` values.
 - `WorldRenderer` and `UIRenderer` consume only their own projections; a
   compositor layers their outputs.
+- The Web compositor retains one chronological player transcript and appends
+  newly projected World/UI lines sequentially. This does not merge the two
+  authority interfaces or give the browser simulation access.
 - Renderers cannot dispatch commands, advance time, call LLMs, execute Actions,
   or read private Persona state.
 - The current adapters render text. A future visual world and UI overlay can
   replace them without changing the simulation.
+
+### One semantic game, two authored languages
+
+- Player-facing fixed copy is authored in keyed `en` and `zh-TW` catalogs;
+  World facts, IDs, schedules, MindState, and outcomes do not change by locale.
+- Locale is selected when a session starts and is immutable for that session.
+  The friend-playtest Web page defaults to Traditional Chinese and offers an
+  explicit English link.
+- Persona and Performance Director write directly in the selected locale. No
+  translation API runs after Controller projection, and renderers do not gain
+  any language-model authority.
+- Observer journals record the locale. Exact generated prose may differ across
+  separate English and Chinese sessions while preserving the same game state
+  and authority boundaries.
 
 ## Evaluation philosophy
 
@@ -161,6 +211,10 @@ rationale.
   isolated Codex roles and the developer's own saved login. The HTML start
   endpoint was exercised without `OPENAI_API_KEY`; browser code received only
   the projected text screen and opaque session ID.
+- The Input Firewall routing, authority bypass, no-penalty behavior, replayable
+  response fatigue, and explicit silence projection have automated coverage. A
+  six-case low-reasoning Codex smoke check passed ordinary, destructive,
+  protected-correct, protected-incorrect, injection, and unusable boundaries.
 
 ## What has not been proven
 
@@ -183,11 +237,14 @@ rationale.
 | Deterministic world and authored schedule | [`src/world.ts`](src/world.ts) |
 | Fixed command and interaction boundary | [`src/controller.ts`](src/controller.ts) |
 | Persona/Judge capability contracts | [`src/conversation.ts`](src/conversation.ts) |
+| Input Firewall response families and replay state | [`src/input-firewall-responses.ts`](src/input-firewall-responses.ts) |
 | Authored psychological atoms and transition validation | [`src/mind-state.ts`](src/mind-state.ts) |
 | Routine variants and authored HintBriefs | [`src/routine-behaviors.ts`](src/routine-behaviors.ts) |
 | Performance Director capability contract | [`src/performance.ts`](src/performance.ts) |
 | Single authored Action metadata source | [`src/narrative-actions.ts`](src/narrative-actions.ts) |
+| Authored relationship closures and readiness mapping | [`src/relationship-conversation-outcomes.ts`](src/relationship-conversation-outcomes.ts) |
 | Safe World/UI projections | [`src/presentation.ts`](src/presentation.ts) |
+| Authored `en` / `zh-TW` player copy | [`src/localization.ts`](src/localization.ts) |
 | Independent text render layers | [`src/text-rendering.ts`](src/text-rendering.ts) |
 | Deterministic text vertical-slice acceptance | [`src/vertical-slice.acceptance.test.ts`](src/vertical-slice.acceptance.test.ts) |
 | Conversational Action acceptance | [`src/conversation-controller.acceptance.test.ts`](src/conversation-controller.acceptance.test.ts) |
@@ -202,11 +259,12 @@ rationale.
 | Terminal scenario and input adapter | [`src/terminal-play-session.ts`](src/terminal-play-session.ts) |
 | Local play executable | [`src/run-terminal-playtest.ts`](src/run-terminal-playtest.ts) |
 | Thin browser renderer and input adapter | [`../../src/leave-door-open-main.ts`](../../src/leave-door-open-main.ts) |
+| Chronological Web transcript reconciliation | [`../../src/leave-door-open-client.ts`](../../src/leave-door-open-client.ts) |
 | Browser session API and real game composition | [`../../server/leave-door-open-api.ts`](../../server/leave-door-open-api.ts) and [`../../server/leave-door-open-runtime.ts`](../../server/leave-door-open-runtime.ts) |
 
 ## Next milestone
 
-1. Complete one clean uninformed Persona v7 / Judge v4 playthrough from the
+1. Complete one clean uninformed Persona v9 / Judge v4 playthrough from the
    tutorial through the Chapter 1 window ending without a visible contradiction,
    knowledge leak, or three-turn loop.
 2. Record that trajectory as Playtest 009 and re-run the full suite and build.
@@ -233,6 +291,14 @@ rationale.
 - Character label-blind baseline evidence:
   [`characters/label-blind-runs/001-neutral-towel.md`](characters/label-blind-runs/001-neutral-towel.md)
 - Human playtest observations: [`playtests/`](playtests/)
+- Pairwise story-transition witness method:
+  [`decisions/0025-validate-story-arcs-with-pairwise-transition-witnesses.md`](decisions/0025-validate-story-arcs-with-pairwise-transition-witnesses.md)
+- Staged biography and Input Firewall boundary:
+  [`decisions/0023-protect-lived-biography-with-staged-disclosure-and-an-input-firewall.md`](decisions/0023-protect-lived-biography-with-staged-disclosure-and-an-input-firewall.md)
+- RPG-like 2D renderer implementation contract:
+  [`visual-renderer.md`](visual-renderer.md)
+- Proposed bounded-turn and overnight fast-forward policy:
+  [`decisions/0028-bound-time-advancement-with-safe-turn-windows.md`](decisions/0028-bound-time-advancement-with-safe-turn-windows.md)
 - Full-slice live black-box witness:
   [`playtests/007-agent-full-slice-live-blackbox.md`](playtests/007-agent-full-slice-live-blackbox.md)
 - Chapter 1 entry paper probes:
@@ -266,6 +332,18 @@ rationale.
   - [`decisions/0020-preserve-visible-progress-without-changing-action-gates.md`](decisions/0020-preserve-visible-progress-without-changing-action-gates.md)
   - [`decisions/0021-let-tutorial-players-observe-before-acting.md`](decisions/0021-let-tutorial-players-observe-before-acting.md)
   - [`decisions/0022-use-names-at-the-player-facing-boundary.md`](decisions/0022-use-names-at-the-player-facing-boundary.md)
+  - [`decisions/0023-protect-lived-biography-with-staged-disclosure-and-an-input-firewall.md`](decisions/0023-protect-lived-biography-with-staged-disclosure-and-an-input-firewall.md)
+  - [`decisions/0024-select-m2e2-character-dynamics.md`](decisions/0024-select-m2e2-character-dynamics.md)
+  - [`decisions/0025-validate-story-arcs-with-pairwise-transition-witnesses.md`](decisions/0025-validate-story-arcs-with-pairwise-transition-witnesses.md)
+  - [`decisions/0026-render-web-play-as-one-chronological-text-stream.md`](decisions/0026-render-web-play-as-one-chronological-text-stream.md)
+  - [`decisions/0027-deliver-safe-presentation-batches-to-animated-renderers.md`](decisions/0027-deliver-safe-presentation-batches-to-animated-renderers.md)
+  - [`decisions/0028-bound-time-advancement-with-safe-turn-windows.md`](decisions/0028-bound-time-advancement-with-safe-turn-windows.md)
+  - [`decisions/0029-pull-authored-timepoints-and-generate-only-player-shaped-actions.md`](decisions/0029-pull-authored-timepoints-and-generate-only-player-shaped-actions.md)
+  - [`decisions/0030-project-structured-semantic-presentation-operations.md`](decisions/0030-project-structured-semantic-presentation-operations.md)
+  - [`decisions/0031-layer-calendar-rhythm-under-story-progress.md`](decisions/0031-layer-calendar-rhythm-under-story-progress.md)
+  - [`decisions/0032-bound-interpersonal-actions-with-authored-closure.md`](decisions/0032-bound-interpersonal-actions-with-authored-closure.md)
+  - [`decisions/0033-author-bilingual-player-facing-content.md`](decisions/0033-author-bilingual-player-facing-content.md)
+  - [`decisions/0034-preserve-guarded-reaction-continuity-without-leaking-guarded-input.md`](decisions/0034-preserve-guarded-reaction-continuity-without-leaking-guarded-input.md)
 
 ## Verification and paid commands
 
@@ -282,6 +360,11 @@ Launch the local text playtest with saved ChatGPT Codex authentication:
 npm run play:ldo:text
 npm run play:ldo:web
 ```
+
+The Web page defaults to Traditional Chinese. Use
+`/leave-the-door-open/?locale=en` for a new English session. Terminal play
+preserves its English default; use
+`LDO_PLAY_LOCALE=zh-TW npm run play:ldo:text` for Traditional Chinese.
 
 These local-Codex commands do not need `OPENAI_API_KEY` and have no gameplay
 hard call budget. They consume the signed-in developer's Codex plan usage and

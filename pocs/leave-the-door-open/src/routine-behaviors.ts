@@ -87,7 +87,7 @@ const clockVariants: Record<
 };
 
 export const selectRoutineVariant = (
-  routineId: "husband_notices_slow_clock",
+  _routineId: "husband_notices_slow_clock",
   stage: PsychologicalStage,
 ): RoutineVariantDefinition => {
   const awarenessStage =

@@ -42,21 +42,53 @@ const transition = (
 });
 
 describe("authored MindState transition authority", () => {
-  // Spec: ADR 0017 Decision 9; LDO-CH1-015 Psychological atom phases.
-  it("starts Chapter 1 without exposing later-phase reframes", () => {
+  // Spec: ADR 0017 Decision 9; chapter-1.md LDO-CH1-015 and LDO-CH1-018.
+  it("starts Chapter 1 with separate relationship readiness but without later door or room reframes", () => {
     expect(
       createChapterOneMindState("husband").atoms.map(({ atomId }) => atomId),
     ).toEqual([
       "husband.door.approach_decides_all_consequences",
       "husband.door.approach_can_end_at_handle",
       "husband.door.uncertain_sequence",
+      "husband.relationship.complete_explanation",
+      "husband.relationship.one_honest_sentence",
     ]);
     expect(
       createChapterOneMindState("wife").atoms.map(({ atomId }) => atomId),
     ).toEqual([
       "wife.room.approach_initiates_shared_transition",
       "wife.room.first_mover",
+      "wife.relationship.immediate_answer",
+      "wife.relationship.one_truthful_reply",
     ]);
+    expect(createChapterOneMindState("husband").atoms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          atomId: "husband.relationship.complete_explanation",
+          kind: "pressure",
+          status: "active",
+        }),
+        expect.objectContaining({
+          atomId: "husband.relationship.one_honest_sentence",
+          kind: "reframe",
+          status: "unavailable",
+        }),
+      ]),
+    );
+    expect(createChapterOneMindState("wife").atoms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          atomId: "wife.relationship.immediate_answer",
+          kind: "pressure",
+          status: "active",
+        }),
+        expect.objectContaining({
+          atomId: "wife.relationship.one_truthful_reply",
+          kind: "reframe",
+          status: "unavailable",
+        }),
+      ]),
+    );
   });
 
   // Spec: ADR 0017 Decision 9; LDO-CH1-015 Psychological atom phases.
@@ -70,6 +102,8 @@ describe("authored MindState transition authority", () => {
       "husband.door.approach_decides_all_consequences",
       "husband.door.approach_can_end_at_handle",
       "husband.door.uncertain_sequence",
+      "husband.relationship.complete_explanation",
+      "husband.relationship.one_honest_sentence",
       "husband.door.gesture_controls_spouse_interpretation",
       "husband.door.narrow_gap_can_end",
     ]);

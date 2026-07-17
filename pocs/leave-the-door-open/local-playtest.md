@@ -33,7 +33,7 @@ artifacts; ADR 0012 and `chapter-1.md` supersede its schedule and ending.
   current bounded MindState, visible conversation, paused moment, and latest
   player turn. It contains no Action/variant IDs, Action descriptions, Judge
   output, future effect, or preferred result. Local human play uses Persona
-  prompt v7 with Action Judge prompt v4; v3 remains frozen for the earlier
+  prompt v9 with Action Judge prompt v4; v3 remains frozen for the earlier
   feasibility artifacts, v4 for Playtest 002, v5 for Playtest 003, and v6 for
   the pre-ADR-0017 Chapter probes.
 - **LDO-LOCAL-005 — Fixed-catalog Judge adapter:** Awareness and willingness use
@@ -79,7 +79,7 @@ artifacts; ADR 0012 and `chapter-1.md` supersede its schedule and ending.
   intention is a valid request to observe rather than an error; it schedules no
   Action and must not imply that conversationally thinkable movement already
   became executable. Local human play uses
-  Persona prompt v7, which permits grounded present possibilities but forbids
+  Persona prompt v9, which permits grounded present possibilities but forbids
   Persona from claiming that a contemplated movement will execute when time
   resumes or that Controller commitment already occurred. If the player
   selects a surfaced Possibility but willingness does not create an intention,
@@ -130,6 +130,13 @@ artifacts; ADR 0012 and `chapter-1.md` supersede its schedule and ending.
   The hallway door begins fully closed. Only the husband's accepted
   `open_door_a_crack` Action may create the first narrow gap and activate its
   neutral Evidence; routines and performance cannot manufacture that change.
+- **LDO-LOCAL-015 — Bounded memory context:** The Controller deterministically
+  filters authored memory cards by actor and disclosure tier before any model
+  sees them. A secret-blind selector receives only eligible phase-safe cues and
+  may choose zero or one ID. The Controller validates that ID, then and only
+  then loads the actor-specific content into Persona `RELEVANT_MEMORY`. No
+  eligible card means no selector call. Tutorial and Chapter 1 remain at
+  `unnamed_loss`, so protected yellow-bowl content cannot enter either role.
 
 ## Launch contract
 
@@ -148,11 +155,32 @@ npm run play:ldo:web
 
 Open `http://127.0.0.1:5173/leave-the-door-open/`.
 
+The browser starts a new Traditional Chinese session by default. English is
+explicitly selectable in the page header or at
+`http://127.0.0.1:5173/leave-the-door-open/?locale=en`. Changing language
+starts a new session; it does not translate or mutate a session already in
+progress.
+
 Optional configuration:
 
 ```bash
-LDO_PLAY_MODEL=gpt-5.6-luna LDO_PLAY_EFFORT=low npm run play:ldo:text
+LDO_PLAY_MODEL=gpt-5.6-luna LDO_PLAY_EFFORT=medium npm run play:ldo:text
 ```
+
+Terminal play preserves the existing English default. To start the same
+semantic game with authored Traditional Chinese presentation and direct
+Chinese Persona/Performance output:
+
+```bash
+LDO_PLAY_LOCALE=zh-TW npm run play:ldo:text
+```
+
+`LDO_PLAY_EFFORT` applies to Persona, memory selection, Judge, and generated
+performance. The secret-blind Input Firewall uses the same selected model at
+fixed `low` reasoning because it performs only narrow form/authority
+classification; its calls are still recorded in the session journal.
+`LDO_PLAY_LOCALE` accepts only `en` or `zh-TW`, and the selected value is
+recorded in the append-only session journal.
 
 ## Non-goals
 

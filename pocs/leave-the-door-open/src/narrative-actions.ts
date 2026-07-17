@@ -1,11 +1,12 @@
-import type { NarrativeActionId } from "./world";
+import type { NarrativeActionId, NPCId } from "./world";
 
 export type ActionOptionId =
   | "spend-time-with-clock"
   | "open-door-a-crack"
   | "wait-at-threshold"
   | "step-inside-room"
-  | "open-room-window";
+  | "open-room-window"
+  | "say-one-honest-thing";
 
 export type PerformanceEnvelope = {
   targetObjectIds: Array<
@@ -23,16 +24,17 @@ export type PerformanceEnvelope = {
       | "hallway_door_slightly_open"
       | "wife_remains_at_threshold"
       | "wife_enters_room"
-      | "room_window_open_one_hand_width";
+      | "room_window_open_one_hand_width"
+      | "bounded_spousal_exchange_recorded";
   };
 };
 
 export type NarrativeActionDefinition = {
   actionId: NarrativeActionId;
   description: string;
+  recipientActorIds?: NPCId[];
   option: {
     optionId: ActionOptionId;
-    label: string;
   };
   variants: Array<{
     variantId: string;
@@ -48,7 +50,6 @@ const narrativeActions: Record<NarrativeActionId, NarrativeActionDefinition> = {
       "Physically interact with the living-room clock for a brief period; when finished, leave it intact, running, and showing the current time.",
     option: {
       optionId: "spend-time-with-clock",
-      label: "Spend a moment with the clock.",
     },
     variants: [
       {
@@ -72,7 +73,6 @@ const narrativeActions: Record<NarrativeActionId, NarrativeActionDefinition> = {
       "Open the fully closed hallway door only far enough to leave a narrow gap, then walk away.",
     option: {
       optionId: "open-door-a-crack",
-      label: "Open the door just a little.",
     },
     variants: [
       {
@@ -95,7 +95,6 @@ const narrativeActions: Record<NarrativeActionId, NarrativeActionDefinition> = {
       "Remain at the room threshold for one breath without touching or changing anything.",
     option: {
       optionId: "wait-at-threshold",
-      label: "Remain at the threshold for one breath.",
     },
     variants: [
       {
@@ -118,7 +117,6 @@ const narrativeActions: Record<NarrativeActionId, NarrativeActionDefinition> = {
       "Step one pace across the room threshold, remain briefly without touching anything, then step back.",
     option: {
       optionId: "step-inside-room",
-      label: "Step across the threshold, then step back.",
     },
     variants: [
       {
@@ -141,7 +139,6 @@ const narrativeActions: Record<NarrativeActionId, NarrativeActionDefinition> = {
       "Open the closed room window one hand-width and leave it there.",
     option: {
       optionId: "open-room-window",
-      label: "Open the window a little.",
     },
     variants: [
       {
@@ -155,6 +152,29 @@ const narrativeActions: Record<NarrativeActionId, NarrativeActionDefinition> = {
       closurePolicy: {
         kind: "authored_postcondition",
         postconditionId: "room_window_open_one_hand_width",
+      },
+    },
+  },
+  say_one_honest_thing_to_elise: {
+    actionId: "say_one_honest_thing_to_elise",
+    description:
+      "At the next suitable shared evening moment, say one honest thing to Elise without requiring an immediate answer or larger resolution.",
+    recipientActorIds: ["wife"],
+    option: {
+      optionId: "say-one-honest-thing",
+    },
+    variants: [
+      {
+        variantId: "one_honest_opening",
+        description:
+          "Make one honest opening, allow Elise one response, and let the exchange end without forcing a conclusion.",
+      },
+    ],
+    performanceEnvelope: {
+      targetObjectIds: [],
+      closurePolicy: {
+        kind: "authored_postcondition",
+        postconditionId: "bounded_spousal_exchange_recorded",
       },
     },
   },

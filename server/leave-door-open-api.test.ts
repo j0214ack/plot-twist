@@ -39,13 +39,114 @@ const realTerminalSession = (): LeaveDoorOpenWebSession => {
       return latestScreen;
     },
     async handleInput(input) {
-      const result = await terminal.handleInput(input);
+      const result =
+        input.trim() === "/resume"
+          ? await terminal.beginTimeAdvance()
+          : { ...(await terminal.handleInput(input)), advancePending: false };
+      return { ...result, screen: latestScreen };
+    },
+    async advanceTurn() {
+      const result = await terminal.advanceTurn();
       return { ...result, screen: latestScreen };
     },
   };
 };
 
 describe("Leave the Door Open web session service", () => {
+  // Spec: ADR 0033 LDO-LOC-001, LDO-LOC-006, and LDO-LOC-008.
+  it("validates and freezes the requested locale when creating a session", async () => {
+    const created: Array<{ sessionId: string; locale: string }> = [];
+    const service = new LeaveDoorOpenSessionService((sessionId, locale) => {
+      created.push({ sessionId, locale });
+      return {
+        async start() {
+          return locale;
+        },
+        async handleInput() {
+          throw new Error("Not exercised");
+        },
+        async advanceTurn() {
+          throw new Error("Not exercised");
+        },
+      };
+    }, { createSessionId: () => "localized-session" });
+    const middleware = createLeaveDoorOpenApiMiddleware(service);
+
+    const started = await invoke(middleware, {
+      method: "POST",
+      url: "/api/leave-the-door-open/sessions",
+      body: JSON.stringify({ locale: "zh-TW" }),
+    });
+    const rejected = await invoke(middleware, {
+      method: "POST",
+      url: "/api/leave-the-door-open/sessions",
+      body: JSON.stringify({ locale: "fr" }),
+    });
+
+    expect(created).toEqual([
+      { sessionId: "localized-session", locale: "zh-TW" },
+    ]);
+    expect(started.json).toMatchObject({
+      sessionId: "localized-session",
+      locale: "zh-TW",
+      screen: "zh-TW",
+    });
+    expect(rejected).toMatchObject({
+      statusCode: 400,
+      json: { error: "Unsupported locale" },
+    });
+  });
+
+  // Spec: ADR 0029 LDO-WEB-014 and LDO-TIME-002.
+  it("exposes a target-free next-tick endpoint for the active advance plan", async () => {
+    let turn = 0;
+    const session: LeaveDoorOpenWebSession = {
+      async start() {
+        return "opening";
+      },
+      async handleInput(input) {
+        expect(input).toBe("/resume");
+        return {
+          ended: false,
+          advancePending: true,
+          screen: "07:59 — first tick",
+        };
+      },
+      async advanceTurn() {
+        turn += 1;
+        return {
+          ended: false,
+          advancePending: turn < 2,
+          screen: turn < 2 ? "08:00 — second tick" : "08:15 — final tick",
+        };
+      },
+    };
+    const service = new LeaveDoorOpenSessionService(() => session, {
+      createSessionId: () => "paced-api-a",
+    });
+    const middleware = createLeaveDoorOpenApiMiddleware(service);
+    await service.startSession();
+
+    const first = await service.submitInput("paced-api-a", "/resume");
+    const second = await invoke(middleware, {
+      method: "POST",
+      url: "/api/leave-the-door-open/sessions/paced-api-a/advance",
+      body: "{}",
+    });
+
+    expect(first).toMatchObject({ advancePending: true });
+    expect(second).toMatchObject({
+      statusCode: 200,
+      json: {
+        sessionId: "paced-api-a",
+        ended: false,
+        advancePending: true,
+        screen: "08:00 — second tick",
+      },
+    });
+    expect(JSON.stringify(second.json)).not.toMatch(/target|duration|event/i);
+  });
+
   // Spec: ADR 0018 LDO-WEB-001 and LDO-WEB-003.
   it("installs the same session API in Vite development and Fly preview servers", () => {
     const service = new LeaveDoorOpenSessionService(realTerminalSession);
@@ -145,7 +246,10 @@ describe("Leave the Door Open web session service", () => {
         events.push(`start:${input}`);
         if (input === "first") await firstMayFinish;
         events.push(`end:${input}`);
-        return { ended: false, screen: input };
+        return { ended: false, advancePending: false, screen: input };
+      },
+      async advanceTurn() {
+        throw new Error("Not exercised");
       },
     };
     const service = new LeaveDoorOpenSessionService(() => session, {

@@ -1,5 +1,14 @@
 export type NPCId = "husband" | "wife";
 
+export type CalendarWeekdayId =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
 import {
   createSeededAmbientRoutineChoice,
   getAmbientRoutineDefinition,
@@ -8,13 +17,19 @@ import {
   type AmbientRoutineId,
   type AmbientSlotId,
 } from "./ambient-routines";
+import {
+  getRelationshipConversationOutcomeDefinition,
+  isRelationshipConversationOutcomeId,
+  type RelationshipConversationOutcomeId,
+} from "./relationship-conversation-outcomes";
 
 export type LocationId =
   | "living_room"
   | "dining_area"
   | "hallway"
   | "room_threshold"
-  | "room_interior";
+  | "room_interior"
+  | "away_from_home";
 
 export type RoutineBehaviorId =
   | "husband_notices_slow_clock"
@@ -22,6 +37,20 @@ export type RoutineBehaviorId =
   | "husband_rinses_cup"
   | "husband_folds_sofa_throw"
   | "husband_turns_off_lights"
+  | "husband_leaves_for_work"
+  | "wife_leaves_for_work"
+  | "wife_returns_from_work"
+  | "husband_returns_from_work"
+  | "husband_leaves_for_household_shopping"
+  | "wife_leaves_for_household_shopping"
+  | "wife_returns_with_groceries"
+  | "husband_returns_with_groceries"
+  | "husband_leaves_for_sunday_outing"
+  | "wife_leaves_for_sunday_outing"
+  | "wife_returns_from_sunday_outing"
+  | "husband_returns_from_sunday_outing"
+  | "husband_settles_at_dining_table"
+  | "wife_settles_at_dining_table"
   | "wife_drinks_water"
   | "husband_walks_to_hallway_door"
   | "wife_walks_through_hallway"
@@ -39,7 +68,8 @@ export type NarrativeActionId =
   | "open_door_a_crack"
   | "remain_at_threshold"
   | "step_inside_room"
-  | "open_room_window";
+  | "open_room_window"
+  | "say_one_honest_thing_to_elise";
 
 export type EvidenceId =
   | "living_room_clock_is_accurate"
@@ -54,6 +84,13 @@ export type VisibleActivityId =
   | "rinsing_cup"
   | "folding_sofa_throw"
   | "turning_off_lights"
+  | "away_at_work"
+  | "returning_from_work"
+  | "away_shopping"
+  | "returning_with_groceries"
+  | "away_on_outing"
+  | "returning_from_outing"
+  | "settling_at_dining_table"
   | "drinking_water"
   | "stopped_at_door"
   | "opening_door_a_crack"
@@ -68,6 +105,10 @@ export type VisibleActivityId =
   | "stepping_inside_then_back"
   | "noticing_closed_room_window"
   | "opening_room_window"
+  | "making_one_honest_opening"
+  | "redirecting_honest_talk_to_practicalities"
+  | "acknowledging_relationship_distance"
+  | "returning_one_honest_sentence"
   | "testing_window_latch"
   | "squaring_hallway_runner";
 
@@ -97,7 +138,9 @@ export type NarrativeActionExecutedEvent = {
   at: number;
   type: "narrative_action_executed";
   actorId: NPCId;
+  recipientId?: NPCId;
   actionId: NarrativeActionId;
+  relationshipOutcomeId?: RelationshipConversationOutcomeId;
   locationId: LocationId;
   visibleActivityId: VisibleActivityId;
 };
@@ -133,6 +176,7 @@ export type GameEvent =
 export type ActionIntention = {
   actorId: NPCId;
   actionId: NarrativeActionId;
+  relationshipOutcomeId?: RelationshipConversationOutcomeId;
 };
 
 export type WorldFacts = {
@@ -145,6 +189,10 @@ export type WorldFacts = {
   wifeHasEnteredRoom: boolean;
   wifeEnteredRoomOnChapterDay: number | null;
   roomWindow: "closed" | "open_one_hand_width";
+  martinEliseConversation:
+    | "not_attempted"
+    | RelationshipConversationOutcomeId;
+  martinEliseConversationOnChapterDay: number | null;
   chapter1Complete: boolean;
 };
 
@@ -156,6 +204,7 @@ export type EvidenceSnapshot = {
 
 export type WorldSnapshot = {
   time: number;
+  weekdayId: CalendarWeekdayId;
   chapter: ChapterId;
   chapterDay: number | null;
   ambientChance: AmbientChanceSnapshot | null;
@@ -170,12 +219,27 @@ export type WorldSnapshot = {
   evidence: Partial<Record<EvidenceId, EvidenceSnapshot>>;
 };
 
-type GameState = Omit<WorldSnapshot, "actionProgress" | "ambientChance"> & {
+type GameState = Omit<
+  WorldSnapshot,
+  "actionProgress" | "ambientChance" | "weekdayId"
+> & {
   eventLog: GameEvent[];
 };
 
 const START_TIME = 7 * 60 + 56;
 const MINUTES_PER_DAY = 24 * 60;
+const weekdaysFromEpoch: CalendarWeekdayId[] = [
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+];
+
+export const calendarWeekdayAt = (time: number): CalendarWeekdayId =>
+  weekdaysFromEpoch[Math.floor(time / MINUTES_PER_DAY) % 7]!;
 const psychologicalStageOrder: PsychologicalStage[] = [
   "latent",
   "faintly_imagined",
@@ -215,6 +279,8 @@ export class VerticalSliceWorld {
       wifeHasEnteredRoom: false,
       wifeEnteredRoomOnChapterDay: null,
       roomWindow: "closed",
+      martinEliseConversation: "not_attempted",
+      martinEliseConversationOnChapterDay: null,
       chapter1Complete: false,
     },
     intentions: [],
@@ -283,6 +349,7 @@ export class VerticalSliceWorld {
   }
 
   eligibleNarrativeActions(actorId: NPCId): NarrativeActionId[] {
+    const relationshipActions = this.#eligibleRelationshipActions(actorId);
     if (
       actorId === "husband" &&
       this.#state.chapter === "tutorial" &&
@@ -292,7 +359,7 @@ export class VerticalSliceWorld {
       !this.#hasIntention("husband", "interact_with_living_room_clock") &&
       !this.#hasCompleted("husband", "interact_with_living_room_clock")
     ) {
-      return ["interact_with_living_room_clock"];
+      return ["interact_with_living_room_clock", ...relationshipActions];
     }
     if (
       actorId === "husband" &&
@@ -307,7 +374,7 @@ export class VerticalSliceWorld {
       !this.#hasIntention("husband", "open_door_a_crack") &&
       !this.#hasCompleted("husband", "open_door_a_crack")
     ) {
-      return ["open_door_a_crack"];
+      return ["open_door_a_crack", ...relationshipActions];
     }
     if (
       actorId === "wife" &&
@@ -320,7 +387,7 @@ export class VerticalSliceWorld {
       !this.#hasIntention("wife", "remain_at_threshold") &&
       !this.#hasCompleted("wife", "remain_at_threshold")
     ) {
-      return ["remain_at_threshold"];
+      return ["remain_at_threshold", ...relationshipActions];
     }
     if (
       actorId === "wife" &&
@@ -336,7 +403,7 @@ export class VerticalSliceWorld {
       !this.#hasIntention("wife", "step_inside_room") &&
       !this.#hasCompleted("wife", "step_inside_room")
     ) {
-      return ["step_inside_room"];
+      return ["step_inside_room", ...relationshipActions];
     }
     if (
       actorId === "wife" &&
@@ -354,25 +421,59 @@ export class VerticalSliceWorld {
       !this.#hasIntention("wife", "open_room_window") &&
       !this.#hasCompleted("wife", "open_room_window")
     ) {
-      return ["open_room_window"];
+      return ["open_room_window", ...relationshipActions];
     }
-    return [];
+    return relationshipActions;
+  }
+
+  #eligibleRelationshipActions(actorId: NPCId): NarrativeActionId[] {
+    return actorId === "husband" &&
+      this.#state.chapter === 1 &&
+      !this.#state.worldFacts.chapter1Complete &&
+      this.#state.paused &&
+      this.#state.npcs.husband.locationId !== "away_from_home" &&
+      this.#state.worldFacts.roomInterior === "hidden" &&
+      !this.#hasIntention("husband", "say_one_honest_thing_to_elise") &&
+      !this.#hasCompleted("husband", "say_one_honest_thing_to_elise")
+      ? ["say_one_honest_thing_to_elise"]
+      : [];
   }
 
   commitNarrativeAction(
     actorId: NPCId,
     actionId: NarrativeActionId,
+    options: { relationshipOutcomeId?: string } = {},
   ): void {
     if (!this.eligibleNarrativeActions(actorId).includes(actionId)) {
       throw new Error(`Narrative action is not eligible: ${actionId}`);
     }
-    this.#state.intentions.push({ actorId, actionId });
+    let relationshipOutcomeId: RelationshipConversationOutcomeId | undefined;
+    if (actionId === "say_one_honest_thing_to_elise") {
+      if (!isRelationshipConversationOutcomeId(options.relationshipOutcomeId)) {
+        throw new Error("Relationship Action requires an authored outcome");
+      }
+      relationshipOutcomeId = options.relationshipOutcomeId;
+    }
+    if (
+      actionId !== "say_one_honest_thing_to_elise" &&
+      options.relationshipOutcomeId !== undefined
+    ) {
+      throw new Error("Relationship outcome is invalid for this Action");
+    }
+    this.#state.intentions.push({
+      actorId,
+      actionId,
+      ...(actionId === "say_one_honest_thing_to_elise"
+        ? { relationshipOutcomeId }
+        : {}),
+    });
     this.setActionProgress(actorId, actionId, "intended");
   }
 
   snapshot(): WorldSnapshot {
     return structuredClone({
       time: this.#state.time,
+      weekdayId: calendarWeekdayAt(this.#state.time),
       chapter: this.#state.chapter,
       chapterDay: this.#state.chapterDay,
       ambientChance: this.#ambientChoice.snapshot?.() ?? null,
@@ -392,6 +493,11 @@ export class VerticalSliceWorld {
 
   #executeScheduledRoutines(minute: number): void {
     const localTime = minute % MINUTES_PER_DAY;
+    const weekdayId = calendarWeekdayAt(minute);
+    const isWorkday =
+      weekdayId !== "saturday" && weekdayId !== "sunday";
+    const secondResidentIsPresented =
+      this.#state.worldFacts.livingRoomClock === "accurate";
     if (
       this.#state.chapter === "tutorial" &&
       this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
@@ -432,6 +538,7 @@ export class VerticalSliceWorld {
     if (
       this.#state.chapter === "tutorial" &&
       this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
+      !isWorkday &&
       localTime === 12 * 60 + 12
     ) {
       this.#executeRoutine({
@@ -445,6 +552,7 @@ export class VerticalSliceWorld {
     if (
       this.#state.chapter === "tutorial" &&
       this.#state.worldFacts.livingRoomClock === "three_minutes_slow" &&
+      isWorkday &&
       localTime === 18 * 60 + 40
     ) {
       this.#executeRoutine({
@@ -465,6 +573,159 @@ export class VerticalSliceWorld {
         routineId: "husband_turns_off_lights",
         locationId: "living_room",
         visibleActivityId: "turning_off_lights",
+      });
+    }
+
+    if (isWorkday && localTime === 8 * 60 + 25) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_leaves_for_work",
+        locationId: "away_from_home",
+        visibleActivityId: "away_at_work",
+      });
+    }
+
+    if (
+      isWorkday &&
+      secondResidentIsPresented &&
+      localTime === 8 * 60 + 35
+    ) {
+      this.#executeRoutine({
+        actorId: "wife",
+        routineId: "wife_leaves_for_work",
+        locationId: "away_from_home",
+        visibleActivityId: "away_at_work",
+      });
+    }
+
+    if (
+      isWorkday &&
+      secondResidentIsPresented &&
+      localTime === 17 * 60 + 25
+    ) {
+      this.#executeRoutine({
+        actorId: "wife",
+        routineId: "wife_returns_from_work",
+        locationId: "dining_area",
+        visibleActivityId: "returning_from_work",
+      });
+    }
+
+    if (isWorkday && localTime === 18 * 60 + 5) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_returns_from_work",
+        locationId: "living_room",
+        visibleActivityId: "returning_from_work",
+      });
+    }
+
+    if (weekdayId === "saturday" && localTime === 10 * 60 + 30) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_leaves_for_household_shopping",
+        locationId: "away_from_home",
+        visibleActivityId: "away_shopping",
+      });
+    }
+
+    if (
+      weekdayId === "saturday" &&
+      secondResidentIsPresented &&
+      localTime === 10 * 60 + 32
+    ) {
+      this.#executeRoutine({
+        actorId: "wife",
+        routineId: "wife_leaves_for_household_shopping",
+        locationId: "away_from_home",
+        visibleActivityId: "away_shopping",
+      });
+    }
+
+    if (
+      weekdayId === "saturday" &&
+      secondResidentIsPresented &&
+      localTime === 11 * 60 + 55
+    ) {
+      this.#executeRoutine({
+        actorId: "wife",
+        routineId: "wife_returns_with_groceries",
+        locationId: "dining_area",
+        visibleActivityId: "returning_with_groceries",
+      });
+    }
+
+    if (weekdayId === "saturday" && localTime === 11 * 60 + 57) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_returns_with_groceries",
+        locationId: "dining_area",
+        visibleActivityId: "returning_with_groceries",
+      });
+    }
+
+    if (weekdayId === "sunday" && localTime === 17 * 60 + 45) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_leaves_for_sunday_outing",
+        locationId: "away_from_home",
+        visibleActivityId: "away_on_outing",
+      });
+    }
+
+    if (
+      weekdayId === "sunday" &&
+      secondResidentIsPresented &&
+      localTime === 17 * 60 + 47
+    ) {
+      this.#executeRoutine({
+        actorId: "wife",
+        routineId: "wife_leaves_for_sunday_outing",
+        locationId: "away_from_home",
+        visibleActivityId: "away_on_outing",
+      });
+    }
+
+    if (
+      weekdayId === "sunday" &&
+      secondResidentIsPresented &&
+      localTime === 20 * 60 + 5
+    ) {
+      this.#executeRoutine({
+        actorId: "wife",
+        routineId: "wife_returns_from_sunday_outing",
+        locationId: "dining_area",
+        visibleActivityId: "returning_from_outing",
+      });
+    }
+
+    if (weekdayId === "sunday" && localTime === 20 * 60 + 7) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_returns_from_sunday_outing",
+        locationId: "living_room",
+        visibleActivityId: "returning_from_outing",
+      });
+    }
+
+    if (
+      this.#state.chapter === 1 &&
+      localTime === 20 * 60 + 14 &&
+      this.#hasIntention("husband", "say_one_honest_thing_to_elise") &&
+      this.#state.npcs.husband.locationId !== "away_from_home" &&
+      this.#state.npcs.wife.locationId !== "away_from_home"
+    ) {
+      this.#executeRoutine({
+        actorId: "husband",
+        routineId: "husband_settles_at_dining_table",
+        locationId: "dining_area",
+        visibleActivityId: "settling_at_dining_table",
+      });
+      this.#executeRoutine({
+        actorId: "wife",
+        routineId: "wife_settles_at_dining_table",
+        locationId: "dining_area",
+        visibleActivityId: "settling_at_dining_table",
       });
     }
 
@@ -843,18 +1104,67 @@ export class VerticalSliceWorld {
       });
       this.setActionProgress("wife", "open_room_window", "completed");
     }
+
+    if (
+      this.#state.chapter === 1 &&
+      minute % MINUTES_PER_DAY === 20 * 60 + 15 &&
+      this.#state.npcs.husband.locationId === "dining_area" &&
+      this.#state.npcs.wife.locationId === "dining_area"
+    ) {
+      const intention = this.#takeIntention(
+        "husband",
+        "say_one_honest_thing_to_elise",
+      );
+      if (intention !== null) {
+        const outcomeId = intention.relationshipOutcomeId;
+        if (!isRelationshipConversationOutcomeId(outcomeId)) {
+          throw new Error("Relationship intention has no authored outcome");
+        }
+        const outcome =
+          getRelationshipConversationOutcomeDefinition(outcomeId);
+        this.#state.npcs.husband = {
+          locationId: "dining_area",
+          visibleActivityId: "making_one_honest_opening",
+        };
+        this.#state.npcs.wife = {
+          locationId: "dining_area",
+          visibleActivityId: outcome.wifeVisibleActivityId,
+        };
+        this.#state.worldFacts.martinEliseConversation = outcomeId;
+        this.#state.worldFacts.martinEliseConversationOnChapterDay =
+          this.#state.chapterDay;
+        this.#state.eventLog.push({
+          at: minute,
+          type: "narrative_action_executed",
+          actorId: "husband",
+          recipientId: "wife",
+          actionId: "say_one_honest_thing_to_elise",
+          relationshipOutcomeId: outcomeId,
+          locationId: "dining_area",
+          visibleActivityId: "making_one_honest_opening",
+        });
+        this.#state.completedActions.push(intention);
+        this.setActionProgress(
+          "husband",
+          "say_one_honest_thing_to_elise",
+          "completed",
+        );
+      }
+    }
   }
 
-  #takeIntention(actorId: NPCId, actionId: NarrativeActionId): boolean {
+  #takeIntention(
+    actorId: NPCId,
+    actionId: NarrativeActionId,
+  ): ActionIntention | null {
     const intentionIndex = this.#state.intentions.findIndex(
       (intention) =>
         intention.actorId === actorId && intention.actionId === actionId,
     );
     if (intentionIndex < 0) {
-      return false;
+      return null;
     }
-    this.#state.intentions.splice(intentionIndex, 1);
-    return true;
+    return this.#state.intentions.splice(intentionIndex, 1)[0]!;
   }
 
   #hasCompleted(actorId: NPCId, actionId: NarrativeActionId): boolean {

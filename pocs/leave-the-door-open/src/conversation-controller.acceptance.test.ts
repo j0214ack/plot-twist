@@ -226,7 +226,7 @@ describe("Leave the Door Open conversational Controller", () => {
     );
   });
 
-  it("LDO-LOCAL-010 gives the clock tutorial a shallow MindState and forms its fixed intention", async () => {
+  it("LDO-LOCAL-010 LDO-PSY-001 gives the clock Persona only owned shallow resistance and forms its fixed intention", async () => {
     const personaRequests: PersonaTurnRequest[] = [];
     const awarenessRequests: AwarenessRequest[] = [];
     const persona: PersonaPort = {
@@ -302,13 +302,12 @@ describe("Leave the Door Open conversational Controller", () => {
             atomId: "husband.clock.deliberate_change_effort",
             status: "active",
           }),
-          expect.objectContaining({
-            atomId: "husband.clock.bounded_adjustment",
-            status: "unavailable",
-          }),
         ]),
       },
     });
+    expect(JSON.stringify(personaRequests[0])).not.toContain(
+      "husband.clock.bounded_adjustment",
+    );
     expect(JSON.stringify(personaRequests[0])).not.toMatch(
       /interact_with_living_room_clock|accepted_clock_interaction|Spend a moment with the clock/,
     );
@@ -354,7 +353,7 @@ describe("Leave the Door Open conversational Controller", () => {
     });
   });
 
-  it("LDO-CH1-008 LDO-HPT-001 LDO-HPT-002 LDO-HPT-003 turns a Persona-owned possibility into an accepted World intention", async () => {
+  it("LDO-CH1-008 LDO-HPT-001 LDO-HPT-002 LDO-HPT-003 LDO-PSY-001 turns a Persona-owned possibility into an accepted World intention", async () => {
     const personaRequests: PersonaTurnRequest[] = [];
     const awarenessRequests: AwarenessRequest[] = [];
     const willingnessRequests: WillingnessRequest[] = [];
@@ -401,7 +400,10 @@ describe("Leave the Door Open conversational Controller", () => {
         return {
           judgments: request.actions.map(({ actionId }) => ({
             actionId,
-            awareness: "surfaced" as const,
+            awareness:
+              actionId === "open_door_a_crack"
+                ? ("surfaced" as const)
+                : ("latent" as const),
           })),
         };
       },
@@ -448,13 +450,12 @@ describe("Leave the Door Open conversational Controller", () => {
               "husband.door.approach_decides_all_consequences",
             status: "held",
           }),
-          expect.objectContaining({
-            atomId: "husband.door.narrow_gap_can_end",
-            status: "unavailable",
-          }),
         ]),
       },
     });
+    expect(JSON.stringify(personaRequests[0])).not.toContain(
+      "husband.door.narrow_gap_can_end",
+    );
     expect(JSON.stringify(personaRequests[0])).not.toMatch(
       /open_door_a_crack|open_narrow_gap|Open the door just a little/,
     );
@@ -467,6 +468,11 @@ describe("Leave the Door Open conversational Controller", () => {
             actionId: "open_door_a_crack",
             description:
               "Open the fully closed hallway door only far enough to leave a narrow gap, then walk away.",
+          },
+          {
+            actionId: "say_one_honest_thing_to_elise",
+            description:
+              "At the next suitable shared evening moment, say one honest thing to Elise without requiring an immediate answer or larger resolution.",
           },
         ],
         personaState: {
@@ -534,6 +540,242 @@ describe("Leave the Door Open conversational Controller", () => {
     expect(controller.snapshot().interaction.availableActionOptionIds).toEqual(
       [],
     );
+  });
+
+  // Spec: chapter-1.md LDO-CH1-017 through LDO-CH1-020; ADR 0032
+  // LDO-SOCIAL-002 through LDO-SOCIAL-005. The player talks to each Persona
+  // separately; no Persona-to-Persona call resolves the World scene.
+  it("maps Elise's validated readiness to a bounded Martin intention without asking the Judge to invent her response", async () => {
+    const personaRequests: PersonaTurnRequest[] = [];
+    const awarenessRequests: AwarenessRequest[] = [];
+    const willingnessRequests: WillingnessRequest[] = [];
+    const ports: ConversationPorts = {
+      persona: {
+        async takeTurn(request) {
+          personaRequests.push(structuredClone(request));
+          return request.actorId === "wife"
+            ? {
+                reply:
+                  "If Martin said one honest thing, I could answer one true thing without solving all of it.",
+                shouldEndConversation: false,
+              }
+            : {
+                reply:
+                  "I could tell Elise that I miss talking to her, and let that one sentence be enough for tonight.",
+                shouldEndConversation: false,
+              };
+        },
+      },
+      actionJudge: {
+        async judgeMindStateTransition(request) {
+          return request.actorId === "wife"
+            ? {
+                transitions: [
+                  {
+                    atomId: "wife.relationship.immediate_answer",
+                    fromStatus: "active",
+                    toStatus: "resolved",
+                    supportingPersonaSourceIds: [request.personaReply.sourceId],
+                  },
+                  {
+                    atomId: "wife.relationship.one_truthful_reply",
+                    fromStatus: "unavailable",
+                    toStatus: "accepted",
+                    supportingPersonaSourceIds: [request.personaReply.sourceId],
+                  },
+                ],
+                unmodeledShiftNote: null,
+              }
+            : {
+                transitions: [
+                  {
+                    atomId: "husband.relationship.complete_explanation",
+                    fromStatus: "active",
+                    toStatus: "resolved",
+                    supportingPersonaSourceIds: [request.personaReply.sourceId],
+                  },
+                  {
+                    atomId: "husband.relationship.one_honest_sentence",
+                    fromStatus: "unavailable",
+                    toStatus: "accepted",
+                    supportingPersonaSourceIds: [request.personaReply.sourceId],
+                  },
+                ],
+                unmodeledShiftNote: null,
+              };
+        },
+        async judgeAwareness(request) {
+          awarenessRequests.push(structuredClone(request));
+          return {
+            judgments: request.actions.map(({ actionId }) => ({
+              actionId,
+              awareness:
+                actionId === "say_one_honest_thing_to_elise"
+                  ? ("surfaced" as const)
+                  : ("latent" as const),
+            })),
+          };
+        },
+        async judgeWillingness(request) {
+          willingnessRequests.push(structuredClone(request));
+          return {
+            actionId: request.action.actionId,
+            decision: "accept" as const,
+            selectedVariantId: "one_honest_opening",
+          };
+        },
+      },
+    };
+    const world = createVerticalSliceWorld({
+      ambientChoice: { choose: () => null },
+    });
+    world.advanceTo(7 * 60 + 57);
+    world.pause();
+    world.commitNarrativeAction(
+      "husband",
+      "interact_with_living_room_clock",
+    );
+    world.resume();
+    world.advanceTo(7 * 60 + 59);
+    const controller = new VerticalSliceGameController(world, ports);
+    controller.advanceTo(DAY + 8 * 60 + 20);
+    controller.dispatch({ type: "pause_world" });
+
+    controller.dispatch({ type: "select_npc", npcId: "wife" });
+    await controller.dispatch({
+      type: "submit_dialogue",
+      text: "If Martin tried to say one honest thing, would you have to answer everything?",
+    });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+    await controller.dispatch({
+      type: "submit_dialogue",
+      text: "Could you say one true thing to Elise without making her solve the rest?",
+    });
+
+    expect(controller.snapshot().interaction.availableActionOptionIds).toEqual([
+      "say-one-honest-thing",
+    ]);
+    expect(awarenessRequests.at(-1)?.actions).toEqual([
+      {
+        actionId: "say_one_honest_thing_to_elise",
+        description:
+          "At the next suitable shared evening moment, say one honest thing to Elise without requiring an immediate answer or larger resolution.",
+      },
+    ]);
+
+    await controller.dispatch({
+      type: "select_action_option",
+      optionId: "say-one-honest-thing",
+    });
+
+    expect(willingnessRequests).toHaveLength(1);
+    expect(willingnessRequests[0]?.action).toMatchObject({
+      actionId: "say_one_honest_thing_to_elise",
+      variants: [{ variantId: "one_honest_opening" }],
+    });
+    expect(JSON.stringify(willingnessRequests[0])).not.toMatch(
+      /practical_deflection|distance_acknowledged|one_truth_returned/,
+    );
+    expect(controller.snapshot().world.intentions).toEqual([
+      {
+        actorId: "husband",
+        actionId: "say_one_honest_thing_to_elise",
+        relationshipOutcomeId: "one_truth_returned",
+      },
+    ]);
+
+    controller.dispatch({ type: "resume_world" });
+    await controller.advanceToWithPerformance(DAY + 20 * 60 + 15);
+
+    expect(personaRequests).toHaveLength(2);
+    expect(controller.snapshot().world).toMatchObject({
+      worldFacts: {
+        martinEliseConversation: "one_truth_returned",
+        martinEliseConversationOnChapterDay: 1,
+        hallwayDoor: "closed",
+        chapter1Complete: false,
+      },
+      intentions: [],
+    });
+  });
+
+  // Spec: chapter-1.md LDO-CH1-022; ADR 0032 LDO-SOCIAL-008.
+  it("makes the completed exchange retrievable for later Persona continuity without forcing it into every turn", async () => {
+    const world = createVerticalSliceWorld({
+      ambientChoice: { choose: () => null },
+    });
+    world.advanceTo(7 * 60 + 57);
+    world.pause();
+    world.commitNarrativeAction(
+      "husband",
+      "interact_with_living_room_clock",
+    );
+    world.resume();
+    world.advanceTo(DAY + 8 * 60 + 20);
+    world.pause();
+    world.commitNarrativeAction(
+      "husband",
+      "say_one_honest_thing_to_elise",
+      { relationshipOutcomeId: "distance_acknowledged" },
+    );
+    world.resume();
+    world.advanceTo(DAY + 20 * 60 + 15);
+    const personaRequests: PersonaTurnRequest[] = [];
+    const controller = new VerticalSliceGameController(world, {
+      memorySelector: {
+        async selectMemory(request) {
+          expect(request.eligibleMemories).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                memoryId: "husband.relationship.distance_acknowledged",
+              }),
+            ]),
+          );
+          return {
+            memoryId: "husband.relationship.distance_acknowledged",
+          };
+        },
+      },
+      persona: {
+        async takeTurn(request) {
+          personaRequests.push(structuredClone(request));
+          return {
+            reply: "She heard me. We did not try to finish the conversation.",
+            shouldEndConversation: false,
+          };
+        },
+      },
+      actionJudge: {
+        async judgeMindStateTransition() {
+          return { transitions: [], unmodeledShiftNote: null };
+        },
+        async judgeAwareness(request) {
+          return {
+            judgments: request.actions.map(({ actionId }) => ({
+              actionId,
+              awareness: "latent" as const,
+            })),
+          };
+        },
+        async judgeWillingness() {
+          throw new Error("Not exercised");
+        },
+      },
+    });
+    controller.advanceTo(2 * DAY + 8 * 60 + 10);
+    controller.dispatch({ type: "pause_world" });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+
+    await controller.dispatch({
+      type: "submit_dialogue",
+      text: "What was it like when you tried talking to Elise last night?",
+    });
+
+    expect(personaRequests).toHaveLength(1);
+    expect(personaRequests[0]?.relevantMemory).toMatchObject({
+      memoryId: "husband.relationship.distance_acknowledged",
+      content: expect.stringContaining("Elise answered, “I know.”"),
+    });
   });
 
   it("LDO-CH1-008 LDO-CH1-009 LDO-HPT-001 LDO-HPT-003 completes both conversational Actions through neutral observed Evidence", async () => {

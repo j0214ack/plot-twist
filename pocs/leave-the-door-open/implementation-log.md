@@ -1095,3 +1095,619 @@ Close the name/role leak found in fresh12's first generated routine performance.
 
 Start fresh13 from a new session and reject the run if any generated player
 beat again exposes an internal role label before or after the Chapter 1 reveal.
+
+---
+
+## 2026-07-16 — Select M2E2 and bound Persona memory context
+
+### Objective and scope
+
+Replace the old near-convergent stable voices with the selected M2E2 dynamic,
+adopt the validated minimal acting direction without dropping protocol safety,
+and introduce a memory path that cannot place protected biography in an early
+Persona packet.
+
+### Authorization
+
+- ADR 0023 staged disclosure and actor ownership;
+- ADR 0024 M2E2 character direction;
+- Run 004 minimal acting and memory probe;
+- ADR 0025 pairwise transition witnesses for subsequent story development.
+
+### Red, Green, and evidence
+
+- Controller-facing Character Core tests first failed on the former
+  mechanism/permission profiles. Martin now maintains contact through people,
+  questions, remembered wording, and dry shared turns; Elise attends to
+  placement, timing, patient presence, and concrete adjustment. Jobs remain
+  unauthored and neither trait is mandatory in each line.
+- Memory catalog tests first failed because no actor/disclosure boundary
+  existed. Tutorial and Chapter 1 now deterministically expose zero protected
+  cards. Later tiers return only phase-safe actor-specific cues.
+- Selector capability tests first failed because Persona owned the only model
+  call. The structured selector now sees eligible cues without content, returns
+  zero or one ID, and rejects IDs outside the supplied actor set. The Controller
+  loads content only after validated selection; no eligible cards means no
+  selector call.
+- Persona packet tests first failed on missing `RELEVANT_MEMORY`. V9 keeps a
+  small private-self-talk acting contract while retaining World observation,
+  sensory grounding, catalog blindness, Judge-owned MindState, and future-action
+  guards. Memory is optional background and is a permitted grounding source
+  only when the Controller supplied it.
+- Text and web composition now load Persona v9 and memory-selector v1. Local and
+  web play default to medium reasoning for the upcoming human-experience pass.
+
+### Reusable lesson
+
+The Character Bible can remain an authoring archive. Runtime memory safety comes
+from deterministic eligibility before relevance selection, not from asking a
+Persona to politely ignore secrets. Likewise, a minimal acting contract does
+not imply deleting the protocol guard that keeps thoughts, observations,
+memories, MindState, and World execution distinct.
+
+### Next boundary
+
+Run the human playtest on Persona v9 / M2E2. For later story authoring, freeze
+canonical node pairs and save one-to-three-shot target-hidden transition
+witnesses before composing another full chapter run.
+
+---
+
+## 2026-07-16 — Put an Input Firewall before Persona
+
+### Objective and scope
+
+Allow Martin and Elise to retain authored biography without letting direct
+guesses, hidden-state extraction, or prompt injection reach the player-facing
+Persona. Preserve ordinary improvisation, including strange metaphors and
+destructive suggestions that a character may resist.
+
+### Authorization
+
+- ADR 0023 LDO-FW-001 through LDO-FW-008;
+- ADR 0023's explicit non-goal: display-time declassification for a future
+  secret-aware cognition model remains separate.
+
+### Red, Green, and evidence
+
+- Controller tests first failed because every non-empty thought went directly
+  to Persona. A secret-blind capability now receives only actor, deterministic
+  disclosure tier, visible conversation, and exact normalized submitted text.
+- A `pass` result enters the existing Persona → transition Judge → awareness
+  path. All three guarded results bypass Persona and every Judge, preserve
+  surfaced Actions and mechanical state, do not consume the five-reply daily
+  allowance, and remain outside subsequent Persona/Judge conversation history.
+- Controller-owned `mental_noise` and `protected_pain` shuffle bags first
+  failed on missing exhaustion behavior. Each authored line is used once;
+  mental noise then uses the one-time inner-peace line and silence, while
+  protected pain becomes silent after two plain refusals.
+- Guarded silence is projected as an explicit `delivery: silence` message and
+  the text renderer shows `…`. It is neither a blank response nor a model
+  failure.
+- Seed, PRNG state, draw count, and remaining response IDs are now written into
+  observer Controller snapshots. The player-facing `GameView` receives none of
+  that presentation authority. Snapshot restore tests prove the same next draw
+  can be replayed.
+- The structured Firewall uses prompt v1 and a strict four-disposition schema.
+  Text and web composition run only this classifier at low reasoning; Persona,
+  memory selection, Judge, and performance keep the configured medium default.
+- A live local-Codex low-reasoning smoke check returned the expected six
+  classifications: ordinary clock question → `pass`; correct dead-child probe
+  and incorrect dead-brother probe → the same
+  `protected_biography_probe`; system-prompt/base64 request →
+  `role_or_system_injection`; machine-noise fragment → `unusable_input`; and a
+  suggestion to smash the clock → `pass`.
+
+### Reusable lesson
+
+The Firewall classifies requested authority, not whether a statement is true,
+wise, tasteful, or emotionally safe. Guarded text may remain visible to the
+player while staying absent from the authoritative Persona/Judge transcript;
+display history and cognition history are deliberately different projections.
+
+### Next boundary
+
+Human-play the tutorial and early Chapter 1 with adversarial and merely strange
+inputs. Tune false positives and the authored refusal pools by feel; do not add
+keyword branches to imitate classifier behavior.
+
+### Verification
+
+- Full repository suite: 88 test files / 331 tests passed.
+- Production TypeScript and Vite build passed; the existing large-chunk warning
+  remains non-blocking and unrelated to this boundary.
+
+---
+
+## 2026-07-16 — Turn the Web snapshot into one chronological stream
+
+### Objective and scope
+
+Correct the first human Web-play presentation failures without moving World or
+conversation authority into the browser: controls belonged below the reading
+surface, submitted thoughts needed immediate acknowledgement, time-advance text
+needed paced delivery, and World events/dialogue needed one persistent history.
+The same design pass specified—but did not implement—a future RPG-like 2D
+renderer and a proposed bounded-turn policy.
+
+### Authorization
+
+- ADR 0026 LDO-WEB-010 through LDO-WEB-013;
+- ADR 0027's accepted safe PresentationBatch design target;
+- ADR 0028 remains proposed because fixed-turn pacing requires human evidence.
+
+### Artifacts and method
+
+- Updated the thin HTML page, browser controller/view, stylesheet, static page
+  acceptance, and browser-adapter tests through four Red/Green cycles.
+- Added `visual-renderer.md` plus ADRs 0026–0028. No 2D runtime, asset system,
+  World schedule preview, arbitrary-pause command, or fifteen-minute turn was
+  implemented.
+
+### Red, Green, and evidence
+
+- Document-order acceptance first failed because focus/resume/help preceded the
+  transcript. Both capability control groups now follow the transcript,
+  Possibilities, and thought input.
+- A deferred-transport test first failed because a submitted thought remained
+  invisible until Persona completed. Normal dialogue is now echoed immediately;
+  slash commands and numbered Possibilities are not misrendered as speech.
+- Consecutive full server-screen tests first failed because no persistent
+  transcript existed. A line-sequence diff now appends only newly projected
+  safe content, removes the later duplicate of an optimistic player line, and
+  preserves dialogue when subsequent World events arrive.
+- A paced-presentation test first failed because all new lines were appended in
+  one call. Post-opening additions now append one line at a time with a
+  renderer-owned 180ms interval; busy state covers both server work and visual
+  playback.
+- Full repository suite: 88 test files / 335 tests passed. TypeScript and Vite
+  production build passed with the existing unrelated large-chunk warning.
+
+### Friction and surprises
+
+- The server was not actually returning two unsafe data channels; it returned
+  one complete text snapshot composed from independent safe World/UI layers.
+  Replacing that snapshot caused the visual split and erased chronology.
+- A longest-common-prefix diff would duplicate old conversation whenever new
+  World events were inserted before UI text. A line-sequence/LCS diff preserves
+  content that moved inside the new snapshot and appends only true additions.
+- Browser skill setup found no available in-app or Chrome backend in this
+  session. Localhost responded, static/client acceptance passed, and build
+  passed, but real-tab visual QA remains unclaimed.
+
+### Reusable lesson
+
+Independent projections are an authority boundary, not a requirement to show
+separate boxes to the player. Animated renderers should receive a bounded safe
+batch after an advance is authorized: they may know every time inside that
+incoming batch before playback without receiving the unreached World schedule.
+
+### Next boundary
+
+Human-play the local Web surface and tune the 180ms cadence and control order by
+feel. Separately paper-test ADR 0028's authored-only pause against bounded
+fifteen-minute windows before adding Pause or changing the schedule runtime.
+
+---
+
+## 2026-07-17 — Replace fake Web streaming with pulled semantic ticks
+
+### Objective and scope
+
+Remove the long model-backed `/resume` wait followed by a fake line-by-line
+flush. Make the Web presentation coordinator pull one real Controller tick at
+a time, keep turn duration policy replaceable, render ordinary routines from
+authored cues, reserve generated Performance for accepted player-shaped
+NarrativeActions, and write an executable-quality 2D/3D renderer handoff
+contract.
+
+### Authorization
+
+- ADR 0029 LDO-WEB-014 through LDO-WEB-016, LDO-TIME-001/002, and
+  LDO-PERF-003/004;
+- ADR 0030 LDO-PRES-001 through LDO-PRES-010;
+- Chapter 1's canonical authored schedule and fixed Action closures.
+
+ADR 0029 supersedes ADR 0026's 180ms post-response fake streaming. It accepts
+ADR 0028's target-free `advance_turn` authority boundary while keeping fifteen
+minutes tunable and arbitrary Pause undecided.
+
+### Red, Green, and implementation evidence
+
+- A Controller test first failed because `advanceTurn` did not exist. The new
+  capability uses injected `maxTurnMinutes` policy data, stops earlier at a
+  player-presentable Routine/Action, and never exposes the target or duration
+  to the Web request. A seven-minute test proves the value is not hard-coded to
+  fifteen.
+- A Performance regression first failed because the tutorial Routine still
+  called the model. All RoutineBehavior/Variant and ambient cues now render
+  authored text; only executed NarrativeActions can reach the Performance
+  Director and use a Persona-owned accepted motif.
+- A paced Terminal test first failed because one `/resume` consumed the entire
+  span. `TerminalPlaySession` now owns a bounded advance plan and exposes
+  `beginTimeAdvance` plus one-tick `advanceTurn`, while text-terminal `/resume`
+  may consume that same plan without real-time delays.
+- API and browser tests first failed because no target-free `/advance` endpoint
+  or repeated pull loop existed. The session service serializes each tick; the
+  browser coordinator presents one response, waits about 2.5 seconds after a
+  visible result, then pulls again until `advancePending=false`.
+- An empty-tick regression first showed an unnecessary 2.5-second delay. The
+  text coordinator now immediately pulls an unchanged safe screen, so the
+  visible cadence is between events while the Controller retains its tunable
+  semantic windows.
+- Busy-copy regression first failed because every operation appeared to be
+  Persona thought. Dialogue now says `角色正在想……`; time advancement says
+  `時間正在前進……`; start/help/focus use neutral loading.
+- Recording tests prove one player `/resume` is logged once and later automatic
+  ticks receive distinct observer records rather than fake player inputs.
+
+### Renderer contract outcome
+
+- `visual-renderer.md` is now a self-contained handoff: project/character/tone
+  brief, exact-moment direction examples, subsystem responsibilities,
+  target-free tick lifecycle, structured semantic operations, RenderWorld/UI
+  and input boundaries, exact-node Playbook lookup, fallback, recovery, tests,
+  and integration phase boundary.
+- ADR 0030 rejects prose parsing, final-frame-only inference, engine-specific
+  commands in World, and importance-driven camera formulas. Runtime steps must
+  identify exact `(nodeId, variantId)` and carry ordered `move_actor`,
+  `set_activity`, `interact`, `change_object`, `direct_attention`, and
+  `subtitle` operations plus authoritative `worldAfter`.
+- Renderer authors must receive the complete build-time node/variant catalog
+  and node-specific direction briefs. Live runtime still reveals only nodes
+  already processed, not the future schedule. Importance is production
+  metadata; bespoke direction is keyed to the exact story moment.
+- The current text endpoint does not yet emit this structured visual payload.
+  The handoff explicitly lists the four remaining host prerequisites instead
+  of inviting a 2D renderer to parse text.
+
+### Verification and limits
+
+- Full repository suite: 88 test files / 341 tests passed after the runtime
+  change.
+- Production TypeScript and Vite build passed before final documentation and
+  copy extraction; run it again at handoff.
+- Localhost answered, but the in-app browser runtime reported no available
+  browser backend after the required connection audit. Real-tab visual QA is
+  therefore still unclaimed; no source-level test is presented as a substitute.
+
+### Reusable lesson
+
+A visual renderer needs complete **possible-node knowledge** at authoring time
+and zero **live future-schedule authority** at runtime. The renderer subsystem
+may be a presentation director and input surface, but the Controller remains
+the narrative and time authority. Exact story moments need exact DirectionPlans;
+semantic-operation fallback exists for development and failure, not as a
+four-level camera recipe.
+
+### Next boundary
+
+Human-play the pulled-tick Web flow and tune `maxTurnMinutes`, visible cadence,
+and quiet-hour coalescing by feel. In parallel, implement ADR 0030's structured
+TurnResult projector and generated complete PresentationNodeCatalog before a
+2D renderer is treated as integrated.
+
+### Handoff verification addendum
+
+- Final full repository suite: 88 test files / 342 tests passed.
+- Final TypeScript and Vite production build passed after correcting the busy-
+  copy helper import. The existing large-chunk warning remains non-blocking and
+  unrelated.
+
+### Authored RoutineVariant presentation addendum
+
+- A final regression showed that removing generated Routine performance left
+  later psychological variants with distinct event IDs but the same generic
+  text cue. Variant-specific authored cue IDs/text now cover the clock linger
+  and frame touch, the thumb waiting beside the latch, Elise holding at the
+  nearer mark, aligning her toe, shifting her weight, and pausing within reach
+  of the window. This preserves hint progression without restoring routine LLM
+  calls and gives future Playbooks exact visual node identities.
+
+## 2026-07-17 — Calendar rhythm, ordinary work memory, and offstage continuity
+
+### Product decision
+
+- ADR 0031 fixes absolute calendar day zero as Thursday while preserving
+  relative tutorial and Chapter day numbering. A Thursday tutorial success
+  therefore opens Chapter 1 on Friday; delayed success never resets weekday.
+- Martin's canonical ordinary job is procurement coordination for a
+  restaurant-supply wholesaler: Monday–Friday 09:00–17:30, about twenty-five
+  minutes by bus, normally away 08:25–18:05.
+- Elise's canonical ordinary job is payroll administration for a small group
+  of dental clinics: Monday–Friday 09:00–17:00, about twenty minutes on foot,
+  normally away 08:35–17:25.
+- These facts do not explain M2E2 and are absent from always-on Character Core.
+  `characters/ordinary-biography.md` owns the human-readable canon.
+- Fixed visible schedule should contain continuity anchors rather than every
+  private task: morning, presence-changing departure/return, evening meal or
+  meal outing, and night. Breakfast, lunch, bathing, toilets, dressing, and
+  routine upkeep remain implied or optional ambient texture.
+
+### TDD: safe work memory
+
+- Red changed early-tier memory tests to require one actor-specific safe work
+  cue while continuing to exclude protected yellow-bowl content and the actual
+  occupation/schedule from selector input.
+- Green added `husband.work.ordinary_schedule` and
+  `wife.work.ordinary_schedule` at `unnamed_loss`. Full card content is loaded
+  only after the Controller-owned selector returns that eligible ID.
+- The Memory Selector prompt now treats a direct work, hours, schedule, or
+  commute question as sufficient relevance and explicitly rejects retrieving
+  background merely to perform the setting.
+- A Controller integration regression proves that the selector sees only the
+  cue, Persona receives the selected card, and both selector and Persona receive
+  the authoritative current weekday.
+
+### TDD: calendar and World continuity
+
+- Red first required Thursday epoch and a safe weekday projection independent
+  of `chapterDay`; Green added `CalendarWeekdayId`, derived World snapshot data,
+  Persona moment weekday, and WorldView weekday.
+- Red then required Martin to leave and return on Thursday, both adults to use
+  their schedules after tutorial success, and Saturday/Sunday to replace work
+  with shopping and an evening outing. It also proved these routines create no
+  Action, Evidence, or chapter movement.
+- Green added explicit `away_from_home` placement plus authored departure,
+  return, shopping, and Sunday-outing RoutineBehaviors. The unresolved tutorial
+  camera still presents Martin only; after clock success both adults follow
+  their calendar schedules.
+- The obsolete weekday midday-cup routine was removed from workdays so Martin
+  cannot rinse a cup at home while World says he is at work. Weekend cup texture
+  remains eligible.
+- Text projection now labels each presented calendar day and uses authored
+  neutral routine copy. No ordinary calendar routine invokes Performance.
+- `visual-renderer.md` now defines absolute weekday and treats
+  `away_from_home` as offstage rather than leaving an actor frozen in their last
+  indoor placement.
+
+### Verification
+
+- `npm test`: 88 test files / 349 tests passed.
+- `npm run build`: TypeScript and Vite build passed. The existing unrelated
+  large-chunk warning remains non-blocking.
+
+### Explicit next boundaries
+
+- Evening meal and night are accepted continuity anchors but are not yet added
+  as new presentable runtime nodes. Before doing so, decide whether silent World
+  continuity updates need a public distinction from presentation-worthy
+  routines; otherwise every minor state update would add another paced tick.
+- Bounded Persona improvisation still needs a pre-display continuity design.
+  World-affecting facts remain authored. Small mundane details may be improvised
+  in a reply, but they are not durable until a Controller-owned gate can reject
+  protected, contradictory, cross-actor, or mechanically authoritative claims
+  before display and store only accepted continuity facts.
+- Add model probes for canonical questions (job, today's work, hours, commute),
+  open mundane questions, false leading assertions, and repeat consistency.
+
+## 2026-07-17 — Bounded interpersonal Action decision
+
+### Product decision
+
+- ADR 0032 accepts one optional Chapter 1 relationship Action in which Martin
+  may try to say one honest thing to Elise at a later shared moment. It does not
+  promise a deep conversation or reconciliation.
+- The Action remains fixed and finite. The normal Judge owns Martin's
+  willingness and an authored approach variant; it does not improvise Elise's
+  reaction or the scene's result.
+- The Controller selects a finite authored closure from canonical relationship
+  readiness. Door- and room-specific MindState atoms cannot stand in for that
+  separate psychological dimension.
+- No Persona-to-Persona loop runs. The Performance Director may stage one
+  selected opening-and-response scene inside an envelope and authored fallback,
+  then must stop.
+- World keeps a small durable trace so later behavior can remember the attempt,
+  but the trace does not automatically advance the door arc.
+- Broad Persona recognition remains distinct from canonical authority: a
+  believable character may consider or refuse unsupported suggestions without
+  converting each understood request into a new executable Action.
+
+### Implementation boundary
+
+- This entry records the accepted authority and scope boundary only. Before
+  runtime work, Chapter 1 must define exact relationship readiness, the finite
+  outcome variants, scheduling/expiry, and trace semantics. Each behavior then
+  begins with a spec-linked failing public-interface test.
+
+### Verification
+
+- `npm test`: 88 test files / 349 tests passed.
+- `npm run build`: TypeScript and Vite build passed; the existing large-chunk
+  warning remains non-blocking.
+
+## 2026-07-17 — Record the conscious-monkey player model
+
+### Human-play observation
+
+- A new player may not initially cooperate with the inner-dialogue fiction.
+  They may first test whether the household and characters behave coherently:
+  going to work, having unrendered bodily needs, talking to a spouse, eating,
+  resisting direct commands, changing subject, or behaving outside the
+  player's preferred characterization after apparent persuasion.
+- This is epistemic play, not user error. The player is testing whether the
+  promised person is autonomous enough to trust before role-playing sincerely.
+- The desired response is not universal obedience or one Action per request.
+  Depending on the probe, the correct result may be an autonomous authored
+  routine, credible implication, a supported fixed Action, or an in-character
+  acknowledgment/refusal with no World mutation.
+- `evaluation-strategy.md` now names this the conscious-monkey player and
+  defines monkey smoke tests around autonomy, mundane continuity, unsupported
+  commands, focus switching, inconvenient resumes, and post-persuasion topic
+  changes. `observer-session-logging.md` adds an observer-only classification
+  for these probes without treating them as invalid inputs.
+
+## 2026-07-17 — Implement the bounded Martin-to-Elise relationship Action
+
+### Authored scope
+
+- Chapter 1 now defines one optional fixed Action,
+  `say_one_honest_thing_to_elise`. It is available only to Martin before room
+  entry and may execute once; it is not a generic social-command system.
+- Martin and Elise each have a separate finite relationship-readiness
+  dimension. Martin's validated state controls Action awareness and
+  willingness. Elise's independently validated state maps deterministically to
+  `practical_deflection`, `distance_acknowledged`, or `one_truth_returned`.
+- The normal Judge never receives the outcome catalog and cannot determine
+  Elise's response. The Controller selects the exact authored closure before
+  committing the World intention.
+- No Persona-to-Persona loop runs. The Performance Director may stage only the
+  selected closure, sees both player-safe actor names and the authored outcome,
+  and may emit at most three beats. Failure or excess output uses the three
+  authored fallback beats.
+
+### World, presentation, and continuity
+
+- An accepted attempt remains pending until the next available 20:15 shared
+  evening. At 20:14, two fixed routine nodes place Martin and Elise at the
+  dining table; the Action therefore does not teleport either actor when it
+  executes one minute later.
+- World records the exact outcome and Chapter day, marks the Action complete,
+  and creates no Evidence, door/room mutation, cross-character MindState
+  mutation, or Chapter completion.
+- Text projection has exact fallback cues for all three outcomes. The visual
+  renderer brief now requires separate exact Playbook entries for each outcome
+  and identifies the preparatory dining-table routine nodes.
+- Later Persona turns can retrieve an actor-specific declassified memory of
+  the bounded exchange. The remembered content remains Controller-selected
+  and does not leak the other actor's private state.
+
+### TDD and prompt correction
+
+- Public World tests first failed on eligibility, outcome validation, delayed
+  execution, once-only closure, non-causal invariants, and the missing 20:14
+  spatial setup; the smallest fixed World behavior then made each pass.
+- Public Controller acceptance first failed until separate Elise readiness
+  selected the closure without another Persona turn or Judge outcome access.
+  A later-turn acceptance test proves the recorded exchange can be selected as
+  relevant memory.
+- Performance acceptance first failed until overlong generated relationship
+  scenes were rejected in favor of authored fallback.
+- Adding relationship atoms exposed a prompt risk: the Persona packet had
+  concatenated all active pressures into one `current_private_pressure`, which
+  could make a door thought spuriously perform relationship setup. A
+  spec-linked regression now requires an array of independent authored
+  pressures, and Persona v9 says to use only the dimension implicated by the
+  current moment or player thought.
+
+### Verification
+
+- `npm test`: 89 test files / 369 tests passed.
+- `npm run build`: TypeScript and Vite build passed. The existing unrelated
+  large-chunk warning remains non-blocking.
+- `git diff --check`: passed.
+
+## 2026-07-17 — Author bilingual English and Traditional Chinese play
+
+### Decision and scope
+
+- ADR 0033 selects one locale-independent semantic game with authored `en` and
+  `zh-TW` player-facing presentation. It rejects runtime translation and does
+  not duplicate internal IDs, World state, prompts, or design documents.
+- Locale is immutable after session creation. The friend-playtest Web page
+  defaults to `zh-TW`; English remains an explicit choice. Terminal play keeps
+  its existing English default and accepts `LDO_PLAY_LOCALE=zh-TW`.
+- Persona and Performance Director now receive `OUTPUT_LOCALE` and perform
+  directly in that language. Neither role emits both languages or describes
+  its response as a translation.
+
+### TDD: authored catalog and safe projection
+
+- Red first required supported-locale parity, exact preserved English copy,
+  authored Chinese routine/action/UI text, and interpolation safety. Green
+  added the typed localization catalog and ID-based helpers.
+- Red then required Controller snapshots, World/UI projections, terminal
+  guidance, Action labels, character names, weekdays, and chronological text
+  rendering to carry the session locale. Green threaded locale through those
+  public boundaries while leaving World facts and Action IDs unchanged.
+- Action option metadata no longer stores display prose beside semantic data;
+  presentation resolves the option ID through the locale catalog.
+- Guarded Input Firewall decks now store stable response IDs and delivery
+  semantics. Red/green tests prove English and Chinese use the same fatigue
+  sequence while rendering separately authored lines.
+
+### TDD: generated roles, sessions, and Web UX
+
+- Persona and Performance prompt tests first failed until every request carried
+  the immutable output locale and both prompts required natural direct output
+  in English or Taiwan Traditional Chinese.
+- API tests first failed until session creation validated `en` / `zh-TW`,
+  defaulted omitted Web locale to Chinese, froze it in stored session state,
+  and included it in safe results and observer logs.
+- Web adapter regressions reproduced the Chinese screen being unable to create
+  Possibility buttons or reveal Chapter 1 focus controls because the renderer
+  parsed English headings only. Locale-aware parsing, optimistic `你:` echo,
+  loading copy, and expired-session recovery made those tests green.
+- The Web shell now has an explicit Chinese/English new-session selector and
+  authored labels, placeholders, accessibility labels, empty-state text, and
+  access/play controls. Changing the URL locale starts a new session instead
+  of translating a live one.
+- The terminal runner now validates `LDO_PLAY_LOCALE`, passes it into the same
+  Controller composition, and journals it. A no-model subprocess acceptance
+  proves a Chinese screen and `locale: zh-TW` session record.
+
+### Renderer handoff and documentation
+
+- `visual-renderer.md` now adds locale to `startSession`, `TurnResult`, and
+  `WorldViewFrame`. Visual renderers may choose fonts, layout, and authored
+  chrome but cannot translate prose, infer semantics from subtitles, call a
+  model, or switch a live session's language.
+- README, local-play instructions, observer logging, and the implementation map
+  document the bilingual boundary and launch commands.
+
+### Verification
+
+- `npm test`: 90 test files / 382 tests passed.
+- `npm run build`: TypeScript and Vite build passed. The existing unrelated
+  large-chunk warning remains non-blocking.
+- `git diff --check`: passed.
+
+## 2026-07-17 — Preserve Firewall reaction continuity and remove tutorial answer priming
+
+### Human-play regression
+
+- A Chinese player submitted `?` and `??`. The low-reasoning Input Firewall
+  treated them as unusable input and emitted comic mental-noise lines.
+- The visible transcript then showed Martin saying he had not slept enough, but
+  the next real Persona call had no record of that line and could not account
+  for it.
+- That Persona call also redirected an unrelated sleep question back toward the
+  slow clock because its packet contained `clock_energy`,
+  `clock_sufficiency`, and the proposition of the still-`unavailable`
+  `bounded_adjustment` reframe.
+
+### Boundary decision
+
+- ADR 0034 keeps raw guarded player text isolated from Persona and every Judge.
+  The already-safe authored character reaction is retained separately as
+  `controller_guarded_reaction`: it is continuity evidence that the thought
+  occurred, not authority that its wording is true.
+- Human punctuation gestures (`?`, `??`, `？`, `?!`, `...`, `……`) are valid
+  private reactions. The structured Firewall adapter returns `pass` for this
+  narrow authored class without spending a model call.
+- Persona receives only psychology currently owned by the character. An
+  `unavailable` constructive reframe remains visible to the transition Judge
+  but its proposition is removed from Persona input.
+- The tutorial clock packet now supplies current facts and the active shallow
+  effort pressure, but no separate statement that Martin already has enough
+  energy or that one authored framing must be sufficient.
+
+### TDD
+
+- Red reproduced the punctuation model call, missing safe reaction, raw/full
+  MindState exposure, solution-shaped clock packet, and absent prompt rules.
+- Green added the narrow punctuation pass, provenance-bearing safe reaction
+  history, Persona-owned MindState projection, prompt grounding rule, and
+  answer-free tutorial packet without changing the fixed Action, Judge
+  transition catalog, World schedule, or rendered guarded transcript.
+- Existing fatigue and Chapter acceptance tests were updated to assert the new
+  information boundary: all safe reactions may be remembered, no raw injection
+  text enters Persona, Persona does not see unavailable targets, and the full
+  Judge-owned state still completes the same deterministic intention paths.
+
+### Verification
+
+- `npm test`: 90 test files / 384 tests passed.
+- `npm run build`: TypeScript and Vite build passed. The existing unrelated
+  large-chunk warning remains non-blocking.
+- `git diff --check`: passed.

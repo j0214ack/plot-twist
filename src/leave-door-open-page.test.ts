@@ -45,4 +45,35 @@ describe("Leave the Door Open friend-playtest page", () => {
 
     expect(focusControls).toContain("hidden");
   });
+
+  // Spec: ADR 0026 LDO-WEB-010.
+  it("places focus, resume, and help controls below the transcript and thought input", () => {
+    const html = readFileSync("leave-the-door-open/index.html", "utf8");
+    const transcriptIndex = html.indexOf('id="ldo-screen"');
+    const thoughtInputIndex = html.indexOf('id="ldo-thought-form"');
+    const focusControlsIndex = html.indexOf('id="ldo-focus-controls"');
+    const resumeControlIndex = html.indexOf('data-command="/resume"');
+    const helpControlIndex = html.indexOf('data-command="/help"');
+
+    expect(transcriptIndex).toBeGreaterThan(-1);
+    expect(thoughtInputIndex).toBeGreaterThan(transcriptIndex);
+    expect(focusControlsIndex).toBeGreaterThan(thoughtInputIndex);
+    expect(resumeControlIndex).toBeGreaterThan(focusControlsIndex);
+    expect(helpControlIndex).toBeGreaterThan(resumeControlIndex);
+  });
+
+  // Spec: ADR 0033 LDO-LOC-006 and LDO-LOC-007.
+  it("defaults to Traditional Chinese while offering an explicit English session", () => {
+    const html = readFileSync("leave-the-door-open/index.html", "utf8");
+
+    expect(html).toContain('id="ldo-locale-switch"');
+    expect(html).toContain('href="?locale=zh-TW"');
+    expect(html).toContain('href="?locale=en"');
+    expect(html).toContain('data-copy-key="browser.thoughtLabel"');
+    expect(html).toContain('data-copy-placeholder="browser.thoughtPlaceholder"');
+
+    const entry = readFileSync("src/leave-door-open-main.ts", "utf8");
+    expect(entry).toContain('?? "zh-TW"');
+    expect(entry).toContain("applyBrowserCopy(locale)");
+  });
 });

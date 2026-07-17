@@ -17,8 +17,11 @@ import type {
 
 export type LeaveDoorOpenWebRuntimeOptions = {
   model: StructuredRoleModel;
+  inputFirewallModel?: StructuredRoleModel;
   prompts: {
+    inputFirewall: string;
     persona: string;
+    memorySelector: string;
     actionJudge: string;
     performanceDirector?: string;
   };
@@ -29,7 +32,7 @@ export type LeaveDoorOpenWebRuntimeOptions = {
 export const createLeaveDoorOpenWebSessionFactory = (
   options: LeaveDoorOpenWebRuntimeOptions,
 ): LeaveDoorOpenWebSessionFactory =>
-  (sessionId): LeaveDoorOpenWebSession => {
+  (sessionId, locale = "en"): LeaveDoorOpenWebSession => {
     const recorder = new PlaytestSessionRecorder({
       sessionId,
       appendLine:
@@ -43,20 +46,36 @@ export const createLeaveDoorOpenWebSessionFactory = (
       type: "session_started",
       data: {
         surface: "web",
+        locale,
         generatedPerformance: options.generatedPerformance,
       },
     });
 
     const model = new RecordingStructuredRoleModel(options.model, recorder);
-    const ports = new StructuredModelConversationPorts(model, {
-      persona: options.prompts.persona,
-      actionJudge: options.prompts.actionJudge,
-    });
+    const inputFirewallModel =
+      options.inputFirewallModel === undefined
+        ? model
+        : new RecordingStructuredRoleModel(
+            options.inputFirewallModel,
+            recorder,
+          );
+    const ports = new StructuredModelConversationPorts(
+      model,
+      {
+        inputFirewall: options.prompts.inputFirewall,
+        persona: options.prompts.persona,
+        memorySelector: options.prompts.memorySelector,
+        actionJudge: options.prompts.actionJudge,
+      },
+      { inputFirewallModel },
+    );
     if (options.generatedPerformance && !options.prompts.performanceDirector) {
       throw new Error("Performance Director prompt is required");
     }
     const controller = createConversationalVerticalSliceGameController({
+      inputFirewall: ports,
       persona: ports,
+      memorySelector: ports,
       actionJudge: ports,
       ...(options.generatedPerformance
         ? {
@@ -66,7 +85,7 @@ export const createLeaveDoorOpenWebSessionFactory = (
             ),
           }
         : {}),
-    });
+    }, { locale });
     let latestScreen = "";
     const terminal = new RecordingTerminalPlaySession(
       new TerminalPlaySession(
@@ -86,7 +105,24 @@ export const createLeaveDoorOpenWebSessionFactory = (
         return latestScreen;
       },
       async handleInput(input) {
-        const result = await terminal.handleInput(input);
+        const result =
+          input.trim() === "/resume"
+            ? await terminal.beginTimeAdvance()
+            : {
+                ...(await terminal.handleInput(input)),
+                advancePending: false,
+              };
+        if (result.ended) {
+          recorder.record({
+            visibility: "observer",
+            type: "session_ended",
+            data: { surface: "web", controllerSnapshot: controller.snapshot() },
+          });
+        }
+        return { ...result, screen: latestScreen };
+      },
+      async advanceTurn() {
+        const result = await terminal.advanceTurn();
         if (result.ended) {
           recorder.record({
             visibility: "observer",

@@ -12,12 +12,14 @@ import type {
   ConversationMessage,
   ConversationPorts,
   MindState,
+  PersonaConversationMessage,
   PersonaOwnedState,
 } from "./conversation";
 import {
   applyValidatedMindStateTransitions,
   createChapterOneMindState,
   createTutorialMindState,
+  projectPersonaOwnedMindState,
   revealMindStateAtomsForMoment,
 } from "./mind-state";
 import {
@@ -29,18 +31,26 @@ import type {
   PerformanceRecord,
   PerformanceRequest,
 } from "./performance";
-import { getRoutineVariant } from "./routine-behaviors";
 import { getCharacterCore } from "./character-cores";
+import { disclosureTierForChapter } from "./memory";
+import { selectRelevantMemoryForPersona } from "./memory-context";
 import {
-  getAmbientRoutineDefinition,
-  isAmbientRoutineId,
-} from "./ambient-routines";
+  createSeededFirewallResponseChoice,
+  GuardedResponseDeck,
+  type FirewallResponseChoicePort,
+  type FirewallResponseChoiceSnapshot,
+  type GuardedResponseDeckSnapshot,
+} from "./input-firewall-responses";
 import {
-  getChapter1CausalRoutineDefinition,
-  getChapter1CausalRoutineVariant,
-  isChapter1CausalRoutineId,
-} from "./chapter1-routines";
-import { characterDisplayName } from "./character-display";
+  getRelationshipConversationOutcomeDefinition,
+  isRelationshipConversationOutcomeId,
+  selectMartinEliseConversationOutcome,
+} from "./relationship-conversation-outcomes";
+import {
+  localize,
+  localizeCharacterName,
+  type GameLocale,
+} from "./localization";
 
 export type { ActionOptionId } from "./narrative-actions";
 
@@ -62,6 +72,7 @@ export type ConversationStatus =
 export type ActionFeedback = "not_ready" | "rejected";
 
 export type GameControllerSnapshot = {
+  locale: GameLocale;
   world: WorldSnapshot;
   events: GameEvent[];
   performances: PerformanceRecord[];
@@ -74,6 +85,12 @@ export type GameControllerSnapshot = {
     errorMessage: string | null;
     actionFeedback: ActionFeedback | null;
   };
+  observer: {
+    inputFirewallPresentation: {
+      responseDeck: GuardedResponseDeckSnapshot;
+      responseChoice: FirewallResponseChoiceSnapshot | null;
+    };
+  };
 };
 
 const initialMindStates: Record<NPCId, MindState> = {
@@ -82,6 +99,14 @@ const initialMindStates: Record<NPCId, MindState> = {
 };
 
 const emptyConversationByNpc = (): Record<NPCId, ConversationMessage[]> => ({
+  husband: [],
+  wife: [],
+});
+
+const emptyPersonaConversationByNpc = (): Record<
+  NPCId,
+  PersonaConversationMessage[]
+> => ({
   husband: [],
   wife: [],
 });
@@ -96,10 +121,28 @@ type SurfacedAction = {
   awareness: AwarenessResult["judgments"][number];
 };
 
+export type TimeAdvancePolicy = {
+  maxTurnMinutes: number;
+};
+
+export type AdvanceTurnResult = {
+  at: number;
+  reachedTarget: boolean;
+};
+
+const DEFAULT_TIME_ADVANCE_POLICY: TimeAdvancePolicy = {
+  maxTurnMinutes: 15,
+};
+
 export class VerticalSliceGameController {
   readonly #world: VerticalSliceWorld;
   readonly #conversationPorts: ConversationPorts | null;
+  readonly #timeAdvancePolicy: TimeAdvancePolicy;
+  readonly #locale: GameLocale;
+  readonly #firewallResponseChoice: FirewallResponseChoicePort;
+  readonly #firewallResponses: GuardedResponseDeck;
   readonly #messages = emptyConversationByNpc();
+  readonly #personaMessages = emptyPersonaConversationByNpc();
   readonly #mindStates = initialMindStateByNpc();
   readonly #lastPersonaStates: Partial<Record<NPCId, PersonaOwnedState>> = {};
   readonly #performances: PerformanceRecord[] = [];
@@ -124,9 +167,25 @@ export class VerticalSliceGameController {
   constructor(
     world: VerticalSliceWorld = createVerticalSliceWorld(),
     conversationPorts: ConversationPorts | null = null,
+    timeAdvancePolicy: TimeAdvancePolicy = DEFAULT_TIME_ADVANCE_POLICY,
+    locale: GameLocale = "en",
   ) {
+    if (
+      !Number.isSafeInteger(timeAdvancePolicy.maxTurnMinutes) ||
+      timeAdvancePolicy.maxTurnMinutes < 1
+    ) {
+      throw new Error("maxTurnMinutes must be a positive integer");
+    }
     this.#world = world;
     this.#conversationPorts = conversationPorts;
+    this.#timeAdvancePolicy = { ...timeAdvancePolicy };
+    this.#locale = locale;
+    this.#firewallResponseChoice =
+      conversationPorts?.firewallResponseChoice ??
+      createSeededFirewallResponseChoice();
+    this.#firewallResponses = new GuardedResponseDeck(
+      this.#firewallResponseChoice,
+    );
   }
 
   advanceTo(targetTime: number): void {
@@ -155,6 +214,42 @@ export class VerticalSliceGameController {
   async advanceToWithPerformance(targetTime: number): Promise<void> {
     const firstNewEventIndex = this.#world.events().length;
     this.advanceTo(targetTime);
+    await this.#stagePerformances(firstNewEventIndex);
+  }
+
+  async advanceTurn(targetTime: number): Promise<AdvanceTurnResult> {
+    const fromTime = this.#world.snapshot().time;
+    if (targetTime < fromTime) {
+      throw new Error("Turn target cannot move backwards");
+    }
+    if (this.#world.snapshot().paused) {
+      throw new Error("World must be running before advancing a turn");
+    }
+    const turnBoundary = Math.min(
+      targetTime,
+      fromTime + this.#timeAdvancePolicy.maxTurnMinutes,
+    );
+    const firstNewEventIndex = this.#world.events().length;
+
+    for (let minute = fromTime + 1; minute <= turnBoundary; minute += 1) {
+      this.advanceTo(minute);
+      const hasPresentableEvent = this.#world
+        .events()
+        .slice(firstNewEventIndex)
+        .some(
+          ({ type }) =>
+            type === "routine_executed" ||
+            type === "narrative_action_executed",
+        );
+      if (hasPresentableEvent) break;
+    }
+
+    await this.#stagePerformances(firstNewEventIndex);
+    const at = this.#world.snapshot().time;
+    return { at, reachedTarget: at === targetTime };
+  }
+
+  async #stagePerformances(firstNewEventIndex: number): Promise<void> {
     const events = this.#world.events();
     const performanceDirector = this.#conversationPorts?.performanceDirector;
     if (performanceDirector === undefined) return;
@@ -172,6 +267,13 @@ export class VerticalSliceGameController {
         const beats = result.beats
           .map((beat) => beat.trim())
           .filter((beat) => beat.length > 0);
+        if (
+          request.authoredRelationshipOutcome !== undefined &&
+          beats.length >
+            request.authoredRelationshipOutcome.maximumBeatCount
+        ) {
+          continue;
+        }
         if (beats.length > 0) {
           this.#performances.push({
             afterEventIndex: eventIndex,
@@ -229,6 +331,7 @@ export class VerticalSliceGameController {
       this.#conversationStatus === "idle" &&
       this.#conversationClosedForDay[this.#selectedNpcId];
     return {
+      locale: this.#locale,
       world,
       events: this.#world.events(),
       performances: structuredClone(this.#performances),
@@ -245,6 +348,13 @@ export class VerticalSliceGameController {
             : structuredClone(this.#messages[this.#selectedNpcId]),
         errorMessage: this.#errorMessage,
         actionFeedback: this.#actionFeedback,
+      },
+      observer: {
+        inputFirewallPresentation: {
+          responseDeck: this.#firewallResponses.snapshot(),
+          responseChoice:
+            this.#firewallResponseChoice.snapshot?.() ?? null,
+        },
       },
     };
   }
@@ -282,7 +392,12 @@ export class VerticalSliceGameController {
       return this.#requestWillingness(selectedNpcId, actionId);
     }
 
-    this.#world.commitNarrativeAction(selectedNpcId, actionId);
+    this.#world.commitNarrativeAction(selectedNpcId, actionId, {
+      relationshipOutcomeId:
+        actionId === "say_one_honest_thing_to_elise"
+          ? selectMartinEliseConversationOutcome(this.#mindStates.wife)
+          : undefined,
+    });
     this.#selectedNpcId = null;
   }
 
@@ -306,16 +421,49 @@ export class VerticalSliceGameController {
       throw new Error("Dialogue cannot be empty");
     }
 
-    this.#errorMessage = null;
-    this.#actionFeedback = null;
-    this.#surfacedActions = [];
-    this.#messages[actorId].push({ speaker: "player", text: playerText });
     this.#conversationStatus = "awaiting_persona";
 
     try {
       const world = this.#world.snapshot();
+      const disclosureTier = disclosureTierForChapter(world.chapter);
+      const firewall = this.#conversationPorts.inputFirewall;
+      const firewallResult =
+        firewall === undefined
+          ? { disposition: "pass" as const }
+          : await firewall.classify({
+              actorId,
+              disclosureTier,
+              visibleConversation: structuredClone(this.#messages[actorId]),
+              submittedText: playerText,
+            });
+      if (firewallResult.disposition !== "pass") {
+        const { text, delivery } = this.#firewallResponses.next(
+          actorId,
+          firewallResult.disposition,
+          this.#locale,
+        );
+        this.#messages[actorId].push(
+          { speaker: "player", text: playerText },
+          { speaker: "persona", text, delivery },
+        );
+        this.#personaMessages[actorId].push({
+          speaker: "persona",
+          text,
+          delivery,
+          provenance: "controller_guarded_reaction",
+        });
+        this.#conversationStatus = "idle";
+        return;
+      }
+      this.#errorMessage = null;
+      this.#actionFeedback = null;
+      this.#surfacedActions = [];
+      const playerMessage = { speaker: "player" as const, text: playerText };
+      this.#messages[actorId].push(playerMessage);
+      this.#personaMessages[actorId].push(playerMessage);
       const moment = {
         time: world.time,
+        weekdayId: world.weekdayId,
         ...world.npcs[actorId],
       };
       const observedEvidence = Object.entries(world.evidence).flatMap(
@@ -329,19 +477,35 @@ export class VerticalSliceGameController {
               ]
             : [],
       );
+      const relevantMemory = await selectRelevantMemoryForPersona({
+        actorId,
+        disclosureTier,
+        relationshipConversation:
+          world.worldFacts.martinEliseConversation === "not_attempted"
+            ? undefined
+            : world.worldFacts.martinEliseConversation,
+        moment,
+        observedEvidence,
+        conversation: structuredClone(this.#personaMessages[actorId]),
+        memorySelector: this.#conversationPorts.memorySelector,
+      });
       const persona = await this.#conversationPorts.persona.takeTurn({
+        outputLocale: this.#locale,
         actorId,
         characterCore: getCharacterCore(actorId),
         moment,
         observedEvidence,
-        conversation: structuredClone(this.#messages[actorId]),
-        mindState: structuredClone(this.#mindStates[actorId]),
+        conversation: structuredClone(this.#personaMessages[actorId]),
+        mindState: projectPersonaOwnedMindState(this.#mindStates[actorId]),
+        relevantMemory,
       });
 
-      this.#messages[actorId].push({
+      const personaMessage = {
         speaker: "persona",
         text: persona.reply,
-      });
+      } as const;
+      this.#messages[actorId].push(personaMessage);
+      this.#personaMessages[actorId].push(personaMessage);
       const personaReply = {
         sourceId: `persona.turn.${this.#personaReplyCount(actorId)}`,
         text: persona.reply,
@@ -357,7 +521,7 @@ export class VerticalSliceGameController {
         personaReply: structuredClone(personaReply),
         moment,
         observedEvidence: structuredClone(observedEvidence),
-        conversation: structuredClone(this.#messages[actorId]),
+        conversation: structuredClone(this.#personaMessages[actorId]),
       });
       this.#mindStates[actorId] = applyValidatedMindStateTransitions({
         state: this.#mindStates[actorId],
@@ -370,7 +534,7 @@ export class VerticalSliceGameController {
         mindState: structuredClone(mindState),
         moment,
         observedEvidence: structuredClone(observedEvidence),
-        conversation: structuredClone(this.#messages[actorId]),
+        conversation: structuredClone(this.#personaMessages[actorId]),
       };
       this.#lastPersonaStates[actorId] = personaState;
 
@@ -428,7 +592,10 @@ export class VerticalSliceGameController {
       this.#conversationStatus = "idle";
     } catch (error) {
       this.#conversationStatus = "error";
-      this.#errorMessage = "The conversation could not continue.";
+      this.#errorMessage = localize(
+        this.#locale,
+        "controller.conversationError",
+      );
       throw error;
     }
   }
@@ -477,6 +644,13 @@ export class VerticalSliceGameController {
         throw new Error("Willingness returned an invalid Action result");
       }
       if (progresses) {
+        const relationshipOutcomeId =
+          actionId === "say_one_honest_thing_to_elise"
+            ? selectMartinEliseConversationOutcome(this.#mindStates.wife)
+            : undefined;
+        this.#world.commitNarrativeAction(actorId, actionId, {
+          relationshipOutcomeId,
+        });
         this.#acceptedActionVariants.set(
           this.#actionKey(actorId, actionId),
           willingness.selectedVariantId!,
@@ -485,7 +659,6 @@ export class VerticalSliceGameController {
           this.#actionKey(actorId, actionId),
           personaState.reply.text,
         );
-        this.#world.commitNarrativeAction(actorId, actionId);
         this.#surfacedActions = [];
         this.#selectedNpcId = null;
         this.#actionFeedback = null;
@@ -496,7 +669,7 @@ export class VerticalSliceGameController {
       this.#conversationStatus = "idle";
     } catch (error) {
       this.#conversationStatus = "error";
-      this.#errorMessage = "The action could not be considered.";
+      this.#errorMessage = localize(this.#locale, "controller.actionError");
       throw error;
     }
   }
@@ -523,6 +696,7 @@ export class VerticalSliceGameController {
       this.#dailyPersonaReplyCounts[actorId] = 0;
       this.#conversationClosedForDay[actorId] = false;
       this.#messages[actorId].length = 0;
+      this.#personaMessages[actorId].length = 0;
       delete this.#lastPersonaStates[actorId];
     }
     this.#selectedNpcId = null;
@@ -533,119 +707,48 @@ export class VerticalSliceGameController {
   }
 
   #personaReplyCount(actorId: NPCId): number {
-    return this.#messages[actorId].filter(
-      ({ speaker }) => speaker === "persona",
+    return this.#personaMessages[actorId].filter(
+      ({ speaker, provenance }) =>
+        speaker === "persona" &&
+        provenance !== "controller_guarded_reaction",
     ).length;
   }
 
   #performanceRequestFor(event: GameEvent): PerformanceRequest | null {
-    if (
-      event.type === "routine_executed" &&
-      isChapter1CausalRoutineId(event.routineId)
-    ) {
-      const routine =
-        event.routineVariantId === undefined
-          ? getChapter1CausalRoutineDefinition(event.routineId)
-          : getChapter1CausalRoutineVariant(
-              event.routineId,
-              event.routineVariantId,
-            );
-      if (routine.actorId !== event.actorId) {
-        throw new Error(
-          `Chapter 1 causal routine actor mismatch: ${event.routineId}`,
-        );
-      }
-      return {
-        actorId: event.actorId,
-        actorDisplayName: characterDisplayName(event.actorId),
-        at: event.at,
-        semanticBehavior: {
-          kind: "routine",
-          behaviorId: event.routineId,
-          variantId: routine.variantId,
-        },
-        scene: {
-          locationId: event.locationId,
-          visibleFacts: [routine.hintBrief.safeFact],
-        },
-        performanceEnvelope: routine.performanceEnvelope,
-        hintBrief: routine.hintBrief,
-        acceptedPersonaReply: null,
-      };
-    }
-    if (
-      event.type === "routine_executed" &&
-      isAmbientRoutineId(event.routineId) &&
-      event.routineVariantId !== undefined
-    ) {
-      const routine = getAmbientRoutineDefinition(event.routineId);
-      if (routine.variantId !== event.routineVariantId) {
-        throw new Error(
-          `Unknown ambient RoutineVariant: ${event.routineId}/${event.routineVariantId}`,
-        );
-      }
-      return {
-        actorId: event.actorId,
-        actorDisplayName: characterDisplayName(event.actorId),
-        at: event.at,
-        semanticBehavior: {
-          kind: "routine",
-          behaviorId: event.routineId,
-          variantId: event.routineVariantId,
-        },
-        scene: {
-          locationId: event.locationId,
-          visibleFacts: routine.visibleFacts,
-        },
-        performanceEnvelope: routine.performanceEnvelope,
-        hintBrief: routine.hintBrief,
-        acceptedPersonaReply: null,
-      };
-    }
-    if (
-      event.type === "routine_executed" &&
-      event.routineId === "husband_notices_slow_clock" &&
-      event.routineVariantId !== undefined
-    ) {
-      const variant = getRoutineVariant(
-        "husband_notices_slow_clock",
-        event.routineVariantId,
-      );
-      return {
-        actorId: event.actorId,
-        actorDisplayName: characterDisplayName(event.actorId),
-        at: event.at,
-        semanticBehavior: {
-          kind: "routine",
-          behaviorId: event.routineId,
-          variantId: event.routineVariantId,
-        },
-        scene: {
-          locationId: event.locationId,
-          visibleFacts: [
-            "The living-room clock is three minutes slow and currently shows 07:54.",
-          ],
-        },
-        performanceEnvelope: variant.performanceEnvelope,
-        hintBrief: variant.hintBrief,
-        acceptedPersonaReply: null,
-      };
-    }
     if (event.type === "narrative_action_executed") {
       const action = getNarrativeActionDefinition(event.actionId);
+      const relationshipOutcome = isRelationshipConversationOutcomeId(
+        event.relationshipOutcomeId,
+      )
+        ? getRelationshipConversationOutcomeDefinition(
+            event.relationshipOutcomeId,
+          )
+        : undefined;
       const actionKey = this.#actionKey(event.actorId, event.actionId);
       const variantId =
         this.#acceptedActionVariants.get(actionKey) ??
         action.variants[0]!.variantId;
       return {
+        outputLocale: this.#locale,
         actorId: event.actorId,
-        actorDisplayName: characterDisplayName(event.actorId),
+        actorDisplayName: localizeCharacterName(this.#locale, event.actorId),
         at: event.at,
         semanticBehavior: {
           kind: "narrative_action",
           behaviorId: event.actionId,
           variantId,
+          ...(relationshipOutcome === undefined
+            ? {}
+            : { relationshipOutcomeId: relationshipOutcome.outcomeId }),
         },
+        ...(action.recipientActorIds === undefined
+          ? {}
+          : {
+              recipientActors: action.recipientActorIds.map((actorId) => ({
+                actorId,
+                actorDisplayName: localizeCharacterName(this.#locale, actorId),
+              })),
+            }),
         scene: {
           locationId: event.locationId,
           visibleFacts: this.#actionSceneFacts(event.actionId),
@@ -656,6 +759,9 @@ export class VerticalSliceGameController {
           this.#acceptedActionPersonaReplies.get(actionKey) ??
           this.#lastPersonaStates[event.actorId]?.reply.text ??
           null,
+        ...(relationshipOutcome === undefined
+          ? {}
+          : { authoredRelationshipOutcome: relationshipOutcome }),
       };
     }
     return null;
@@ -687,14 +793,37 @@ export class VerticalSliceGameController {
         return [
           "At the start of the performance, Elise is inside the revealed room and its window is fully closed.",
         ];
+      case "say_one_honest_thing_to_elise":
+        return [
+          "At the start of the performance, Martin and Elise are both seated in the dining area during a quiet shared evening moment.",
+          "The scene must end after Martin's one honest opening, Elise's one response, and at most one closing narration beat.",
+        ];
     }
   }
 }
 
-export const createVerticalSliceGameController =
-  (): VerticalSliceGameController => new VerticalSliceGameController();
+export type GameControllerCreationOptions = {
+  locale?: GameLocale;
+  timeAdvancePolicy?: TimeAdvancePolicy;
+};
+
+export const createVerticalSliceGameController = (
+  options: GameControllerCreationOptions = {},
+): VerticalSliceGameController =>
+  new VerticalSliceGameController(
+    createVerticalSliceWorld(),
+    null,
+    options.timeAdvancePolicy ?? DEFAULT_TIME_ADVANCE_POLICY,
+    options.locale ?? "en",
+  );
 
 export const createConversationalVerticalSliceGameController = (
   ports: ConversationPorts,
+  options: GameControllerCreationOptions = {},
 ): VerticalSliceGameController =>
-  new VerticalSliceGameController(createVerticalSliceWorld(), ports);
+  new VerticalSliceGameController(
+    createVerticalSliceWorld(),
+    ports,
+    options.timeAdvancePolicy ?? DEFAULT_TIME_ADVANCE_POLICY,
+    options.locale ?? "en",
+  );

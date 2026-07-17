@@ -47,6 +47,19 @@ button:disabled { cursor: wait; opacity: 0.5; }
 }
 
 .ldo-title { margin-bottom: 34px; }
+.ldo-locale-switch {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: 12px;
+}
+.ldo-locale-switch a { color: #655f52; text-underline-offset: 3px; }
+.ldo-locale-switch a[aria-current="page"] {
+  color: #27251f;
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+}
 .ldo-title h1 {
   margin: 0;
   color: #22211c;
@@ -97,8 +110,10 @@ label { display: block; margin: 0 0 8px; color: #554f44; font-size: 13px; }
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 16px;
+  margin-top: 8px;
 }
+
+.ldo-focus-controls { margin-top: 18px; }
 
 .ldo-controls button,
 .ldo-focus-controls button { padding: 8px; font-size: 13px; }
@@ -122,7 +137,7 @@ label { display: block; margin: 0 0 8px; color: #554f44; font-size: 13px; }
 .ldo-possibilities { display: grid; gap: 8px; }
 .ldo-possibilities:empty::after {
   color: #777061;
-  content: "還沒有浮現可選的行動。你可以繼續談，或讓時間前進。";
+  content: attr(data-empty-label);
   font-size: 13px;
 }
 .ldo-possibilities button { padding: 10px 13px; text-align: left; }

@@ -18,12 +18,18 @@ export class StructuredModelPerformanceDirector
       role: "performance",
       instructions: this.prompt,
       input: sections([
+        ["OUTPUT_LOCALE", request.outputLocale],
         ["PLAYER_SAFE_ACTOR", { displayName: request.actorDisplayName }],
+        ["PLAYER_SAFE_RECIPIENTS", request.recipientActors ?? []],
         ["ALREADY_SELECTED_SEMANTIC_BEHAVIOR", request.semanticBehavior],
         ["CURRENT_PLAYER_SAFE_SCENE", request.scene],
         ["ACCEPTED_PERSONA_REPLY", request.acceptedPersonaReply],
         ["PERFORMANCE_ENVELOPE", request.performanceEnvelope],
         ["AUTHORED_HINT_BRIEF", request.hintBrief],
+        [
+          "AUTHORED_RELATIONSHIP_OUTCOME",
+          request.authoredRelationshipOutcome ?? "None.",
+        ],
         [
           "ENGINE_AUTHORITY",
           "The World owns closure and durable effects. Return transient visible staging only.",

@@ -6,25 +6,29 @@ const readCurrentPersonaPrompt = (): Promise<string> =>
   readFile(
     resolve(
       process.cwd(),
-      "pocs/leave-the-door-open/validation/prompts/persona-v7.md",
+      "pocs/leave-the-door-open/validation/prompts/persona-v9.md",
     ),
     "utf8",
   );
 
 describe("Leave the Door Open Persona prompt", () => {
-  it("Q1 non-incremental why loop requires new grounded information or an honest close", async () => {
+  // Spec: Run 004 LDO-ACT-PROBE-001 through 003; ADR 0024.
+  it("uses the minimal private-self-talk acting contract without performing the character sheet", async () => {
     const prompt = await readCurrentPersonaPrompt();
     const normalizedPrompt = prompt.replace(/\s+/g, " ");
 
     expect(normalizedPrompt).toContain(
-      "Resistance does not require repetition.",
-    );
-    expect(normalizedPrompt).toContain("Read `CONVERSATION_SO_FAR`");
-    expect(normalizedPrompt).toContain(
-      "add a previously unstated grounded detail or distinction",
+      "`PLAYER_TURN` is an involuntary thought, not another person speaking",
     );
     expect(normalizedPrompt).toContain(
-      "end the conversation rather than paraphrase the same barrier again",
+      "follow it, resist it, laugh at it, reinterpret it, ignore it, or let it pass",
+    );
+    expect(normalizedPrompt).toContain(
+      "do not demonstrate or explain the Character Core",
+    );
+    expect(normalizedPrompt).toContain("Do not answer every thought");
+    expect(normalizedPrompt).toContain(
+      "default `should_end_conversation` to `false`",
     );
   });
 
@@ -68,6 +72,50 @@ describe("Leave the Door Open Persona prompt", () => {
     expect(prompt).not.toContain('"mind_state_patch"');
   });
 
+  // Spec: chapter-1.md LDO-CH1-018; ADR 0032.
+  it("LDO-CH1-018 treats unrelated psychological dimensions as optional background", async () => {
+    const prompt = (await readCurrentPersonaPrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain(
+      "`CURRENT_MIND_STATE` contains only psychology the character currently owns",
+    );
+    expect(prompt).toContain(
+      "several independent authored psychological dimensions",
+    );
+    expect(prompt).toContain(
+      "Use only an atom directly implicated by the present moment or `PLAYER_TURN`",
+    );
+    expect(prompt).toContain(
+      "Do not introduce, enumerate, or perform an unrelated pressure merely because it is present",
+    );
+  });
+
+  // Spec: ADR 0034 LDO-FW-011 and LDO-PSY-001.
+  it("remembers a guarded reaction as prior self-talk without treating it as truth", async () => {
+    const prompt = (await readCurrentPersonaPrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain("`controller_guarded_reaction`");
+    expect(prompt).toContain(
+      "proves only that this reaction occurred, not that its wording is factually true",
+    );
+    expect(prompt).toContain(
+      "does not contain an `unavailable` constructive reframe",
+    );
+  });
+
+  // Spec: Run 004 LDO-ACT-PROBE-002 and 003; ADR 0023 Decision 2.
+  it("treats a selected memory as optional background rather than required exposition", async () => {
+    const prompt = (await readCurrentPersonaPrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain("`RELEVANT_MEMORY` is optional background");
+    expect(prompt).toContain(
+      "Do not quote, summarize, or mention it merely because it was supplied",
+    );
+    expect(prompt).toContain(
+      "A memory does not establish a present World fact",
+    );
+  });
+
   // Spec: ADR 0001 Decisions 2 and 6; chapter-1.md LDO-CH1-008.
   // A globally true, player-visible event is still not Persona knowledge until
   // the focused character receives it as an allowed fact or observed Evidence.
@@ -95,5 +143,15 @@ describe("Leave the Door Open Persona prompt", () => {
     expect(prompt).toContain(
       'If the player says "He is at the closed door with his hand on its handle"',
     );
+  });
+
+  // Spec: ADR 0033 LDO-LOC-005 and LDO-LOC-006.
+  it("performs directly in the requested session locale", async () => {
+    const prompt = (await readCurrentPersonaPrompt()).replace(/\s+/g, " ");
+
+    expect(prompt).toContain("Follow `OUTPUT_LOCALE` for the reply");
+    expect(prompt).toContain("write natural Traditional Chinese as used in Taiwan");
+    expect(prompt).toContain("Do not emit both languages");
+    expect(prompt).toContain("Do not describe the reply as a translation");
   });
 });

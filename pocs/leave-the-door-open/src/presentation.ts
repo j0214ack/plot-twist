@@ -3,7 +3,6 @@ import type {
   ActionOptionId,
   GameControllerSnapshot,
 } from "./controller";
-import { getNarrativeActionDefinitionForOption } from "./narrative-actions";
 import type {
   GameEvent,
   LocationId,
@@ -14,16 +13,37 @@ import type {
 import type { PerformanceRecord } from "./performance";
 import { isAmbientRoutineId } from "./ambient-routines";
 import { isChapter1CausalRoutineId } from "./chapter1-routines";
-import { characterDisplayNames } from "./character-display";
+import {
+  localize,
+  localizeActionLabel,
+  localizeCharacterName,
+  type GameLocale,
+} from "./localization";
 
 export type PresentationCueId =
   | "living_room_clock_slow"
   | "husband_notices_clock"
+  | "husband_lingers_beneath_clock"
+  | "husband_touches_clock_frame"
   | "performance_beat"
   | "husband_sits"
   | "husband_rinses_cup"
   | "husband_folds_sofa_throw"
   | "husband_turns_off_lights"
+  | "husband_leaves_work"
+  | "wife_leaves_work"
+  | "wife_returns_work"
+  | "husband_returns_work"
+  | "husband_leaves_shopping"
+  | "wife_leaves_shopping"
+  | "wife_returns_groceries"
+  | "husband_returns_groceries"
+  | "husband_leaves_sunday_outing"
+  | "wife_leaves_sunday_outing"
+  | "wife_returns_sunday_outing"
+  | "husband_returns_sunday_outing"
+  | "husband_settles_at_dining_table"
+  | "wife_settles_at_dining_table"
   | "wife_drinks"
   | "husband_reaches_door"
   | "world_paused"
@@ -38,15 +58,23 @@ export type PresentationCueId =
   | "wife_stays_at_threshold"
   | "wife_steps_inside_room"
   | "wife_opens_room_window"
+  | "relationship_talk_practical_deflection"
+  | "relationship_talk_distance_acknowledged"
+  | "relationship_talk_one_truth_returned"
   | "husband_turns_before_closed_door"
   | "wife_takes_long_route"
   | "husband_reaches_closed_handle"
+  | "husband_waits_beside_latch"
   | "husband_tests_window_latch"
   | "wife_squares_hallway_runner"
   | "wife_observes_first_gap"
   | "wife_stops_one_step_short"
+  | "wife_holds_at_nearer_mark"
   | "wife_returns_to_boundary"
+  | "wife_aligns_toe_with_boundary"
+  | "wife_shifts_weight_toward_boundary"
   | "wife_notices_closed_window"
+  | "wife_pauses_within_window_reach"
   | "room_window_state_changed"
   | "room_window_noticed";
 
@@ -58,7 +86,9 @@ export type PresentationCue = {
 };
 
 export type WorldView = {
+  locale: GameLocale;
   time: number;
+  weekdayId: WorldSnapshot["weekdayId"];
   chapter: WorldSnapshot["chapter"];
   chapterDay: number | null;
   localTime: number;
@@ -89,6 +119,7 @@ export type WorldView = {
 };
 
 export type UIView = {
+  locale: GameLocale;
   mode: "running" | "paused";
   selectedActor: {
     id: NPCId;
@@ -115,8 +146,11 @@ export const projectWorld = (
   snapshot: WorldSnapshot,
   events: GameEvent[],
   performances: PerformanceRecord[] = [],
+  locale: GameLocale = "en",
 ): WorldView => ({
+  locale,
   time: snapshot.time,
+  weekdayId: snapshot.weekdayId,
   chapter: snapshot.chapter,
   chapterDay: snapshot.chapterDay,
   localTime: snapshot.time % (24 * 60),
@@ -174,20 +208,25 @@ export const projectGame = (
     snapshot.world,
     snapshot.events,
     snapshot.performances,
+    snapshot.locale,
   ),
   ui: {
+    locale: snapshot.locale,
     mode: snapshot.interaction.mode,
     selectedActor:
       snapshot.interaction.selectedNpcId === null
         ? null
         : {
             id: snapshot.interaction.selectedNpcId,
-            label: characterDisplayNames[snapshot.interaction.selectedNpcId],
+            label: localizeCharacterName(
+              snapshot.locale,
+              snapshot.interaction.selectedNpcId,
+            ),
           },
     actionOptions: snapshot.interaction.availableActionOptionIds.map(
       (optionId) => ({
         optionId,
-        label: getNarrativeActionDefinitionForOption(optionId).option.label,
+        label: localizeActionLabel(snapshot.locale, optionId),
       }),
     ),
     conversation: {
@@ -195,6 +234,7 @@ export const projectGame = (
       messages: structuredClone(snapshot.interaction.messages),
       errorMessage: snapshot.interaction.errorMessage,
       feedbackMessage: actionFeedbackMessage(
+        snapshot.locale,
         snapshot.interaction.actionFeedback,
         snapshot.interaction.selectedNpcId,
       ),
@@ -203,14 +243,14 @@ export const projectGame = (
 });
 
 const actionFeedbackMessage = (
+  locale: GameLocale,
   feedback: ActionFeedback | null,
   actorId: NPCId | null,
 ): string | null => {
   if (feedback === null || actorId === null) return null;
-  const pronoun = actorId === "husband" ? "He" : "She";
   return feedback === "not_ready"
-    ? `${pronoun} can consider this, but has not chosen to do it now. Ask what still separates considering it from choosing it today.`
-    : `${pronoun} refuses this step for now. Try another approach.`;
+    ? localize(locale, `ui.feedbackNotReady.${actorId}`)
+    : localize(locale, `ui.feedbackRefuse.${actorId}`);
 };
 
 const projectEvent = (
@@ -227,7 +267,7 @@ const projectEvent = (
           : [
               {
                 at: event.at,
-                cueId: routineCue(event.routineId),
+                cueId: routineCue(event),
                 locationId: event.locationId,
               },
             ]),
@@ -236,7 +276,7 @@ const projectEvent = (
           ? [
               {
                 at: event.at,
-                cueId: "husband_notices_clock" as const,
+                cueId: clockRoutineCue(event.routineVariantId),
                 locationId: event.locationId,
               },
             ]
@@ -251,7 +291,7 @@ const projectEvent = (
       return [
         {
           at: event.at,
-          cueId: narrativeActionCue(event.actionId),
+          cueId: narrativeActionCue(event),
           locationId: event.locationId,
         },
       ];
@@ -275,9 +315,9 @@ const projectEvent = (
 };
 
 const narrativeActionCue = (
-  actionId: Extract<GameEvent, { type: "narrative_action_executed" }>["actionId"],
+  event: Extract<GameEvent, { type: "narrative_action_executed" }>,
 ): PresentationCueId => {
-  switch (actionId) {
+  switch (event.actionId) {
     case "interact_with_living_room_clock":
       return "husband_interacts_clock";
     case "open_door_a_crack":
@@ -288,13 +328,24 @@ const narrativeActionCue = (
       return "wife_steps_inside_room";
     case "open_room_window":
       return "wife_opens_room_window";
+    case "say_one_honest_thing_to_elise":
+      switch (event.relationshipOutcomeId) {
+        case "practical_deflection":
+          return "relationship_talk_practical_deflection";
+        case "distance_acknowledged":
+          return "relationship_talk_distance_acknowledged";
+        case "one_truth_returned":
+          return "relationship_talk_one_truth_returned";
+        default:
+          throw new Error("Relationship Action event has no authored outcome");
+      }
   }
 };
 
 const routineCue = (
-  routineId: Extract<GameEvent, { type: "routine_executed" }>["routineId"],
+  event: Extract<GameEvent, { type: "routine_executed" }>,
 ): PresentationCueId => {
-  switch (routineId) {
+  switch (event.routineId) {
     case "husband_notices_slow_clock":
       return "living_room_clock_slow";
     case "husband_sits_on_sofa":
@@ -305,6 +356,34 @@ const routineCue = (
       return "husband_folds_sofa_throw";
     case "husband_turns_off_lights":
       return "husband_turns_off_lights";
+    case "husband_leaves_for_work":
+      return "husband_leaves_work";
+    case "wife_leaves_for_work":
+      return "wife_leaves_work";
+    case "wife_returns_from_work":
+      return "wife_returns_work";
+    case "husband_returns_from_work":
+      return "husband_returns_work";
+    case "husband_leaves_for_household_shopping":
+      return "husband_leaves_shopping";
+    case "wife_leaves_for_household_shopping":
+      return "wife_leaves_shopping";
+    case "wife_returns_with_groceries":
+      return "wife_returns_groceries";
+    case "husband_returns_with_groceries":
+      return "husband_returns_groceries";
+    case "husband_leaves_for_sunday_outing":
+      return "husband_leaves_sunday_outing";
+    case "wife_leaves_for_sunday_outing":
+      return "wife_leaves_sunday_outing";
+    case "wife_returns_from_sunday_outing":
+      return "wife_returns_sunday_outing";
+    case "husband_returns_from_sunday_outing":
+      return "husband_returns_sunday_outing";
+    case "husband_settles_at_dining_table":
+      return "husband_settles_at_dining_table";
+    case "wife_settles_at_dining_table":
+      return "wife_settles_at_dining_table";
     case "wife_drinks_water":
       return "wife_drinks";
     case "husband_walks_to_hallway_door":
@@ -316,7 +395,9 @@ const routineCue = (
     case "wife_takes_long_route_around_hall":
       return "wife_takes_long_route";
     case "husband_reaches_handle_without_turning":
-      return "husband_reaches_closed_handle";
+      return event.routineVariantId === "thumb_waits_beside_latch"
+        ? "husband_waits_beside_latch"
+        : "husband_reaches_closed_handle";
     case "husband_tests_window_latch":
       return "husband_tests_window_latch";
     case "wife_squares_hallway_runner":
@@ -324,11 +405,32 @@ const routineCue = (
     case "wife_observes_first_gap":
       return "wife_observes_first_gap";
     case "wife_stops_one_step_short":
-      return "wife_stops_one_step_short";
+      return event.routineVariantId === "hold_at_nearer_mark"
+        ? "wife_holds_at_nearer_mark"
+        : "wife_stops_one_step_short";
     case "wife_returns_to_boundary":
-      return "wife_returns_to_boundary";
+      return event.routineVariantId === "toe_aligns_with_line"
+        ? "wife_aligns_toe_with_boundary"
+        : event.routineVariantId === "forward_weight_settles_beside_line"
+          ? "wife_shifts_weight_toward_boundary"
+          : "wife_returns_to_boundary";
     case "wife_notices_closed_window":
-      return "wife_notices_closed_window";
+      return event.routineVariantId === "pause_within_window_reach"
+        ? "wife_pauses_within_window_reach"
+        : "wife_notices_closed_window";
+  }
+};
+
+const clockRoutineCue = (
+  variantId: string | undefined,
+): PresentationCueId => {
+  switch (variantId) {
+    case "linger_beneath_clock":
+      return "husband_lingers_beneath_clock";
+    case "touch_clock_frame":
+      return "husband_touches_clock_frame";
+    default:
+      return "husband_notices_clock";
   }
 };
 

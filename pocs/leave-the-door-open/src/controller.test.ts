@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createVerticalSliceGameController } from "./controller";
+import {
+  createVerticalSliceGameController,
+  VerticalSliceGameController,
+} from "./controller";
+import { createVerticalSliceWorld } from "./world";
 
 const DAY = 24 * 60;
 
@@ -18,6 +22,77 @@ function reachChapterDay2Handle(
 }
 
 describe("VerticalSliceGameController", () => {
+  // Spec: chapter-1.md LDO-CH1-017 and LDO-CH1-019. The deterministic
+  // no-model harness still uses the same Controller-owned default readiness.
+  it("commits the bounded relationship option with the authored guarded closure in the public harness", () => {
+    const controller = createVerticalSliceGameController();
+    controller.advanceTo(7 * 60 + 57);
+    controller.dispatch({ type: "pause_world" });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+    controller.dispatch({
+      type: "select_action_option",
+      optionId: "spend-time-with-clock",
+    });
+    controller.dispatch({ type: "resume_world" });
+    controller.advanceTo(DAY + 8 * 60 + 20);
+    controller.dispatch({ type: "pause_world" });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+
+    expect(controller.snapshot().interaction.availableActionOptionIds).toEqual([
+      "say-one-honest-thing",
+    ]);
+    controller.dispatch({
+      type: "select_action_option",
+      optionId: "say-one-honest-thing",
+    });
+
+    expect(controller.snapshot().world.intentions).toEqual([
+      {
+        actorId: "husband",
+        actionId: "say_one_honest_thing_to_elise",
+        relationshipOutcomeId: "practical_deflection",
+      },
+    ]);
+  });
+
+  // Spec: ADR 0029 LDO-TIME-001 and LDO-TIME-002.
+  it("uses a configurable turn window and stops earlier at a player-presentable event", async () => {
+    const controller = new VerticalSliceGameController(
+      createVerticalSliceWorld(),
+      null,
+      { maxTurnMinutes: 7 },
+    );
+    controller.advanceTo(7 * 60 + 57);
+    controller.dispatch({ type: "pause_world" });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+    controller.dispatch({
+      type: "select_action_option",
+      optionId: "spend-time-with-clock",
+    });
+    controller.dispatch({ type: "resume_world" });
+
+    const first = await controller.advanceTurn(DAY + 8 * 60 + 20);
+    const second = await controller.advanceTurn(DAY + 8 * 60 + 20);
+    const third = await controller.advanceTurn(DAY + 8 * 60 + 20);
+
+    expect(first).toEqual({ at: 7 * 60 + 59, reachedTarget: false });
+    expect(second).toEqual({ at: 8 * 60, reachedTarget: false });
+    expect(third).toEqual({ at: 8 * 60 + 7, reachedTarget: false });
+    expect(controller.snapshot().events.filter(({ at }) => at === 8 * 60)).toMatchObject([
+      {
+        type: "routine_executed",
+        actorId: "husband",
+        routineId: "husband_sits_on_sofa",
+      },
+      {
+        type: "routine_executed",
+        actorId: "wife",
+        routineId: "wife_drinks_water",
+      },
+      { type: "evidence_observed", observerId: "wife" },
+    ]);
+  });
+
   it("LDO-LOCAL-010 keeps the clock tutorial on its sole authored Husband focus", () => {
     const controller = createVerticalSliceGameController();
     controller.advanceTo(7 * 60 + 57);
@@ -47,7 +122,10 @@ describe("VerticalSliceGameController", () => {
       interaction: {
         mode: "paused",
         selectedNpcId: "husband",
-        availableActionOptionIds: ["open-door-a-crack"],
+        availableActionOptionIds: [
+          "open-door-a-crack",
+          "say-one-honest-thing",
+        ],
       },
     });
 

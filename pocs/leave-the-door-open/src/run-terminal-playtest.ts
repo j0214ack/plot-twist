@@ -18,6 +18,7 @@ import {
 import { StructuredModelConversationPorts } from "./structured-conversation-ports";
 import { StructuredModelPerformanceDirector } from "./structured-performance-director";
 import { TerminalPlaySession } from "./terminal-play-session";
+import { isGameLocale, type GameLocale } from "./localization";
 
 if (process.argv.includes("--help")) {
   console.log(`Leave the Door Open local playtest
@@ -34,7 +35,8 @@ Controls:
 
 Configuration:
   LDO_PLAY_MODEL   Codex model (default: gpt-5.6-luna)
-  LDO_PLAY_EFFORT  low or medium (default: low)
+  LDO_PLAY_EFFORT  low or medium (default: medium)
+  LDO_PLAY_LOCALE  en or zh-TW (default: en)
   LDO_PLAY_DISABLE_GENERATED_PERFORMANCE=1  use authored fallback staging
 
 This command uses saved ChatGPT Codex authentication. It does not load
@@ -47,15 +49,25 @@ const promptRoot = resolve(
   repositoryRoot,
   "pocs/leave-the-door-open/validation/prompts",
 );
-const [personaPrompt, actionJudgePrompt, performanceDirectorPrompt] = await Promise.all([
-  readFile(resolve(promptRoot, "persona-v7.md"), "utf8"),
+const [
+  inputFirewallPrompt,
+  personaPrompt,
+  memorySelectorPrompt,
+  actionJudgePrompt,
+  performanceDirectorPrompt,
+] = await Promise.all([
+  readFile(resolve(promptRoot, "input-firewall-v1.md"), "utf8"),
+  readFile(resolve(promptRoot, "persona-v9.md"), "utf8"),
+  readFile(resolve(promptRoot, "memory-selector-v1.md"), "utf8"),
   readFile(resolve(promptRoot, "action-judge-v4.md"), "utf8"),
   readFile(resolve(promptRoot, "performance-director-v1.md"), "utf8"),
 ]);
 const modelName = process.env.LDO_PLAY_MODEL ?? "gpt-5.6-luna";
 const reasoningEffort = parseReasoningEffort(
-  process.env.LDO_PLAY_EFFORT ?? "low",
+  process.env.LDO_PLAY_EFFORT ?? "medium",
 );
+const inputFirewallReasoningEffort = "low" as const;
+const locale = parseLocale(process.env.LDO_PLAY_LOCALE ?? "en");
 const sessionId = parseSessionId(
   process.env.LDO_PLAY_SESSION_ID ?? createSessionId(),
 );
@@ -74,32 +86,55 @@ journal.recorder.record({
   data: {
     model: modelName,
     reasoningEffort,
-    personaPrompt: "persona-v7.md",
+    inputFirewallReasoningEffort,
+    inputFirewallPrompt: "input-firewall-v1.md",
+    personaPrompt: "persona-v9.md",
+    memorySelectorPrompt: "memory-selector-v1.md",
     actionJudgePrompt: "action-judge-v4.md",
     performanceDirectorPrompt: "performance-director-v1.md",
     generatedPerformance,
+    locale,
   },
 });
+const codexClient = new LocalCodexExecClient();
 const model = new RecordingStructuredRoleModel(
-  new CodexExecStructuredRoleModel(
-    new LocalCodexExecClient(),
-    { model: modelName, reasoningEffort },
-  ),
+  new CodexExecStructuredRoleModel(codexClient, {
+    model: modelName,
+    reasoningEffort,
+  }),
   journal.recorder,
 );
-const ports = new StructuredModelConversationPorts(model, {
-  persona: personaPrompt,
-  actionJudge: actionJudgePrompt,
-});
+const inputFirewallModel = new RecordingStructuredRoleModel(
+  new CodexExecStructuredRoleModel(codexClient, {
+    model: modelName,
+    reasoningEffort: inputFirewallReasoningEffort,
+  }),
+  journal.recorder,
+);
+const ports = new StructuredModelConversationPorts(
+  model,
+  {
+    inputFirewall: inputFirewallPrompt,
+    persona: personaPrompt,
+    memorySelector: memorySelectorPrompt,
+    actionJudge: actionJudgePrompt,
+  },
+  { inputFirewallModel },
+);
 const performanceDirector = new StructuredModelPerformanceDirector(
   model,
   performanceDirectorPrompt,
 );
-const controller = createConversationalVerticalSliceGameController({
-  persona: ports,
-  actionJudge: ports,
-  ...(generatedPerformance ? { performanceDirector } : {}),
-});
+const controller = createConversationalVerticalSliceGameController(
+  {
+    inputFirewall: ports,
+    persona: ports,
+    memorySelector: ports,
+    actionJudge: ports,
+    ...(generatedPerformance ? { performanceDirector } : {}),
+  },
+  { locale },
+);
 const terminalOutput = createRecordingTerminalOutput(
   journal.recorder,
   (screen) => {
@@ -167,6 +202,13 @@ function parseReasoningEffort(value: string): LiveReasoningEffort {
     throw new Error(
       `LDO_PLAY_EFFORT must be low or medium; received ${value}`,
     );
+  }
+  return value;
+}
+
+function parseLocale(value: string): GameLocale {
+  if (!isGameLocale(value)) {
+    throw new Error(`LDO_PLAY_LOCALE must be en or zh-TW; received ${value}`);
   }
   return value;
 }

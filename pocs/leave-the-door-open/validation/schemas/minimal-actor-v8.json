@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "reply": { "type": "string" },
+    "should_end_conversation": { "type": "boolean" }
+  },
+  "required": ["reply", "should_end_conversation"],
+  "additionalProperties": false
+}

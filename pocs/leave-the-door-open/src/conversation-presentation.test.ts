@@ -62,6 +62,53 @@ const surfacingPorts: ConversationPorts = {
 };
 
 describe("conversation UI projection", () => {
+  // Spec: ADR 0023 LDO-FW-007.
+  it("projects and intentionally renders guarded silence", async () => {
+    const guardedPorts: ConversationPorts = {
+      firewallResponseChoice: {
+        choose({ candidateResponseIds }) {
+          return candidateResponseIds[0]!;
+        },
+      },
+      inputFirewall: {
+        async classify() {
+          return { disposition: "protected_biography_probe" as const };
+        },
+      },
+      persona: {
+        async takeTurn() {
+          throw new Error("Persona should not run");
+        },
+      },
+      actionJudge: {
+        async judgeMindStateTransition() {
+          throw new Error("Transition Judge should not run");
+        },
+        async judgeAwareness() {
+          throw new Error("Awareness Judge should not run");
+        },
+        async judgeWillingness() {
+          throw new Error("Willingness Judge should not run");
+        },
+      },
+    };
+    const controller = createControllerAtChapterDay2Handle(guardedPorts);
+    controller.dispatch({ type: "pause_world" });
+    controller.dispatch({ type: "select_npc", npcId: "husband" });
+
+    for (const text of ["first probe", "second probe", "third probe"]) {
+      await controller.dispatch({ type: "submit_dialogue", text });
+    }
+
+    const ui = projectGame(controller.snapshot()).ui;
+    expect(ui.conversation.messages.at(-1)).toEqual({
+      speaker: "persona",
+      text: "…",
+      delivery: "silence",
+    });
+    expect(renderUIText(ui)).toContain("Martin: …");
+  });
+
   it("LDO-CH1-008 LDO-HPT-004 renders dialogue and a neutral option without private orchestration state", async () => {
     const controller = createControllerAtChapterDay2Handle(surfacingPorts);
     controller.dispatch({ type: "pause_world" });
@@ -74,6 +121,7 @@ describe("conversation UI projection", () => {
 
     const ui = projectGame(controller.snapshot()).ui;
     expect(ui).toEqual({
+      locale: "en",
       mode: "paused",
       selectedActor: { id: "husband", label: "Martin" },
       conversation: {
@@ -93,6 +141,10 @@ describe("conversation UI projection", () => {
       },
       actionOptions: [
         { optionId: "open-door-a-crack", label: "Open the door just a little." },
+        {
+          optionId: "say-one-honest-thing",
+          label: "Try to say one honest thing to Elise.",
+        },
       ],
     });
     expect(renderUIText(ui)).toBe(
@@ -103,6 +155,7 @@ describe("conversation UI projection", () => {
         "Martin: I could open only a narrow gap and then walk away.",
         "Possibilities:",
         "1. Open the door just a little.",
+        "2. Try to say one honest thing to Elise.",
       ].join("\n"),
     );
 
@@ -113,6 +166,7 @@ describe("conversation UI projection", () => {
 
   it("LDO-HPT-004 renders pending and safe error states", () => {
     const baseView: UIView = {
+      locale: "en",
       mode: "paused",
       selectedActor: { id: "husband", label: "Martin" },
       conversation: {
